@@ -31,6 +31,7 @@ import std.stdio;
 import std.file: write, readText;
 import std.bitmanip;
 import std.path;
+import std.getopt;
 
 import mips;
 import ir;
@@ -43,22 +44,55 @@ import linker;
 
 int main(string[] args)
 {
-    if (args.length < 2)
+    string outputFile = "PSX.EXE";
+
+    try
     {
-        writeln("Usage: rlc program.s/program.r");
+        auto helpInformation = getopt(
+            args,
+            "output|o", "Output file name (default is PSX.EXE)", &outputFile
+        );
+
+        if (helpInformation.helpWanted) {
+            defaultGetoptPrinter("Usage: rlc [options] <input_file>", helpInformation.options);
+            return 0;
+        }
+    } 
+    catch (GetOptException e)
+    {
+        stderr.writefln("Arguments error: %s", e.msg);
         return 1;
     }
-    
+
+    if (args.length < 2)
+    {
+        stderr.writeln("Ошибка: Не указан входной файл.");
+        stderr.writeln("Использование: rlc [options] <input_file>");
+        return 1;
+    }
+
     string filename = args[1];
-    string sourceCode = readText(filename);
-    
+    string sourceCode;
+
+    try
+    {
+        sourceCode = readText(filename);
+    } 
+    catch (Exception e)
+    {
+        stderr.writefln("Error reading file %s: %s", filename, e.msg);
+        return 1;
+    }
+
     Assembly ass;
-    if (extension(filename) == ".s")
+    string ext = extension(filename);
+
+    if (ext == ".s")
     {
         writefln("Assembling %s...", filename);
         ass = parseAsm(sourceCode);
-    }
-    else if (extension(filename) == ".r")
+    } 
+    else if (ext == ".r")
     {
         writefln("Compiling %s...", filename);
         string processedCode = preprocess(sourceCode);
@@ -66,24 +100,23 @@ int main(string[] args)
             ass = compile(processedCode);
         else
             return 1;
-    }
+    } 
     else
     {
-        writefln("Unknown extension of %s", filename);
+        stderr.writefln("Unknown extension of %s", filename);
         return 1;
     }
-    
+
     writeln("Linking...");
     ubyte[] exeCode;
-    if (!link(ass, false, exeCode))
-        return 1;
-    
+    if (!link(ass, false, exeCode)) return 1;
+
     // Generate PS-X EXE and save to file
-    writeln("Writing PSX.EXE...");
+    writefln("Generating executable (%s)...", outputFile);
     PsxExe exe = new PsxExe(exeCode, 0);
-    write("iso/PSX.EXE", exe.binary);
+    
+    write(outputFile, exe.binary); 
     
     writeln("Success!");
-    
     return 0;
 }
