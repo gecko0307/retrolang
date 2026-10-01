@@ -1,0 +1,9 @@
+{
+    "name": "rlc",
+    "description": "Retrolang Compiler",
+    "authors": [
+        "Timur Gafarov"
+    ],
+    "copyright": "Copyright © 2025, gecko",
+    "license": "BSL-1.0"
+}
