@@ -1,2 +1,2 @@
 @echo off
-"../../rlc/rlc.exe" -o iso/PSX.EXE gamepad.r
+"../../rlc/rlc.exe" -o iso/PSX.EXE src/main.r
