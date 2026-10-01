@@ -49,6 +49,6 @@ char hello[] = "Hello!";
 ```c
 void main()
 {
-    bios_a(0x3F, "Hello, World!\n");`
+    bios_a(0x3F, "Hello, World!\n");
 }
 ```
