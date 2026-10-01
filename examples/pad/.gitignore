@@ -1,4 +1,6 @@
-run.bat
 build/*
 iso/*
 licenses/*
+*.exe
+*.dll
+run.bat
