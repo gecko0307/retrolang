@@ -1,0 +1,9 @@
+build/*
+iso/*
+licenses/*
+*.exe
+*.dll
+*.bin
+*.que
+*.dat
+run.bat

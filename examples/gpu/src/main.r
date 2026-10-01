@@ -1,0 +1,163 @@
+/**
+ * GPU test.
+ * Fills the screen with a solid color and draws a rectangle.
+ */
+
+#include "pad.ri"
+
+#define VMODE_NTSC  0
+#define VMODE_PAL   1
+#define VMODE_AUTO  2
+
+#define ENV_W256 0
+#define ENV_W320 1
+#define ENV_W512 2
+#define ENV_W640 3
+#define ENV_W384 64
+#define ENV_H240 0
+#define ENV_H480 4
+
+int* gp0 = 0x1f801810;
+int* gp1 = 0x1f801814;
+
+#define clipX 0
+#define clipY 0
+#define clipW 319
+#define clipH 239
+
+#define dispX 0
+#define dispY 0
+#define dispW 320
+#define dispH 240
+
+#define intl 0
+#define vram 0
+
+// 0: NTSC, 1: PAL
+uint __videoMode = 1;
+
+int screenX = 0;
+int screenY = 0;
+
+//
+void gpuInit()
+{
+    if (__videoMode == VMODE_PAL)
+        screenY = 23;
+    
+    // Reset GPU
+    *gp1 = 0x00000000;
+    
+    // Enable linked-list DMA transfer
+    //gp1 = 0x04000002;
+    
+    // Enable DMA channel 2
+    //d_pcr |= 0x0800;
+    
+    // Drawing mode bits
+    *gp0 = 0xe1000200;
+    
+    // Texture window settings
+    *gp0 = 0xe2000000;
+    
+    // Clip area
+    *gp0 = 0xe3000000 | clipY << 10 | clipX;
+    *gp0 = 0xe4000000 | ((clipH + clipY) << 10 | (clipW + clipX));
+    
+    // Drawing offset
+    *gp0 = 0xe5000000;
+    
+    // Mask settings
+    *gp0 = 0xe6000000;
+    
+    // Display offset
+    *gp1 = 0x05000000 | (dispY << 10) | (dispX & 0xffff);
+
+    // Horizontal screen start/end
+    int x0 = screenX * 10 + 608;
+    int x1 = ((screenX + 256) * 10) + 608;
+    *gp1 = 0x06000000 | x1 << 12 | x0;
+    
+    // Vertical screen start/end
+    int y0 = screenY + 16 + (3 * __videoMode);
+    int y1 = y0 + 240;
+    *gp1 = 0x07000000 | y1 << 10 | y0;
+
+         if (dispW == 256) x0 = ENV_W256;
+    else if (dispW == 384) x0 = ENV_W384;
+    else if (dispW == 512) x0 = ENV_W512;
+    else if (dispW == 640) x0 = ENV_W640;
+    else                   x0 = ENV_W320;
+    
+    y0 = ENV_H240;
+    if (dispH == 480)
+        y0 = ENV_H480;
+    
+    uchar isInter = (intl & 0x01) << 5;
+    uchar isRGB24 = (vram & 0x01) << 4;
+    
+    *gp1 = 0x08000000 | x0 | y0 | isInter | isRGB24 | (__videoMode << 3);
+    
+    // Enable display
+    *gp1 = 0x03000000;
+}
+
+//
+void gpuWaitReady()
+{
+    while ((*gp1 & (1 << 28)) == 0);
+}
+
+// Current BGR color used to draw primitives.
+int gpuColor = 0;
+
+// Clears the screen with the current color.
+void gpuClear()
+{
+    gpuWaitReady();
+    *gp0 = 0x02000000 | gpuColor;
+    *gp0 = 0;
+    *gp0 = (dispH << 16) | dispW;
+}
+
+// Fast rectangle filling command.
+// GP0(02h) rounds down the x-coordinate to the nearest multiple of 16.
+// The with is rounded up to a multiple of 16 pixels.
+void gpuFillRect16(int x, int y, int w, int h)
+{
+    gpuWaitReady();
+    *gp0 = 0x02000000 | gpuColor;
+    *gp0 = (y << 16) | x;
+    *gp0 = (h << 16) | w;
+}
+
+// Arbitrary rectangle filling command.
+void gpuFillRect(int x, int y, int w, int h)
+{
+    gpuWaitReady();
+    *gp0 = 0x60000000 | gpuColor;
+    *gp0 = (y << 16) | x;
+    *gp0 = (h << 16) | w;
+}
+
+void main()
+{
+    gpuInit();
+    padInit();
+    
+    gpuWaitReady();
+
+    // Fills the screen with blue color
+    gpuColor = 0xFF0000;
+    gpuClear();
+
+    // Draws a red 100x100 rectangle
+    gpuColor = 0x0000FF;
+    gpuFillRect(10, 10, 100, 100);
+
+    while(1)
+    {
+        padWaitVSync();
+        int pad1 = padRead1();
+    }
+}
