@@ -22,8 +22,8 @@ int* gp1 = 0x1f801814;
 
 #define clipX 0
 #define clipY 0
-#define clipW 319
-#define clipH 239
+#define clipW 320
+#define clipH 240
 
 #define dispX 0
 #define dispY 0
@@ -48,10 +48,10 @@ void gpuInit()
     // Reset GPU
     *gp1 = 0x00000000;
     
-    // Enable linked-list DMA transfer
+    // Enable linked-list DMA transfer (TODO)
     //gp1 = 0x04000002;
     
-    // Enable DMA channel 2
+    // Enable DMA channel 2 (TODO)
     //d_pcr |= 0x0800;
     
     // Drawing mode bits
@@ -62,7 +62,7 @@ void gpuInit()
     
     // Clip area
     *gp0 = 0xe3000000 | clipY << 10 | clipX;
-    *gp0 = 0xe4000000 | ((clipH + clipY) << 10 | (clipW + clipX));
+    *gp0 = 0xe4000000 | ((clipH - 1 + clipY) << 10 | (clipW - 1 + clipX));
     
     // Drawing offset
     *gp0 = 0xe5000000;
@@ -105,7 +105,7 @@ void gpuInit()
 //
 void gpuWaitReady()
 {
-    while ((*gp1 & (1 << 28)) == 0);
+    while ((*gp1 & (1 << 28)) == 0) {}
 }
 
 // Current BGR color used to draw primitives.
@@ -153,7 +153,7 @@ void main()
 
     // Draws a red 100x100 rectangle
     gpuColor = 0x0000FF;
-    gpuFillRect(10, 10, 100, 100);
+    gpuFillRect(0, 0, 100, 100);
 
     while(1)
     {
