@@ -42,6 +42,7 @@ class Expr
     Expr[] args;    // Call
     CType ty;       // Cast target
     bool post;      // IncDec: postfix form
+    bool uns;       // Num: unsigned literal
 
     this(EK k, int ln)
     {
@@ -92,13 +93,13 @@ class Func
     CType ret;
     string name;
     Param[] params;
-    Stmt body_; // null for a prototype
+    Stmt body_;     // null for a prototype
     int line;
 }
 
 class GlobalDecl
 {
-    CType ty; // element type for arrays
+    CType ty;           // element type for arrays
     string name;
     int line;
     bool isArray;

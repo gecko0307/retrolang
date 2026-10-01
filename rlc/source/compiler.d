@@ -39,18 +39,22 @@ DEALINGS IN THE SOFTWARE.
  *
  * Language summary
  * ----------------
- *   Types      : int (32), short (16), char (8), void, and pointers to them. All signed.
+ *   Types      : int/short/char, uint/ushort/uchar (also unsigned [int|short|char]),
+ *                void, and pointers to them. Pointers compare as unsigned.
+ *                Literals above 0x7FFFFFFF, or with a 'u' suffix, are unsigned.
+ *                Like C, uchar/ushort promote to (signed) int in arithmetic; only uint
+ *                makes / % >> and comparisons unsigned.
  *   Globals    : scalars and arrays with constant initializers, e.g.
  *                    int x = 5;   int t[4] = {1,2,3,4};   char s[] = "hi";
  *   Locals     : scalars and (uninitialized) arrays.
  *   Statements : if/else, while, do-while, for, break, continue, return, blocks.
  *   Operators  : C precedence, minus the ternary and comma operators.
  *                + - * / % & | ^ << >> ~ ! && || == != < <= > >= = op= ++ -- * & [] () casts.
- *   Calls      : up to 4 arguments (passed in $a0-$a3), result in $v0.
+ *   Calls      : up to 4 arguments / parameters (passed in $a0-$a3), result in $v0.
  *   Builtins   : bios_a(n, ...), bios_b(n, ...), bios_c(n, ...) call BIOS function n
  *                through the A0h / B0h / C0h vectors (up to 3 further arguments).
  *                e.g. bios_a(0x3F, "x=%d\n", x)  ->  printf
- *   Entry      : main(), started from a stub that sets $sp.
+ *   Entry      : main(), started from a small stub that sets $sp.
  *
  * Code generation notes
  * ---------------------

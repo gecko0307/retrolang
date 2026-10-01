@@ -47,6 +47,9 @@ struct Token
     string text;
     long num;
     int line;
+    
+    /// Num: unsigned literal
+    bool uns;
 }
 
 immutable string[] syms2 = [
@@ -68,8 +71,8 @@ bool inList(string s, const(string)[] list)
 
 bool isReserved(string s)
 {
-    return inList(s, ["int", "short", "char", "void", "if", "else", "while",
-                      "do", "for", "return", "break", "continue"]);
+    return inList(s, ["int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned",
+                      "if", "else", "while", "do", "for", "return", "break", "continue"]);
 }
 
 Token[] lex(string src)
@@ -125,12 +128,22 @@ Token[] lex(string src)
             while (i < src.length && isAlphaNum(src[i]))
                 i++;
             string t = src[s .. i];
+            bool uns = false;
+            if (t.length > 1 && (t[$ - 1] == 'u' || t[$ - 1] == 'U'))
+            {
+                uns = true;
+                t = t[0 .. $ - 1];
+            }
             long v = 0;
             try
                 v = parseInt(t);
             catch (Exception ex)
                 throw err(line, "bad number '" ~ t ~ "'");
-            toks ~= Token(TK.Num, t, cast(int) v, line);
+            if (v > 0xFFFFFFFFL)
+                throw err(line, "number too large for 32 bits: " ~ t);
+            if (v > 0x7FFFFFFFL)
+                uns = true;
+            toks ~= Token(TK.Num, t, cast(int) v, line, uns);
             continue;
         }
 

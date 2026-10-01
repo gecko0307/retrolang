@@ -95,7 +95,7 @@ int main(string[] args)
     else if (ext == ".r")
     {
         writefln("Compiling %s...", filename);
-        string processedCode = preprocess(sourceCode);
+        string processedCode = preprocess(sourceCode, filename);
         if (processedCode.length > 0)
             ass = compile(processedCode);
         else

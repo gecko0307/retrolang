@@ -40,6 +40,29 @@ long wrap32(long v)
     return cast(int) v;
 }
 
+// Is a constant expression unsigned (C rules, 32-bit)?
+bool constUns(Expr e)
+{
+    if (e.kind == EK.Num)
+        return e.uns;
+    if (e.kind == EK.Unary && (e.op == "-" || e.op == "~"))
+        return constUns(e.a);
+    if (e.kind == EK.Binary)
+    {
+        switch (e.op)
+        {
+            case "+": case "-": case "*": case "/": case "%":
+            case "&": case "|": case "^":
+                return constUns(e.a) || constUns(e.b);
+            case "<<": case ">>":
+                return constUns(e.a);
+            default:
+                return false;
+        }
+    }
+    return false;
+}
+
 bool constEval(Expr e, out long v)
 {
     v = 0;
@@ -71,24 +94,28 @@ bool constEval(Expr e, out long v)
         long a, b;
         if (!constEval(e.a, a) || !constEval(e.b, b))
             return false;
+        bool ua = constUns(e.a);
+        bool ub = constUns(e.b);
+        uint x = cast(uint) a;
+        uint y = cast(uint) b;
         switch (e.op)
         {
             case "+":  v = wrap32(a + b); return true;
             case "-":  v = wrap32(a - b); return true;
             case "*":  v = wrap32(a * b); return true;
-            case "/":  if (b == 0) return false; v = wrap32(a / b); return true;
-            case "%":  if (b == 0) return false; v = wrap32(a % b); return true;
+            case "/":  if (b == 0) return false; v = (ua || ub) ? wrap32(x / y) : wrap32(a / b); return true;
+            case "%":  if (b == 0) return false; v = (ua || ub) ? wrap32(x % y) : wrap32(a % b); return true;
             case "&":  v = wrap32(a & b); return true;
             case "|":  v = wrap32(a | b); return true;
             case "^":  v = wrap32(a ^ b); return true;
             case "<<": if (b < 0 || b > 31) return false; v = wrap32(a << b); return true;
-            case ">>": if (b < 0 || b > 31) return false; v = a >> b; return true;
+            case ">>": if (b < 0 || b > 31) return false; v = ua ? wrap32(x >> b) : (a >> b); return true;
             case "==": v = (a == b) ? 1 : 0; return true;
             case "!=": v = (a != b) ? 1 : 0; return true;
-            case "<":  v = (a < b) ? 1 : 0; return true;
-            case "<=": v = (a <= b) ? 1 : 0; return true;
-            case ">":  v = (a > b) ? 1 : 0; return true;
-            case ">=": v = (a >= b) ? 1 : 0; return true;
+            case "<":  v = ((ua || ub) ? (x < y) : (a < b)) ? 1 : 0; return true;
+            case "<=": v = ((ua || ub) ? (x <= y) : (a <= b)) ? 1 : 0; return true;
+            case ">":  v = ((ua || ub) ? (x > y) : (a > b)) ? 1 : 0; return true;
+            case ">=": v = ((ua || ub) ? (x >= y) : (a >= b)) ? 1 : 0; return true;
             case "&&": v = (a != 0 && b != 0) ? 1 : 0; return true;
             case "||": v = (a != 0 || b != 0) ? 1 : 0; return true;
             default:   return false;
@@ -97,6 +124,10 @@ bool constEval(Expr e, out long v)
 
     return false;
 }
+
+// ---------------------------------------------------------------------------
+// Parser
+// ---------------------------------------------------------------------------
 
 immutable string[][] binLevels = [
     ["||"], ["&&"], ["|"], ["^"], ["&"],
@@ -172,7 +203,7 @@ class Parser
     {
         Token t = peek(k);
         return t.kind == TK.Ident &&
-               (t.text == "int" || t.text == "short" || t.text == "char" || t.text == "void");
+               inList(t.text, ["int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned"]);
     }
 
     CType parseBaseType()
@@ -185,6 +216,25 @@ class Parser
             case "short": ty.base = Base.Short; break;
             case "char":  ty.base = Base.Char; break;
             case "void":  ty.base = Base.Void; break;
+            case "uint":   ty.base = Base.Int;   ty.uns = true; break;
+            case "ushort": ty.base = Base.Short; ty.uns = true; break;
+            case "uchar":  ty.base = Base.Char;  ty.uns = true; break;
+            case "unsigned":
+                ty.base = Base.Int;
+                ty.uns = true;
+                if (isKw("int"))
+                    next();
+                else if (isKw("short"))
+                {
+                    next();
+                    ty.base = Base.Short;
+                }
+                else if (isKw("char"))
+                {
+                    next();
+                    ty.base = Base.Char;
+                }
+                break;
             default: throw err(t.line, format("expected a type but found '%s'", t.text));
         }
         return ty;
@@ -627,7 +677,11 @@ class Parser
     {
         Token t = next();
         if (t.kind == TK.Num)
-            return numExpr(t.num, t.line);
+        {
+            auto ne = numExpr(t.num, t.line);
+            ne.uns = t.uns;
+            return ne;
+        }
         if (t.kind == TK.Str)
         {
             auto e = new Expr(EK.Str, t.line);

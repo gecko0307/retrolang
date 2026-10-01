@@ -242,7 +242,12 @@ class CodeGen
     void emitLoad(CType ty, Reg rt, long off, Reg base)
     {
         int sz = ty.size();
-        mem(sz == 4 ? Op.LW : (sz == 2 ? Op.LH : Op.LB), rt, off, base);
+        Op lop = Op.LW;
+        if (sz == 2)
+            lop = ty.uns ? Op.LHU : Op.LH;
+        else if (sz == 1)
+            lop = ty.uns ? Op.LBU : Op.LB;
+        mem(lop, rt, off, base);
         nop(); // load delay slot
     }
 
@@ -259,13 +264,27 @@ class CodeGen
             return;
         if (ty.base == Base.Char)
         {
-            rri(Op.SLL, r, r, 24);
-            rri(Op.SRA, r, r, 24);
+            if (ty.uns)
+            {
+                rri(Op.ANDI, r, r, 0xFF);
+            }
+            else
+            {
+                rri(Op.SLL, r, r, 24);
+                rri(Op.SRA, r, r, 24);
+            }
         }
         else if (ty.base == Base.Short)
         {
-            rri(Op.SLL, r, r, 16);
-            rri(Op.SRA, r, r, 16);
+            if (ty.uns)
+            {
+                rri(Op.ANDI, r, r, 0xFFFF);
+            }
+            else
+            {
+                rri(Op.SLL, r, r, 16);
+                rri(Op.SRA, r, r, 16);
+            }
         }
     }
 
@@ -410,7 +429,7 @@ class CodeGen
         switch (e.kind)
         {
             case EK.Num:
-                return CType(Base.Int, 0);
+                return CType(Base.Int, 0, e.uns);
 
             case EK.Str:
                 return CType(Base.Char, 1);
@@ -439,7 +458,10 @@ class CodeGen
                         return typeOf(e.a);
                     return typeOf(e.a).addr();
                 }
-                return CType(Base.Int, 0);
+                if (e.op == "!")
+                    return CType(Base.Int, 0);
+                // - and ~ : promoted operand type
+                return isUint(typeOf(e.a)) ? CType(Base.Int, 0, true) : CType(Base.Int, 0);
             }
 
             case EK.Binary:
@@ -455,7 +477,11 @@ class CodeGen
                 {
                     if (lt.isPtr && !rt.isPtr) return lt;
                 }
-                return CType(Base.Int, 0);
+                if (inList(e.op, ["==", "!=", "<", "<=", ">", ">=", "&&", "||"]))
+                    return CType(Base.Int, 0);
+                if (e.op == "<<" || e.op == ">>")
+                    return isUint(lt) ? CType(Base.Int, 0, true) : CType(Base.Int, 0);
+                return (isUint(lt) || isUint(rt)) ? CType(Base.Int, 0, true) : CType(Base.Int, 0);
             }
 
             case EK.Assign:
@@ -722,7 +748,8 @@ class CodeGen
             string bop = e.op[0 .. $ - 1];
             long rscale = (lv.ty.isPtr && (bop == "+" || bop == "-")) ? elemSize(lv.ty) : 1;
             Val cur = loadLV(lv, -1, true);
-            res = binopRhs(bop, cur, e.b, rscale, isReg ? lv.reg : -1);
+            res = binopRhs(bop, cur, e.b, rscale, isReg ? lv.reg : -1,
+                           opUnsigned(bop, lv.ty, typeOf(e.b)));
             if (isReg)
             {
                 if (res.r != lv.reg)
@@ -838,9 +865,16 @@ class CodeGen
         if (!e.ty.isPtr && (e.ty.base == Base.Char || e.ty.base == Base.Short))
         {
             Val d = dest1(want, v);
-            int sh = (e.ty.base == Base.Char) ? 24 : 16;
-            rri(Op.SLL, d.r, v.r, sh);
-            rri(Op.SRA, d.r, d.r, sh);
+            if (e.ty.uns)
+            {
+                rri(Op.ANDI, d.r, v.r, (e.ty.base == Base.Char) ? 0xFF : 0xFFFF);
+            }
+            else
+            {
+                int sh = (e.ty.base == Base.Char) ? 24 : 16;
+                rri(Op.SLL, d.r, v.r, sh);
+                rri(Op.SRA, d.r, d.r, sh);
+            }
             return d;
         }
         return v;
@@ -870,7 +904,8 @@ class CodeGen
         if (lscale > 1)
             l = scaleVal(l, cast(int) lscale);
 
-        Val res = binopRhs(e.op, l, e.b, rscale, ptrDiff ? -1 : want);
+        bool uns = opUnsigned(e.op, lt, rt);
+        Val res = binopRhs(e.op, l, e.b, rscale, ptrDiff ? -1 : want, uns);
 
         if (ptrDiff)
         {
@@ -887,7 +922,7 @@ class CodeGen
 
     // Evaluate `l op rhs` where l is already evaluated. rscale scales the
     // right operand (pointer arithmetic).
-    Val binopRhs(string op, Val l, Expr rhs, long rscale, int want)
+    Val binopRhs(string op, Val l, Expr rhs, long rscale, int want, bool uns)
     {
         long c;
         if (constEval(rhs, c))
@@ -914,13 +949,13 @@ class CodeGen
             if ((op == "<<" || op == ">>") && cs >= 0 && cs < 32)
             {
                 Val d = dest1(want, l);
-                rri(op == "<<" ? Op.SLL : Op.SRA, d.r, l.r, cs);
+                rri(op == "<<" ? Op.SLL : (uns ? Op.SRL : Op.SRA), d.r, l.r, cs);
                 return d;
             }
             if (op == "<" && fits16(cs))
             {
                 Val d = dest1(want, l);
-                rri(Op.SLTI, d.r, l.r, cs);
+                rri(uns ? Op.SLTIU : Op.SLTI, d.r, l.r, cs);
                 return d;
             }
             if (op == "*" && cs > 1 && isPow2(cs))
@@ -929,15 +964,27 @@ class CodeGen
                 rri(Op.SLL, d.r, l.r, log2i(cs));
                 return d;
             }
+            if (op == "/" && uns && cs > 1 && isPow2(cs))
+            {
+                Val d = dest1(want, l);
+                rri(Op.SRL, d.r, l.r, log2i(cs));
+                return d;
+            }
+            if (op == "%" && uns && cs > 1 && isPow2(cs) && cs - 1 <= 0xFFFF)
+            {
+                Val d = dest1(want, l);
+                rri(Op.ANDI, d.r, l.r, cs - 1);
+                return d;
+            }
         }
 
         Val r = genExpr(rhs);
         if (rscale > 1)
             r = scaleVal(r, cast(int) rscale);
-        return emitBin(op, l, r, want);
+        return emitBin(op, l, r, want, uns);
     }
 
-    Val emitBin(string op, Val l, Val r, int want)
+    Val emitBin(string op, Val l, Val r, int want, bool uns)
     {
         Val d = dest2(want, l, r);
         Reg a = l.r;
@@ -953,26 +1000,26 @@ class CodeGen
                 emit(Op.MFLO, makeReg(x), makeNone(), makeNone());
                 break;
             case "/":
-                emit(Op.DIV, makeReg(a), makeReg(b), makeNone());
+                emit(uns ? Op.DIVU : Op.DIV, makeReg(a), makeReg(b), makeNone());
                 emit(Op.MFLO, makeReg(x), makeNone(), makeNone());
                 break;
             case "%":
-                emit(Op.DIV, makeReg(a), makeReg(b), makeNone());
+                emit(uns ? Op.DIVU : Op.DIV, makeReg(a), makeReg(b), makeNone());
                 emit(Op.MFHI, makeReg(x), makeNone(), makeNone());
                 break;
             case "&":  rrr(Op.AND, x, a, b); break;
             case "|":  rrr(Op.OR, x, a, b); break;
             case "^":  rrr(Op.XOR, x, a, b); break;
             case "<<": rrr(Op.SLLV, x, a, b); break;
-            case ">>": rrr(Op.SRAV, x, a, b); break;
-            case "<":  rrr(Op.SLT, x, a, b); break;
-            case ">":  rrr(Op.SLT, x, b, a); break;
+            case ">>": rrr(uns ? Op.SRLV : Op.SRAV, x, a, b); break;
+            case "<":  rrr(uns ? Op.SLTU : Op.SLT, x, a, b); break;
+            case ">":  rrr(uns ? Op.SLTU : Op.SLT, x, b, a); break;
             case "<=":
-                rrr(Op.SLT, x, b, a);
+                rrr(uns ? Op.SLTU : Op.SLT, x, b, a);
                 rri(Op.XORI, x, x, 1);
                 break;
             case ">=":
-                rrr(Op.SLT, x, a, b);
+                rrr(uns ? Op.SLTU : Op.SLT, x, a, b);
                 rri(Op.XORI, x, x, 1);
                 break;
             case "==":
@@ -1063,7 +1110,8 @@ class CodeGen
             }
             if (op == "==" || op == "!=" || op == "<" || op == "<=" || op == ">" || op == ">=")
             {
-                genCmpBranch(jumpIfTrue ? op : invertCmp(op), e.a, e.b, target);
+                bool uns = opUnsigned(op, typeOf(e.a), typeOf(e.b));
+                genCmpBranch(jumpIfTrue ? op : invertCmp(op), e.a, e.b, target, uns);
                 return;
             }
         }
@@ -1074,14 +1122,30 @@ class CodeGen
     }
 
     // Jump to target if `a op b` holds.
-    void genCmpBranch(string op, Expr a, Expr b, string target)
+    void genCmpBranch(string op, Expr a, Expr b, string target, bool uns)
     {
         long c;
         if (constEval(b, c) && c == 0 && (op == "<" || op == "<=" || op == ">" || op == ">="))
         {
             Val z = genExpr(a);
-            Op bop = (op == "<") ? Op.BLTZ : (op == "<=") ? Op.BLEZ : (op == ">") ? Op.BGTZ : Op.BGEZ;
-            branch1(bop, z.r, target);
+            if (!uns)
+            {
+                Op bop = (op == "<") ? Op.BLTZ : (op == "<=") ? Op.BLEZ : (op == ">") ? Op.BGTZ : Op.BGEZ;
+                branch1(bop, z.r, target);
+            }
+            else if (op == ">=")
+            {
+                jump(target);                       // unsigned x >= 0 is always true
+            }
+            else if (op == ">")
+            {
+                branch2(Op.BNE, z.r, R0, target);   // x > 0  <=>  x != 0
+            }
+            else if (op == "<=")
+            {
+                branch2(Op.BEQ, z.r, R0, target);   // x <= 0  <=>  x == 0
+            }
+            // unsigned x < 0 is never true: no branch
             release(z);
             return;
         }
@@ -1097,25 +1161,26 @@ class CodeGen
             return;
         }
 
+        Op slt = uns ? Op.SLTU : Op.SLT;
         Val t = dest2(-1, l, r);
         if (op == "<")
         {
-            rrr(Op.SLT, t.r, l.r, r.r);
+            rrr(slt, t.r, l.r, r.r);
             branch2(Op.BNE, t.r, R0, target);
         }
         else if (op == ">=")
         {
-            rrr(Op.SLT, t.r, l.r, r.r);
+            rrr(slt, t.r, l.r, r.r);
             branch2(Op.BEQ, t.r, R0, target);
         }
         else if (op == ">")
         {
-            rrr(Op.SLT, t.r, r.r, l.r);
+            rrr(slt, t.r, r.r, l.r);
             branch2(Op.BNE, t.r, R0, target);
         }
         else // "<="
         {
-            rrr(Op.SLT, t.r, r.r, l.r);
+            rrr(slt, t.r, r.r, l.r);
             branch2(Op.BEQ, t.r, R0, target);
         }
         release(t);
@@ -1141,6 +1206,8 @@ class CodeGen
             auto pf = name in funcs;
             if (pf is null)
                 throw err(e.line, "call to undefined function '" ~ name ~ "'");
+            if (!pf.defined)
+                throw err(e.line, "function '" ~ name ~ "' is declared but never defined");
             if (args.length != pf.params.length)
                 throw err(e.line, format("'%s' expects %s argument(s) but %s given",
                                          name, pf.params.length, args.length));
@@ -1619,20 +1686,6 @@ class CodeGen
         {
             if (f.body_ !is null)
                 genFunc(f);
-        }
-
-        // Every called function must have a body somewhere.
-        foreach (name, fi; funcs)
-        {
-            if (!fi.defined)
-                ass.sections[("f_" ~ name)] = size_t.max; // resolved lazily below
-        }
-        foreach (name, fi; funcs)
-        {
-            if (!fi.defined)
-            {
-                ass.sections.remove("f_" ~ name);
-            }
         }
 
         ass.instructions = program;

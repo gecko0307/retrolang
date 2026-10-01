@@ -33,6 +33,7 @@ struct CType
 {
     Base base = Base.Int;
     int ptr = 0;
+    bool uns = false;   // unsigned (describes the base type; for pointers: the pointee)
 
     bool isPtr() const { return ptr > 0; }
 
@@ -66,4 +67,37 @@ struct CType
 int elemSize(CType t)
 {
     return t.deref().size();
+}
+
+// 32-bit unsigned integer (the only integer type that is unsigned after promotion)
+bool isUint(CType t)
+{
+    return t.ptr == 0 && t.base == Base.Int && t.uns;
+}
+
+// Values compared as unsigned: uint and pointers
+bool isUnsCmp(CType t)
+{
+    return t.ptr > 0 || isUint(t);
+}
+
+// Is operator `op` applied to operands of these types an unsigned operation?
+bool opUnsigned(string op, CType lt, CType rt)
+{
+    switch (op)
+    {
+        case "<<":
+        case ">>":
+            return isUint(lt);
+        case "/":
+        case "%":
+            return isUint(lt) || isUint(rt);
+        case "<":
+        case "<=":
+        case ">":
+        case ">=":
+            return isUnsCmp(lt) || isUnsCmp(rt);
+        default:
+            return false;
+    }
 }

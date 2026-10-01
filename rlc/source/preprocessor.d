@@ -27,12 +27,13 @@ DEALINGS IN THE SOFTWARE.
 */
 module preprocessor;
 
+import std.stdio;
 import std.string: splitLines, strip, indexOf, lastIndexOf, replace;
 import std.array: join, split;
 import std.file: readText, exists;
 import std.path: dirName, buildPath;
 
-string preprocess(string src, string currentFilePath = "")
+string preprocess(string src, string currentFilePath)
 {
     string[string] globalMacros;
     return preprocessImpl(src, currentFilePath, globalMacros);
@@ -77,7 +78,8 @@ private string preprocessImpl(string src, string currentFilePath, ref string[str
                 }
                 else
                 {
-                    cleanLines ~= "Error: can't find file \"" ~ includeFile ~ "\"";
+                    writeln("Error: can't find file \"" ~ includeFile ~ "\"");
+                    return "";
                 }
             }
             continue;
