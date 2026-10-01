@@ -12,7 +12,7 @@ Usage:
 rlc -o PSX.EXE src/main.r
 ```
 
-Because there's no object files and incremental building support at the moment, main source file (`main.r`) should contain the whole program. You can use C-like `#include`s to make a single source file from multiple files. It is recommended to use `.ri` extension for included files.
+Because there are no object files and incremental building support at the moment, main source file (`main.r`) should contain the whole program. You can use C-like `#include`s to make a single source file from multiple files. It is recommended to use `.ri` extension for included files.
 
 ## The Language
 
