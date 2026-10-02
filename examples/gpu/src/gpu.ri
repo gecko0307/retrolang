@@ -2,6 +2,22 @@
  * GPU driver.
  */
 
+#define GP0_CLIP_POS  0xe3000000
+#define GP0_CLIP_SIZE 0xe4000000
+#define GP0_DRAW_OFFS 0xe5000000
+#define GP0_MASK      0xe6000000
+
+#define GP0_FAST_RECT 0x02000000
+#define GP0_RECT1     0x60000000
+
+#define GP1_RESET     0x00000000
+#define GP1_DISP_ON   0x03000000
+#define GP1_DISP_OFF  0x03000001
+#define GP1_DISP_OFFS 0x05000000
+#define GP1_HRANGE    0x06000000
+#define GP1_VRANGE    0x07000000
+#define GP1_DISP_MODE 0x08000000
+
 #define VMODE_NTSC  0
 #define VMODE_PAL   1
 
@@ -19,38 +35,43 @@
 #define VRES_240 0
 #define VRES_480 4
 
+#define COLORDEPTH_15BIT 0
+#define COLORDEPTH_24BIT 1
+
+struct GpuRect
+{
+    int x;
+    int y;
+    int width;
+    int height;
+};
+
+struct GpuSettings
+{
+    int videoMode;
+    struct GpuRect display;
+    struct GpuRect clip;
+    int interleaving; // 0 - off, 1 - on
+    int colorDepth;
+};
+
 // GPU I/O ports
 int* gp0 = 0x1f801810;
 int* gp1 = 0x1f801814;
 
 // Video mode parameters
-int videoMode = VMODE_PAL;
+struct GpuSettings* __gpuSettings;
 int screenX = 0;
 int screenY = 0;
-
-// Display area
-int displayX = 0;
-int displayY = 0;
-int displayWidth = 320;
-int displayHeight = 240;
-
-// Clip area
-int clipX = 0;
-int clipY = 0;
-int clipWidth = 320;
-int clipHeight = 240;
-
-int displayInterleaving = 0; // 0 - off, 1 - on
-int displayBitDepth = 0; // 0 - 15bit, 1 - 24bit
-
-// Current BGR color used to draw primitives.
-int gpuColor = 0;
+int cyclesPerPixel = 0;
 
 //
-void gpuInit()
+void gpuInit(struct GpuSettings* settings)
 {
+    __gpuSettings = settings;
+    
     // Reset GPU
-    *gp1 = 0x00000000;
+    *gp1 = GP1_RESET;
     
     // Enable linked-list DMA transfer (TODO)
     //gp1 = 0x04000002;
@@ -65,27 +86,32 @@ void gpuInit()
     *gp0 = 0xe2000000;
     
     // Clip area
-    *gp0 = 0xe3000000 | (clipY << 10 | clipX);
-    *gp0 = 0xe4000000 | (clipHeight - 1 + clipY) << 10 | (clipWidth - 1 + clipX);
+    *gp0 = GP0_CLIP_POS |
+        (__gpuSettings->clip.y << 10 | __gpuSettings->clip.x);
+    *gp0 = GP0_CLIP_SIZE |
+        (__gpuSettings->clip.height - 1 + __gpuSettings->clip.y) << 10 | 
+        (__gpuSettings->clip.width - 1  + __gpuSettings->clip.x);
     
     // Drawing offset
-    *gp0 = 0xe5000000;
+    *gp0 = GP0_DRAW_OFFS;
     
     // Mask settings
-    *gp0 = 0xe6000000;
+    *gp0 = GP0_MASK;
     
     // Display offset
-    *gp1 = 0x05000000 | (displayY << 10) | (displayX & 0xffff);
+    *gp1 = GP1_DISP_OFFS |
+        (__gpuSettings->display.y << 10) |
+        (__gpuSettings->display.x & 0xffff);
 
     int x1, x2, y1, y2;
 
     // Horizontal signal start/end
-    int cyclesPerPixel = 0;
-    if      (displayWidth == 256) cyclesPerPixel = 10;
-    else if (displayWidth == 320) cyclesPerPixel = 8;
-    else if (displayWidth == 512) cyclesPerPixel = 5;
-    else if (displayWidth == 640) cyclesPerPixel = 4;
-    if      (displayWidth == 368)
+    cyclesPerPixel = 0;
+    if      (__gpuSettings->display.width == 256) cyclesPerPixel = 10;
+    else if (__gpuSettings->display.width == 320) cyclesPerPixel = 8;
+    else if (__gpuSettings->display.width == 512) cyclesPerPixel = 5;
+    else if (__gpuSettings->display.width == 640) cyclesPerPixel = 4;
+    if      (__gpuSettings->display.width == 368)
     {
         // Special case
         x1 = 539;
@@ -94,36 +120,36 @@ void gpuInit()
     else
     {
         x1 = HSTART + screenX * cyclesPerPixel;
-        x2 = HSTART + ((screenX + displayWidth) * cyclesPerPixel);
+        x2 = HSTART + ((screenX + __gpuSettings->display.width) * cyclesPerPixel);
     }
-    *gp1 = 0x06000000 | ((x2 & 0xfff) << 12) | (x1 & 0xfff);
+    *gp1 = GP1_HRANGE | ((x2 & 0xfff) << 12) | (x1 & 0xfff);
     bios_a(0x3f, "x1 = %d, x2 = %d\n", x1, x2);
     
     // Vertical signal start/end
     int centerY = VCENTER_NTSC;
-    if (videoMode == VMODE_PAL)
+    if (__gpuSettings->videoMode == VMODE_PAL)
         centerY = VCENTER_PAL;
-    y1 = centerY - displayHeight / 2 + screenY;
-    y2 = y1 + displayHeight;
-    *gp1 = 0x07000000 | ((y2 & 0x3FF) << 10) | (y1 & 0x3FF);
+    y1 = centerY - __gpuSettings->display.height / 2 + screenY;
+    y2 = y1 + __gpuSettings->display.height;
+    *gp1 = GP1_VRANGE | ((y2 & 0x3FF) << 10) | (y1 & 0x3FF);
     bios_a(0x3f, "y1 = %d, y2 = %d\n", y1, y2);
     
     // Video mode
     x1 = 0;
     y1 = 0;
-         if (displayWidth == 256)  x1 = HRES_256;
-    else if (displayWidth == 320)  x1 = HRES_320;
-    else if (displayWidth == 512)  x1 = HRES_512;
-    else if (displayWidth == 640)  x1 = HRES_640;
-    else if (displayWidth == 368)  x1 = HRES_368;
-         if (displayHeight == 240) y1 = VRES_240;
-    else if (displayHeight == 480) y1 = VRES_480;
-    uchar interleaving = (displayInterleaving & 0x01) << 5;
-    uchar bitDepth = (displayBitDepth & 0x01) << 4;
-    *gp1 = 0x08000000 | x1 | y1 | interleaving | bitDepth | (videoMode << 3);
+         if (__gpuSettings->display.width == 256)  x1 = HRES_256;
+    else if (__gpuSettings->display.width == 320)  x1 = HRES_320;
+    else if (__gpuSettings->display.width == 512)  x1 = HRES_512;
+    else if (__gpuSettings->display.width == 640)  x1 = HRES_640;
+    else if (__gpuSettings->display.width == 368)  x1 = HRES_368;
+         if (__gpuSettings->display.height == 240) y1 = VRES_240;
+    else if (__gpuSettings->display.height == 480) y1 = VRES_480;
+    uchar interleaving = (__gpuSettings->interleaving & 0x01) << 5;
+    uchar bitDepth = (__gpuSettings->colorDepth & 0x01) << 4;
+    *gp1 = GP1_DISP_MODE | x1 | y1 | interleaving | bitDepth | (__gpuSettings->videoMode << 3);
     
     // Enable display
-    *gp1 = 0x03000000;
+    *gp1 = GP1_DISP_ON;
 }
 
 //
@@ -132,31 +158,31 @@ void gpuWaitReady()
     while ((*gp1 & (1 << 28)) == 0) {}
 }
 
-// Clears the screen with the current color.
-void gpuClear()
+// Clears the screen with the given color.
+void gpuClear(int color)
 {
     gpuWaitReady();
-    *gp0 = 0x02000000 | gpuColor;
-    *gp0 = (displayY << 16) | displayX;
-    *gp0 = (displayHeight << 16) | displayWidth;
+    *gp0 = GP0_FAST_RECT | color;
+    *gp0 = (__gpuSettings->display.y << 16) | __gpuSettings->display.x;
+    *gp0 = (__gpuSettings->display.height << 16) | __gpuSettings->display.width;
 }
 
 // Fast rectangle filling command.
 // GP0(02h) rounds down the x-coordinate to the nearest multiple of 16.
 // The with is rounded up to a multiple of 16 pixels.
-void gpuFillRect16(int x, int y, int w, int h)
+void gpuFillRectFast(struct GpuRect* rect, int color)
 {
     gpuWaitReady();
-    *gp0 = 0x02000000 | gpuColor;
-    *gp0 = (y << 16) | x;
-    *gp0 = (h << 16) | w;
+    *gp0 = GP0_FAST_RECT | color;
+    *gp0 = (rect->y << 16) | rect->x;
+    *gp0 = (rect->height << 16) | rect->width;
 }
 
 // Draws a rectangular sprite.
-void gpuDrawSolidSprite(int x, int y, int w, int h)
+void gpuDrawSolidSprite(struct GpuRect* rect, int color)
 {
     gpuWaitReady();
-    *gp0 = 0x60000000 | gpuColor;
-    *gp0 = (y << 16) | x;
-    *gp0 = (h << 16) | w;
+    *gp0 = GP0_RECT1 | color;
+    *gp0 = (rect->y << 16) | rect->x;
+    *gp0 = (rect->height << 16) | rect->width;
 }
