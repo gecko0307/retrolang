@@ -43,6 +43,8 @@ char hello[] = "Hello!";
 
 **Intrinsics**: BIOS calls `bios_a(n, ...)`, `bios_b(n, ...)`, `bios_c(n, ...)` through the `A0h`/`B0h`/`C0h` vectors with up to 3 further arguments. `n` is a function number which is passed in `$t1` register.
 
+**Attributes**: a global array can have an attribute `@("file.bin")` to embed files to the executable.
+
 **Code generation notes:**
 
 - Local variables live in `$s0`-`$s7` (callee-saved) unless their address is taken, in which case (or when registers run out) they live in the stack frame.
