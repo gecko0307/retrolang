@@ -58,3 +58,7 @@ void main()
     bios_a(0x3F, "Hello, World!\n");
 }
 ```
+
+## Additional Tools
+
+Provided examples depend on [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso) to build CD-ROM images.

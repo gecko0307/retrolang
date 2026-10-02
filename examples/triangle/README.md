@@ -1,6 +1,6 @@
 # Simple GPU Example
 
-Fills the screen with a solid color and draws a rectangle.
+Fills the screen with a solid color and draws a triangle.
 
 Use `build.bat` to compile `iso/PSX.EXE`.
 
