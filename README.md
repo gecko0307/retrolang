@@ -1,6 +1,6 @@
 # Retrolang
 
-The goal of this project is creating a developer's toolset targeting PlayStation 1 completely from scratch (without using GCC, LLVM and other compiler frameworks). It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code ready for execution.
+The goal of this project is creating a developer's toolset targeting PlayStation 1 completely from scratch, without using GCC, LLVM and other compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code.
 
 At the moment Retrolang allows to write basic PlayStation programs: print to TTY, query the gamepad, draw simple graphics.
 
@@ -17,6 +17,12 @@ rlc -o PSX.EXE src/main.r
 ```
 
 Because there are no object files and incremental building support at the moment, main source file (`main.r`) should contain the whole program. You can use C-like `#include`s to make a single source file from multiple files. It is recommended to use `.ri` extension for included files.
+
+Assembling command is similar (RLC treats *.s file as an assembly source):
+
+```
+rlc -o PSX.EXE src/main.s
+```
 
 ## The Language
 
@@ -59,6 +65,24 @@ void main()
 {
     bios_a(0x3F, "Hello, World!\n");
 }
+```
+
+The same in Retrolang assembly:
+
+```asm
+.text
+    li $a0, .msg
+    li $t1, 0x003f
+    li $t2, 0x00a0
+    jr $t2
+    nop
+    
+    jr $ra
+    nop
+
+.data
+  .msg:
+    "Hello, World!\n\0"
 ```
 
 ## Additional Tools
