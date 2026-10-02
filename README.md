@@ -88,3 +88,10 @@ The same in Retrolang assembly:
 ## Additional Tools
 
 Provided examples depend on [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso) to build CD-ROM images.
+
+## TODO
+
+What is not implemented yet:
+
+- Multi-file/incremental building
+- GTE support
