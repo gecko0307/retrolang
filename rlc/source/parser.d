@@ -137,7 +137,7 @@ immutable string[][] binLevels = [
 
 immutable string[] assignOps = ["=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="];
 
-immutable string[] _types = ["int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned"];
+immutable string[] _types = ["int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned", "struct"];
 
 class Parser
 {
@@ -217,6 +217,17 @@ class Parser
             case "short": ty.base = Base.Short; break;
             case "char":  ty.base = Base.Char; break;
             case "void":  ty.base = Base.Void; break;
+            case "struct":
+                string sn = expectIdent();
+                ty.base = Base.Struct;
+                ty.sname = sn;
+                if (sn !in structDefs)
+                {
+                    auto sd = new StructDef();
+                    sd.name = sn;
+                    structDefs[sn] = sd;
+                }
+                break;
             case "uint":   ty.base = Base.Int;   ty.uns = true; break;
             case "ushort": ty.base = Base.Short; ty.uns = true; break;
             case "uchar":  ty.base = Base.Char;  ty.uns = true; break;
@@ -246,7 +257,16 @@ class Parser
         CType ty = parseBaseType();
         while (acceptSym("*"))
             ty.ptr++;
+        checkComplete(ty, peek().line);
         return ty;
+    }
+
+    // A struct may only be used by value once it is fully defined
+    // (pointers to incomplete structs are fine).
+    void checkComplete(CType ty, int line)
+    {
+        if (isStructVal(ty) && !structDefs[ty.sname].complete)
+            throw err(line, format("incomplete type 'struct %s'", ty.sname));
     }
 
     long parseConstExpr()
@@ -266,12 +286,20 @@ class Parser
         auto prog = new Program();
         while (peek().kind != TK.Eof)
         {
+            if (isKw("struct") && peek(1).kind == TK.Ident && isSym("{", 2))
+            {
+                parseStructDef();
+                continue;
+            }
+
             int line = peek().line;
             CType ty = parseType();
             string name = expectIdent();
 
             if (isSym("("))
             {
+                if (isStructVal(ty))
+                    throw err(line, "functions cannot return structs by value (return a pointer)");
                 auto f = new Func();
                 f.ret = ty;
                 f.name = name;
@@ -286,6 +314,8 @@ class Parser
                     do
                     {
                         CType pt = parseType();
+                        if (isStructVal(pt))
+                            throw err(peek().line, "structs cannot be passed by value (pass a pointer)");
                         string pn = expectIdent();
                         f.params ~= Param(pt, pn);
                     } while (acceptSym(","));
@@ -333,6 +363,9 @@ class Parser
                 expectSym("]");
             }
 
+            if (isStructVal(g.ty) && isSym("="))
+                throw err(line, "struct initializers are not supported (assign the members in code)");
+
             if (acceptSym("="))
             {
                 g.hasInit = true;
@@ -370,12 +403,91 @@ class Parser
                 ty = baseT;
                 while (acceptSym("*"))
                     ty.ptr++;
+                checkComplete(ty, line);
                 name = expectIdent();
                 continue;
             }
             break;
         }
         expectSym(";");
+    }
+
+    // struct Name { fields }; (top level only).
+    // Layout follows C: each field is aligned to its own alignment,
+    // the struct size is rounded up to its alignment.
+    void parseStructDef()
+    {
+        next(); // 'struct'
+        string name = expectIdent();
+        int line = peek().line;
+
+        StructDef sd;
+        if (auto p0 = name in structDefs)
+            sd = *p0;
+        else
+        {
+            sd = new StructDef();
+            sd.name = name;
+            structDefs[name] = sd;
+        }
+        if (sd.complete)
+            throw err(line, "redefinition of struct '" ~ name ~ "'");
+
+        expectSym("{");
+        int off = 0;
+        int al = 1;
+        while (!isSym("}"))
+        {
+            if (peek().kind == TK.Eof)
+                throw err(peek().line, "unexpected end of file in struct definition");
+            CType bt = parseBaseType();
+            do
+            {
+                CType ty = bt;
+                while (acceptSym("*"))
+                    ty.ptr++;
+                int fline = peek().line;
+                if (ty.ptr == 0 && ty.base == Base.Void)
+                    throw err(fline, "struct member cannot have type void");
+                checkComplete(ty, fline);
+
+                Field fd;
+                fd.ty = ty;
+                fd.name = expectIdent();
+                foreach (other; sd.fields)
+                {
+                    if (other.name == fd.name)
+                        throw err(fline, "duplicate member '" ~ fd.name ~ "'");
+                }
+                if (acceptSym("["))
+                {
+                    long n = parseConstExpr();
+                    if (n <= 0 || n > 1000000)
+                        throw err(fline, "invalid array size");
+                    fd.isArray = true;
+                    fd.arrLen = cast(int) n;
+                    expectSym("]");
+                }
+
+                int fa = alignOf(ty);
+                int fsz = fd.isArray ? fd.arrLen * ty.size() : ty.size();
+                off = (off + fa - 1) & ~(fa - 1);
+                fd.offset = off;
+                off += fsz;
+                if (fa > al)
+                    al = fa;
+                sd.fields ~= fd;
+            } while (acceptSym(","));
+            expectSym(";");
+        }
+        expectSym("}");
+        expectSym(";");
+
+        if (sd.fields.length == 0)
+            throw err(line, "empty struct");
+        sd.align_ = al;
+        sd.size = (off + al - 1) & ~(al - 1);
+        sd.complete = true;
     }
 
     // Local declaration list. Consumes the trailing ';'.
@@ -391,6 +503,7 @@ class Parser
             CType ty = baseT;
             while (acceptSym("*"))
                 ty.ptr++;
+            checkComplete(ty, peek().line);
             auto d = new Stmt(SK.Decl, peek().line);
             d.ty = ty;
             d.name = expectIdent();
@@ -589,6 +702,16 @@ class Parser
     Expr parseUnary()
     {
         Token t = peek();
+        if (t.kind == TK.Ident && t.text == "sizeof")
+        {
+            next();
+            expectSym("(");
+            if (!isTypeStart())
+                throw err(t.line, "sizeof needs a type, e.g. sizeof(struct Foo)");
+            CType sty = parseType();
+            expectSym(")");
+            return numExpr(sty.size(), t.line);
+        }
         if (t.kind == TK.Sym)
         {
             if (t.text == "-" || t.text == "!" || t.text == "~" || t.text == "*" || t.text == "&")
@@ -658,6 +781,15 @@ class Parser
                 }
                 expectSym(")");
                 e = c;
+            }
+            else if (isSym(".") || isSym("->"))
+            {
+                next();
+                auto m = new Expr(EK.Member, t.line);
+                m.a = e;
+                m.arrow = (t.text == "->");
+                m.name = expectIdent();
+                e = m;
             }
             else if (isSym("++") || isSym("--"))
             {

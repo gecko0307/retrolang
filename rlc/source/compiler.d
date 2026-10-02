@@ -44,6 +44,13 @@ DEALINGS IN THE SOFTWARE.
  *                Literals above 0x7FFFFFFF, or with a 'u' suffix, are unsigned.
  *                Like C, uchar/ushort promote to (signed) int in arithmetic; only uint
  *                makes / % >> and comparisons unsigned.
+ *   Structs    : top-level definitions  struct Name { int a; uchar c[3]; struct Other o; };
+ *                Used as  struct Name x;  struct Name* p;  p->a  x.a  x.o.b  arr[i].a
+ *                Fields may be scalars, pointers, arrays or nested structs. Structs can be
+ *                copied with '=' (inline, up to 32 words), have their address taken, and be
+ *                measured with sizeof(struct Name) / sizeof(type).
+ *                Not supported: struct initializers, passing/returning structs by value,
+ *                unions, bit-fields, typedef, sizeof(expression).
  *   Globals    : scalars and arrays with constant initializers, e.g.
  *                    int x = 5;   int t[4] = {1,2,3,4};   char s[] = "hi";
  *   Locals     : scalars and (uninitialized) arrays.
@@ -66,6 +73,7 @@ DEALINGS IN THE SOFTWARE.
  */
 module compiler;
 
+import types;
 import lexer;
 import ast;
 import parser;
@@ -75,6 +83,7 @@ import ir;
 /// Compiles source text to Assembly object.
 Assembly compile(string source)
 {
+    structDefs = null;
     Token[] toks = lex(source);
     Program p = (new Parser(toks)).parseProgram();
     return (new CodeGen()).generate(p);

@@ -88,6 +88,7 @@ struct LValue
     long off;           // Mem: byte offset from base
     CType ty;
     bool tempAddr;      // Mem: base register is a temporary owned by this lvalue
+    bool isArr;         // Mem: designates an array member (decays to its address)
 }
 
 struct FuncInfo
@@ -394,6 +395,11 @@ class CodeGen
             v.st = Storage.InStack;
             v.offset = allocStack(arrLen * ty.size());
         }
+        else if (isStructVal(ty))
+        {
+            v.st = Storage.InStack;
+            v.offset = allocStack(ty.size());
+        }
         else if ((name in addrTaken) || nextS >= 8)
         {
             v.st = Storage.InStack;
@@ -456,6 +462,8 @@ class CodeGen
                 {
                     if (e.a.kind == EK.Var && lookup(e.a.name, e.a.line).isArray)
                         return typeOf(e.a);
+                    if (e.a.kind == EK.Member && memberField(e.a).isArray)
+                        return typeOf(e.a);
                     return typeOf(e.a).addr();
                 }
                 if (e.op == "!")
@@ -505,6 +513,15 @@ class CodeGen
                 return t.deref();
             }
 
+            case EK.Member:
+            {
+                Field f = memberField(e);
+                CType t = f.ty;
+                if (f.isArray)
+                    t.ptr++;
+                return t;
+            }
+
             case EK.Cast:
                 return e.ty;
 
@@ -516,6 +533,29 @@ class CodeGen
     // ------------------------------------------------------------------
     // Expressions
     // ------------------------------------------------------------------
+
+    // Resolve the field named by a Member expression.
+    Field memberField(Expr e)
+    {
+        CType bt = typeOf(e.a);
+        if (e.arrow)
+        {
+            if (!(bt.ptr == 1 && bt.base == Base.Struct))
+                throw err(e.line, "'->' needs a pointer to a struct");
+        }
+        else
+        {
+            if (!isStructVal(bt))
+                throw err(e.line, "'.' needs a struct value (use '->' on pointers)");
+        }
+        StructDef sd = structDefs[bt.sname];
+        foreach (f; sd.fields)
+        {
+            if (f.name == e.name)
+                return f;
+        }
+        throw err(e.line, format("struct %s has no member '%s'", bt.sname, e.name));
+    }
 
     // `want` is a hint: the result may be placed in that register. Callers must
     // check Val.r.
@@ -546,6 +586,20 @@ class CodeGen
             case EK.IncDec: return genIncDec(e, want, false);
             case EK.Call:   return genCall(e, want, false);
             case EK.Cast:   return genCast(e, want);
+
+            case EK.Member:
+            {
+                LValue lv = genLValue(e);
+                if (lv.isArr)
+                {
+                    // array member decays to its address
+                    Val da = dest1(want, Val(lv.reg, lv.tempAddr));
+                    if (da.r != lv.reg || lv.off != 0)
+                        rri(Op.ADDIU, da.r, lv.reg, lv.off);
+                    return da;
+                }
+                return loadLV(lv, want, false);
+            }
 
             case EK.Index:
             {
@@ -651,6 +705,27 @@ class CodeGen
                 return LValue(LK.Mem, sum.r, 0, et, true);
             }
 
+            case EK.Member:
+            {
+                Field f = memberField(e);
+                if (e.arrow)
+                {
+                    Val pv = genExpr(e.a);
+                    LValue la = LValue(LK.Mem, pv.r, f.offset, f.ty, pv.isTemp);
+                    la.isArr = f.isArray;
+                    return la;
+                }
+                LValue blv = genLValue(e.a);
+                if (blv.kind != LK.Mem)
+                    throw err(e.line, "internal error: struct held in a register");
+                if (!fits16(blv.off + f.offset))
+                    throw err(e.line, "struct member offset too large");
+                blv.off += f.offset;
+                blv.ty = f.ty;
+                blv.isArr = f.isArray;
+                return blv;
+            }
+
             default:
                 throw err(e.line, "expression is not assignable");
         }
@@ -660,6 +735,8 @@ class CodeGen
     // stays allocated and a fresh temporary receives the value.
     Val loadLV(LValue lv, int want, bool keepAddr)
     {
+        if (isStructVal(lv.ty))
+            throw err(curLine, "a struct cannot be used as a value here (use its members, &, or '=')");
         if (lv.kind == LK.RegVar)
             return Val(lv.reg, false);
         Val d;
@@ -715,9 +792,20 @@ class CodeGen
     {
         if (size <= 1)
             return v;
-        Val d = dest1(-1, v);
-        rri(Op.SLL, d.r, v.r, log2i(size));
-        return d;
+        if (isPow2(size))
+        {
+            Val d = dest1(-1, v);
+            rri(Op.SLL, d.r, v.r, log2i(size));
+            return d;
+        }
+        // Non power of two (e.g. a 12-byte struct): multiply by a constant.
+        Reg k = allocTemp();
+        li(k, size);
+        td--;                           // k is free again, but its register stays intact
+        Val dm = dest1(-1, v);
+        emit(Op.MULT, makeReg(v.r), makeReg(k), makeNone());
+        emit(Op.MFLO, makeReg(dm.r), makeNone(), makeNone());
+        return dm;
     }
 
     // ---- assignment, ++/-- ----
@@ -727,6 +815,18 @@ class CodeGen
         LValue lv = genLValue(e.a);
         bool isReg = (lv.kind == LK.RegVar);
         Val res;
+
+        if (lv.isArr)
+            throw err(e.line, "cannot assign to an array member");
+        if (isStructVal(lv.ty))
+        {
+            if (e.op != "=")
+                throw err(e.line, "invalid operator for structs");
+            if (!discard)
+                throw err(e.line, "a struct assignment cannot be used as a value");
+            genStructCopy(lv, e.b, e.line);
+            return Val(R0, false);
+        }
 
         if (e.op == "=")
         {
@@ -785,6 +885,8 @@ class CodeGen
             step = -step;
 
         LValue lv = genLValue(e.a);
+        if (lv.isArr)
+            throw err(e.line, "cannot modify an array member");
         if (lv.kind == LK.RegVar)
         {
             Reg old = allocTemp();
@@ -800,6 +902,36 @@ class CodeGen
         emitStore(lv.ty, nw, lv.off, lv.reg);
         td--; // release nw
         return finishStore(lv, curv, false);
+    }
+
+    // dst = <struct lvalue expression>: unrolled word / halfword / byte copy.
+    void genStructCopy(LValue dst, Expr srcExpr, int line)
+    {
+        CType st = typeOf(srcExpr);
+        if (!isStructVal(st) || st.sname != dst.ty.sname)
+            throw err(line, "struct assignment needs the same struct type on both sides");
+        LValue src = genLValue(srcExpr);
+        if (src.kind != LK.Mem || dst.kind != LK.Mem)
+            throw err(line, "internal error: struct held in a register");
+
+        StructDef sd = structDefs[dst.ty.sname];
+        int chunk = (sd.align_ >= 4) ? 4 : sd.align_;
+        int n = sd.size / chunk;
+        if (n > 32)
+            throw err(line, "struct too large to copy inline (limit 32 words)");
+
+        CType ct = CType(chunk == 4 ? Base.Int : (chunk == 2 ? Base.Short : Base.Char), 0, true);
+        Reg t = allocTemp();
+        foreach (i; 0 .. n)
+        {
+            emitLoad(ct, t, src.off + i * chunk, src.reg);
+            emitStore(ct, t, dst.off + i * chunk, dst.reg);
+        }
+        td--;                       // t
+        if (src.tempAddr)
+            td--;
+        if (dst.tempAddr)
+            td--;
     }
 
     // ---- unary / cast / address-of ----
@@ -912,9 +1044,19 @@ class CodeGen
             int sz = elemSize(lt);
             if (sz > 1)
             {
-                Val d = dest1(want, res);
-                rri(Op.SRA, d.r, res.r, log2i(sz));
-                return d;
+                if (isPow2(sz))
+                {
+                    Val d = dest1(want, res);
+                    rri(Op.SRA, d.r, res.r, log2i(sz));
+                    return d;
+                }
+                Reg k = allocTemp();
+                li(k, sz);
+                td--;
+                Val dq = dest1(want, res);
+                emit(Op.DIV, makeReg(res.r), makeReg(k), makeNone());
+                emit(Op.MFLO, makeReg(dq.r), makeNone(), makeNone());
+                return dq;
             }
         }
         return res;
@@ -1596,6 +1738,9 @@ class CodeGen
         if (g.ty.ptr == 0 && g.ty.base == Base.Void)
             throw err(g.line, "variable '" ~ g.name ~ "' cannot have type void");
 
+        if (isStructVal(g.ty) && g.hasInit)
+            throw err(g.line, "struct initializers are not supported");
+
         auto v = new Var();
         v.name = g.name;
         v.ty = g.ty;
@@ -1640,8 +1785,15 @@ class CodeGen
         {
             if (g.strInit)
                 throw err(g.line, "string initializers are only supported for char arrays");
-            long iv = (g.inits.length > 0) ? g.inits[0] : 0;
-            data = toBytes(iv, esz);
+            if (isStructVal(g.ty))
+            {
+                data = new ubyte[esz];      // zero-initialized
+            }
+            else
+            {
+                long iv = (g.inits.length > 0) ? g.inits[0] : 0;
+                data = toBytes(iv, esz);
+            }
         }
 
         ass.dataEntries ~= AsmDataEntry(v.label, data);

@@ -29,7 +29,7 @@ module ast;
 
 import types;
 
-enum EK { Num, Str, Var, Unary, Binary, Assign, IncDec, Call, Index, Cast }
+enum EK { Num, Str, Var, Unary, Binary, Assign, IncDec, Call, Index, Cast, Member }
 
 class Expr
 {
@@ -43,6 +43,7 @@ class Expr
     CType ty;       // Cast target
     bool post;      // IncDec: postfix form
     bool uns;       // Num: unsigned literal
+    bool arrow;     // Member: '->' instead of '.'
 
     this(EK k, int ln)
     {

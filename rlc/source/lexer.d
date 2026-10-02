@@ -54,10 +54,10 @@ struct Token
 
 immutable string[] syms2 = [
     "==", "!=", "<=", ">=", "&&", "||", "++", "--",
-    "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>"
+    "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "->"
 ];
 
-immutable string singleSyms = "+-*/%&|^~!<>=(){}[];,";
+immutable string singleSyms = "+-*/%&|^~!<>=(){}[];,.";
 
 bool inList(string s, const(string)[] list)
 {
@@ -71,8 +71,11 @@ bool inList(string s, const(string)[] list)
 
 bool isReserved(string s)
 {
-    return inList(s, ["int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned",
-                      "if", "else", "while", "do", "for", "return", "break", "continue"]);
+    return inList(s, [
+        "int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned",
+        "struct", "sizeof",
+        "if", "else", "while", "do", "for", "return", "break", "continue"
+    ]);
 }
 
 Token[] lex(string src)
