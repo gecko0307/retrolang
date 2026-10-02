@@ -8,6 +8,7 @@
 #define GP0_MASK      0xe6000000
 
 #define GP0_FAST_RECT 0x02000000
+#define GP0_TRI2      0x30000000
 #define GP0_RECT1     0x60000000
 #define GP0_SPRITE    0xe1000000
 
@@ -343,7 +344,7 @@ void gpuDrawSolidSprite(struct GpuRect* rect, int color)
 void gpuDrawTriangle2(struct GpuTriangle2* tri)
 {
     gpuWaitIdle();
-    *gp0 = 0x30000000 | tri->color1;
+    *gp0 = GP0_TRI2 | tri->color1;
     *gp0 = (tri->y1 << 16) | tri->x1;
     *gp0 = tri->color2;
     *gp0 = (tri->y2 << 16) | tri->x2;
@@ -351,8 +352,8 @@ void gpuDrawTriangle2(struct GpuTriangle2* tri)
     *gp0 = (tri->y3 << 16) | tri->x3;
 }
 
-/// Draws a sprite.
-void gpuDrawSprite(struct GpuSprite* sprite)
+/// Draws a textured sprite.
+void gpuDrawTexSprite(struct GpuSprite* sprite)
 {
     uint u = sprite->texture->px + sprite->u;
     uint v = sprite->texture->py + sprite->v;

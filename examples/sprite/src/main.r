@@ -54,7 +54,7 @@ void main()
     sprite.width = tex.width;
     sprite.height = tex.height;
     sprite.color = 0x00ffffff;
-    gpuDrawSprite(&sprite);
+    gpuDrawTexSprite(&sprite);
 
     while(1)
     {

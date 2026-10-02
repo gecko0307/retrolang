@@ -5,6 +5,7 @@ The goal of this project is creating a developer's toolset targeting PlayStation
 At the moment Retrolang allows to write basic PlayStation programs: print to TTY, query the gamepad, draw simple graphics.
 
 ![Triangle](media/hello_triangle.png)
+![Cat](media/cat.png)
 
 ## RLC
 
