@@ -89,7 +89,17 @@ The same in Retrolang assembly:
 
 Provided examples depend on [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso) to build CD-ROM images.
 
-For running programs on the PC, we recommend [DuckStation](https://www.duckstation.org/), a fast and feature-rich PlayStation emulator for Windows, Linux and Mac.
+For running examples on the PC, we recommend [DuckStation](https://www.duckstation.org/), a fast and feature-rich PlayStation emulator for Windows, Linux and Mac. To run an image (or directly `PSX.EXE` if you don't build an image), use the following command:
+
+```
+duckstation -fastboot -- %~dp0/build/game.bin
+```
+
+or
+
+```
+duckstation -fastboot -- %~dp0/iso/PSX.EXE
+```
 
 ## TODO
 
