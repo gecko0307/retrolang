@@ -1,6 +1,6 @@
 /**
  * GPU test.
- * Fills the screen with a solid color and draws a rectangle.
+ * Clears the screen with a solid color and draws a triangle.
  */
 
 #include "pad.ri"
@@ -27,16 +27,21 @@ void main()
     
     gpuWaitReady();
 
-    // Fills the screen with blue color
-    gpuClear(0xFF0000);
+    // Fills the screen with middle-grey color
+    gpuClear(0x808080);
 
-    // Draws a red 100x100 rectangle
-    struct GpuRect rect;
-    rect.x = 0;
-    rect.y = 0;
-    rect.width = 100;
-    rect.height = 100;
-    gpuDrawSolidSprite(&rect, 0x0000FF);
+    // Draws a triangle
+    struct GpuTriangle2 tri;
+    tri.x1 = 160;
+    tri.y1 = 40;
+    tri.color1 = 0x000000ff; // red
+    tri.x2 = 80;
+    tri.y2 = 180;
+    tri.color2 = 0x0000ff00; // green
+    tri.x3 = 240;
+    tri.y3 = 180;
+    tri.color3 = 0x00ff0000; // blue
+    gpuDrawTriangle2(&tri);
 
     while(1)
     {
