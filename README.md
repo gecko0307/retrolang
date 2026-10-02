@@ -4,6 +4,8 @@ The goal of this project is creating a developer's toolset targeting PlayStation
 
 At the moment Retrolang allows to write basic PlayStation programs: print to TTY, query the gamepad, draw simple graphics.
 
+![Triangle](media/hello_triangle.png)
+
 ## RLC
 
 The main tool is RLC, the Retrolang Compiler. It combines an assembler, compiler, and a linker in a single program and directly outputs `PSX.EXE`.
