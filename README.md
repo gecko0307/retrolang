@@ -26,7 +26,7 @@ rlc -o PSX.EXE src/main.s
 
 ## The Language
 
-Retrolang is a very basic curly-bracket imperative language inspired by C.
+Retrolang is a very basic curly-bracket procedural language inspired by C.
 
 **Primitive types**: `int`, `short`, `char`, `uint`, `ushort`, `uchar`, `void`, and pointers to them. Pointers compare as unsigned. Literals above `0x7FFFFFFF`, or with a 'u' suffix, are unsigned. Like C, `uchar`/`ushort` promote to (signed) `int` in arithmetic; only `uint` makes `/`, `%`, `>>` and comparisons unsigned. C-style type casts are supported.
 
@@ -43,7 +43,7 @@ char hello[] = "Hello!";
 
 **Statements**: `if`/`else`, `while`, `do`-`while`, `for`, `break`, `continue`, `return`.
 
-**Function calls**: up to 4 arguments (passed in `$a0`-`$a3`), result in `$v0`.
+**Function calls**: follows O32 ABI. Supports up to 4 arguments (passed in `$a0`-`$a3`), result in `$v0`.
 
 **Program entry point**: `main()`, started from a small stub that sets `$sp`.
 
@@ -105,5 +105,6 @@ duckstation -fastboot -- %~dp0/iso/PSX.EXE
 
 What is not implemented yet:
 
+- Stack arguments
 - Multi-file/incremental building
 - GTE support
