@@ -5,5 +5,4 @@ licenses/*
 *.dll
 *.bin
 *.que
-*.dat
 run.bat
