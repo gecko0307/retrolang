@@ -244,7 +244,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             }
             code ~= enc(ins.code);
         }
-        // TODO: dereferencing for other opcodes
+        // TODO: linking for other opcodes
         else
         {
             code ~= enc(ins.code);

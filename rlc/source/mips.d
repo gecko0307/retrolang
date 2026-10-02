@@ -224,8 +224,8 @@ Word[] opLi(T)(Reg rt, T imm)
         if (lo & 0x8000)
             hi++;
         
-        code ~= opLui(rt, hi);     // lui rt, hi
-        code ~= opOri(rt, rt, lo); // ori rt, rt, lo
+        code ~= opLui(rt, hi);
+        code ~= opOri(rt, rt, lo);
     }
     
     return code;
