@@ -4,44 +4,51 @@
 
 #define VMODE_NTSC  0
 #define VMODE_PAL   1
-#define VMODE_AUTO  2
 
-#define ENV_W256 0
-#define ENV_W320 1
-#define ENV_W512 2
-#define ENV_W640 3
-#define ENV_W384 64
-#define ENV_H240 0
-#define ENV_H480 4
+#define HSTART 608
 
+#define VCENTER_NTSC 136
+#define VCENTER_PAL 163
+
+#define HRES_256 0
+#define HRES_320 1
+#define HRES_512 2
+#define HRES_640 3
+#define HRES_368 64
+
+#define VRES_240 0
+#define VRES_480 4
+
+// GPU I/O ports
 int* gp0 = 0x1f801810;
 int* gp1 = 0x1f801814;
 
-#define clipX 0
-#define clipY 0
-#define clipW 320
-#define clipH 240
-
-#define dispX 0
-#define dispY 0
-#define dispW 320
-#define dispH 240
-
-#define intl 0
-#define vram 0
-
-// 0: NTSC, 1: PAL
-uint __videoMode = 1;
-
+// Video mode parameters
+int videoMode = VMODE_PAL;
 int screenX = 0;
 int screenY = 0;
+
+// Display area
+int displayX = 0;
+int displayY = 0;
+int displayWidth = 320;
+int displayHeight = 240;
+
+// Clip area
+int clipX = 0;
+int clipY = 0;
+int clipWidth = 320;
+int clipHeight = 240;
+
+int displayInterleaving = 0; // 0 - off, 1 - on
+int displayBitDepth = 0; // 0 - 15bit, 1 - 24bit
+
+// Current BGR color used to draw primitives.
+int gpuColor = 0;
 
 //
 void gpuInit()
 {
-    if (__videoMode == VMODE_PAL)
-        screenY = 23;
-    
     // Reset GPU
     *gp1 = 0x00000000;
     
@@ -58,8 +65,8 @@ void gpuInit()
     *gp0 = 0xe2000000;
     
     // Clip area
-    *gp0 = 0xe3000000 | clipY << 10 | clipX;
-    *gp0 = 0xe4000000 | ((clipH - 1 + clipY) << 10 | (clipW - 1 + clipX));
+    *gp0 = 0xe3000000 | (clipY << 10 | clipX);
+    *gp0 = 0xe4000000 | (clipHeight - 1 + clipY) << 10 | (clipWidth - 1 + clipX);
     
     // Drawing offset
     *gp0 = 0xe5000000;
@@ -68,32 +75,52 @@ void gpuInit()
     *gp0 = 0xe6000000;
     
     // Display offset
-    *gp1 = 0x05000000 | (dispY << 10) | (dispX & 0xffff);
+    *gp1 = 0x05000000 | (displayY << 10) | (displayX & 0xffff);
 
-    // Horizontal screen start/end
-    int x0 = screenX * 10 + 608;
-    int x1 = ((screenX + 256) * 10) + 608;
-    *gp1 = 0x06000000 | x1 << 12 | x0;
-    
-    // Vertical screen start/end
-    int y0 = screenY + 16 + (3 * __videoMode);
-    int y1 = y0 + 240;
-    *gp1 = 0x07000000 | y1 << 10 | y0;
+    int x1, x2, y1, y2;
 
-         if (dispW == 256) x0 = ENV_W256;
-    else if (dispW == 384) x0 = ENV_W384;
-    else if (dispW == 512) x0 = ENV_W512;
-    else if (dispW == 640) x0 = ENV_W640;
-    else                   x0 = ENV_W320;
+    // Horizontal signal start/end
+    int cyclesPerPixel = 0;
+    if      (displayWidth == 256) cyclesPerPixel = 10;
+    else if (displayWidth == 320) cyclesPerPixel = 8;
+    else if (displayWidth == 512) cyclesPerPixel = 5;
+    else if (displayWidth == 640) cyclesPerPixel = 4;
+    if      (displayWidth == 368)
+    {
+        // Special case
+        x1 = 539;
+        x2 = 3227;
+    }
+    else
+    {
+        x1 = HSTART + screenX * cyclesPerPixel;
+        x2 = HSTART + ((screenX + displayWidth) * cyclesPerPixel);
+    }
+    *gp1 = 0x06000000 | ((x2 & 0xfff) << 12) | (x1 & 0xfff);
+    bios_a(0x3f, "x1 = %d, x2 = %d\n", x1, x2);
     
-    y0 = ENV_H240;
-    if (dispH == 480)
-        y0 = ENV_H480;
+    // Vertical signal start/end
+    int centerY = VCENTER_NTSC;
+    if (videoMode == VMODE_PAL)
+        centerY = VCENTER_PAL;
+    y1 = centerY - displayHeight / 2 + screenY;
+    y2 = y1 + displayHeight;
+    *gp1 = 0x07000000 | ((y2 & 0x3FF) << 10) | (y1 & 0x3FF);
+    bios_a(0x3f, "y1 = %d, y2 = %d\n", y1, y2);
     
-    uchar isInter = (intl & 0x01) << 5;
-    uchar isRGB24 = (vram & 0x01) << 4;
-    
-    *gp1 = 0x08000000 | x0 | y0 | isInter | isRGB24 | (__videoMode << 3);
+    // Video mode
+    x1 = 0;
+    y1 = 0;
+         if (displayWidth == 256)  x1 = HRES_256;
+    else if (displayWidth == 320)  x1 = HRES_320;
+    else if (displayWidth == 512)  x1 = HRES_512;
+    else if (displayWidth == 640)  x1 = HRES_640;
+    else if (displayWidth == 368)  x1 = HRES_368;
+         if (displayHeight == 240) y1 = VRES_240;
+    else if (displayHeight == 480) y1 = VRES_480;
+    uchar interleaving = (displayInterleaving & 0x01) << 5;
+    uchar bitDepth = (displayBitDepth & 0x01) << 4;
+    *gp1 = 0x08000000 | x1 | y1 | interleaving | bitDepth | (videoMode << 3);
     
     // Enable display
     *gp1 = 0x03000000;
@@ -105,16 +132,13 @@ void gpuWaitReady()
     while ((*gp1 & (1 << 28)) == 0) {}
 }
 
-// Current BGR color used to draw primitives.
-int gpuColor = 0;
-
 // Clears the screen with the current color.
 void gpuClear()
 {
     gpuWaitReady();
     *gp0 = 0x02000000 | gpuColor;
-    *gp0 = (dispY << 16) | dispX;
-    *gp0 = (dispH << 16) | dispW;
+    *gp0 = (displayY << 16) | displayX;
+    *gp0 = (displayHeight << 16) | displayWidth;
 }
 
 // Fast rectangle filling command.

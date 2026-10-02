@@ -32,7 +32,7 @@ int padRead1()
     return (~_pad_data) & 0xFFFF;
 }
 
-void padWaitVSync()
+void padWaitSync()
 {
     int* p = &_pad_buf;
     *p = 0x0000;

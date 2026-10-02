@@ -96,6 +96,7 @@ int main(string[] args)
     {
         writefln("Compiling %s...", filename);
         string processedCode = preprocess(sourceCode, filename);
+        //writeln(processedCode);
         if (processedCode.length > 0)
             ass = compile(processedCode);
         else

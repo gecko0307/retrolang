@@ -23,7 +23,7 @@ void main()
 
     while(1)
     {
-        padWaitVSync();
+        padWaitSync();
         int pad1 = padRead1();
     }
 }

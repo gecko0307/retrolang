@@ -137,6 +137,8 @@ immutable string[][] binLevels = [
 
 immutable string[] assignOps = ["=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="];
 
+immutable string[] _types = ["int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned"];
+
 class Parser
 {
     Token[] toks;
@@ -202,8 +204,7 @@ class Parser
     bool isTypeStart(size_t k = 0)
     {
         Token t = peek(k);
-        return t.kind == TK.Ident &&
-               inList(t.text, ["int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned"]);
+        return t.kind == TK.Ident && inList(t.text, _types);
     }
 
     CType parseBaseType()
