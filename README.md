@@ -85,9 +85,11 @@ The same in Retrolang assembly:
     "Hello, World!\n\0"
 ```
 
-## Additional Tools
+## Recommended Third-Party Tools
 
 Provided examples depend on [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso) to build CD-ROM images.
+
+For running programs on the PC, we recommend [DuckStation](https://www.duckstation.org/), a fast and feature-rich PlayStation emulator for Windows, Linux and Mac.
 
 ## TODO
 
