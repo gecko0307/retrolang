@@ -1,0 +1,5 @@
+/**
+ * Core definitions.
+ */
+
+#define null 0
