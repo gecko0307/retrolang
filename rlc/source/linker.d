@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 module linker;
 
 import std.stdio;
+
 import mips;
 import ir;
 import psxexe;
@@ -133,11 +134,12 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
     
     foreach(i, entry; ass.dataEntries)
     {
-        if (verbose)
-            writefln("%s: 0x%08X", entry.label, offset);
         dataLabelAddrs[entry.label] = offset;
         uint size = cast(uint)entry.data.length;
         uint alignedSize = size.aligned(4);
+        if (verbose)
+            writefln("%s: 0x%08X %s byte(s) (%s bytes aligned) %s", entry.label, offset, size, alignedSize, entry.data);
+        
         offset += alignedSize;
         data ~= entry.data;
         size_t paddingSize = alignedSize - size;
@@ -160,6 +162,9 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
     }
 
     // Generate machine code
+    if (verbose)
+        writeln("\nProgram code:");
+    
     ubyte[] code;
     
     foreach(pos, ref ins; ass.instructions)

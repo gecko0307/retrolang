@@ -100,7 +100,7 @@ class Func
 
 class GlobalDecl
 {
-    CType ty;           // element type for arrays
+    CType ty; // element type for arrays
     string name;
     int line;
     bool isArray;
@@ -109,6 +109,7 @@ class GlobalDecl
     long[] inits;
     bool strInit;
     ubyte[] strBytes;
+    string attrFilename;
 }
 
 class Program

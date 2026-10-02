@@ -45,12 +45,14 @@ import linker;
 int main(string[] args)
 {
     string outputFile = "PSX.EXE";
-
+    bool verbose = false;
+    
     try
     {
         auto helpInformation = getopt(
             args,
-            "output|o", "Output file name (default is PSX.EXE)", &outputFile
+            "output|o", "Output file name (default is PSX.EXE)", &outputFile,
+            "verbose|v", "Print more information during the build", &verbose
         );
 
         if (helpInformation.helpWanted) {
@@ -96,7 +98,6 @@ int main(string[] args)
     {
         writefln("Compiling %s...", filename);
         string processedCode = preprocess(sourceCode, filename);
-        //writeln(processedCode);
         if (processedCode.length > 0)
             ass = compile(processedCode);
         else
@@ -110,7 +111,7 @@ int main(string[] args)
 
     writeln("Linking...");
     ubyte[] exeCode;
-    if (!link(ass, false, exeCode)) return 1;
+    if (!link(ass, verbose, exeCode)) return 1;
 
     // Generate PS-X EXE and save to file
     writefln("Generating executable (%s)...", outputFile);

@@ -373,7 +373,7 @@ class Parser
                 {
                     Token s = next();
                     g.strInit = true;
-                    g.strBytes = parseEscapes(s.text) ~ cast(ubyte) 0;
+                    g.strBytes = parseEscapes(s.text) ~ cast(ubyte)0;
                 }
                 else if (g.isArray)
                 {
@@ -392,6 +392,24 @@ class Parser
                 else
                 {
                     g.inits ~= parseConstExpr();
+                }
+            }
+            
+            if (acceptSym("@"))
+            {
+                expectSym("(");
+                if (!isSym(")"))
+                {
+                    auto attrType = peek().kind;
+                    if (attrType == TK.Str)
+                    {
+                        Token s = next();
+                        g.attrFilename = s.text;
+                    }
+                    else
+                        throw err(line, "attribute requires a string");
+                    
+                    expectSym(")");
                 }
             }
 

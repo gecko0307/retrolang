@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 module codegen;
 
 import std.format: format;
+import std.file: read, exists;
 
 import error;
 import lexer;
@@ -1749,8 +1750,22 @@ class CodeGen
 
         int esz = g.ty.size();
         ubyte[] data;
-
-        if (g.isArray)
+        
+        if (g.attrFilename.length > 0)
+        {
+            if (g.ty.ptr == 0)
+                throw err(g.line, "file attribute requires an array");
+            
+            // TODO: build path for searching external files
+            string externalFile = g.attrFilename;
+            if (exists(externalFile))
+                data = cast(ubyte[])read(externalFile);
+            else
+                throw err(g.line, "can't find file \"" ~ externalFile ~ "\"");
+            v.isArray = true;
+            v.arrLen = cast(int)data.length;
+        }
+        else if (g.isArray)
         {
             int n = g.arrLen;
             if (g.strInit)
