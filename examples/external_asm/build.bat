@@ -1,2 +1,2 @@
 @echo off
-"../../rlc/rlc.exe" -v -o iso/PSX.EXE src/main.r
+"../../rlc/rlc.exe" -o iso/PSX.EXE src/main.r
