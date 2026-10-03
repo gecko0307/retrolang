@@ -30,9 +30,11 @@ Assembling command is similar (RLC treats *.s file as an assembly source):
 rlc -o PSX.EXE src/main.s
 ```
 
+RLC translates your program verbatim, without optimizations and unexpected changes behind your back. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
+
 ## The Language
 
-Retrolang is a very basic curly-bracket procedural language inspired by C.
+Retrolang is a very basic curly-bracket procedural language inspired by C, but desifned to run in extremely memory-constrained environments.
 
 **Primitive types**: `int`, `short`, `char`, `uint`, `ushort`, `uchar`, `void`, and pointers to them. Pointers compare as unsigned. Literals above `0x7FFFFFFF`, or with a 'u' suffix, are unsigned. Like C, `uchar`/`ushort` promote to (signed) `int` in arithmetic; only `uint` makes `/`, `%`, `>>` and comparisons unsigned. C-style type casts are supported.
 
