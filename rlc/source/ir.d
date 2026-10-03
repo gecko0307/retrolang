@@ -79,7 +79,19 @@ string gteDataRegToString(Reg r)
 
 string gteControlRegToString(Reg r)
 {
-    // TODO
+    static immutable string[32] regNames = [
+        0: "R11R12",  1: "R13R21",   2: "R22R23",  3: "R31R32",   4: "R33",
+        5: "TRX",     6: "TRY",      7: "TRZ",
+        8: "L11L12",  9: "L13L21",  10: "L22L23", 11: "L31L32",  12: "L33",
+       13: "RBK",    14: "GBK",     15: "BBK",
+       16: "LR1LR2", 17: "LR3LG1",  18: "LG2LG3", 19: "LB1LB2",
+       20: "LB3",    21: "RFC",     22: "GFC",    23: "BFC",
+       24: "OFX",    25: "OFY",     26: "H",      27: "DQA",     28: "DQB",
+       29: "ZSF3",   30: "ZSF4",    31: "FLAG"
+    ];
+
+    if (r < regNames.length)
+        return regNames[r];
     
     return "unk(" ~ r.to!string ~ ")";
 }
@@ -297,7 +309,39 @@ Reg parseRegGteControl(string s)
 
     switch (s)
     {
-        // TODO
+        case "r11r12": return R11R12;
+        case "r13r21": return R13R21;
+        case "r22r23": return R22R23;
+        case "r31r32": return R31R32;
+        case "r33":    return R33;
+        case "trx":    return TRX;
+        case "try":    return TRY;
+        case "trz":    return TRZ;
+        case "l11l12": return L11L12;
+        case "l13l21": return L13L21;
+        case "l22l23": return L22L23;
+        case "l31l32": return L31L32;
+        case "l33":    return L33;
+        case "rbk":    return RBK;
+        case "gbk":    return GBK;
+        case "bbk":    return BBK;
+        case "lr1lr2": return LR1LR2;
+        case "lr3lg1": return LR3LG1;
+        case "lg2lg3": return LG2LG3;
+        case "lb1lb2": return LB1LB2;
+        case "lb3":    return LB3;
+        case "rfc":    return RFC;
+        case "gfc":    return GFC;
+        case "bfc":    return BFC;
+        case "ofx":    return OFX;
+        case "ofy":    return OFY;
+        case "h":      return H;
+        case "dqa":    return DQA;
+        case "dqb":    return DQB;
+        case "zsf3":   return ZSF3;
+        case "zsf4":   return ZSF4;
+        case "flag":   return FLAG;
+        
         default: throw new Exception("Unsupported GTE control register");
     }
 }

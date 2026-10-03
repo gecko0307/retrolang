@@ -38,6 +38,7 @@ alias Reg = ubyte;
 
 enum Op
 {
+    // CPU opcode enums
     NOP, SLL, SRL, SRA, SLLV, SRLV, SRAV,
     J, JAL, JR, JALR,
     SYSCALL, BREAK,
@@ -58,12 +59,12 @@ enum Op
     MTC0, MFC0, RFE,
     MTC2, MFC2, CTC2, CFC2,
     
-    // GTE opcodes
+    // GTE opcode enums
     RTPS, RTPT
-    
     // TODO: other GTE opcodes
 }
 
+// CPU registers
 enum: Reg
 {
     R0   = 0,
@@ -145,7 +146,42 @@ enum: Reg
     LZCR = 31  // Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
 }
 
-// TODO: GTE control registers
+// GTE control registers
+enum: Reg
+{
+    R11R12 = 0,  // Rotation matrix 3x3 (r11, r12), 2 signed 16-bit integers
+    R13R21 = 1,  // Rotation matrix 3x3 (r13, r21), 2 signed 16-bit integers
+    R22R23 = 2,  // Rotation matrix 3x3 (r22, r23), 2 signed 16-bit integers
+    R31R32 = 3,  // Rotation matrix 3x3 (r31, r32), 2 signed 16-bit integers
+    R33    = 4,  // Rotation matrix 3x3 (r33), signed 16-bit integer
+    TRX    = 5,  // Translation vector X, signed 32-bit integer
+    TRY    = 6,  // Translation vector Y, signed 32-bit integer
+    TRZ    = 7,  // Translation vector Z, signed 32-bit integer
+    L11L12 = 8,  // Light source matrix 3x3 (l11, l12), 2 signed 16-bit integers
+    L13L21 = 9,  // Light source matrix 3x3 (l13, l21), 2 signed 16-bit integers
+    L22L23 = 10, // Light source matrix 3x3 (l22, l23), 2 signed 16-bit integers
+    L31L32 = 11, // Light source matrix 3x3 (l31, l32), 2 signed 16-bit integers
+    L33    = 12, // Light source matrix 3x3 (l33), signed 16-bit integer
+    RBK    = 13, // Background color R, unsigned 32-bit integer
+    GBK    = 14, // Background color G, unsigned 32-bit integer
+    BBK    = 15, // Background color B, unsigned 32-bit integer
+    LR1LR2 = 16, // Light color matrix source (lr1, lr2), 2 signed 16-bit integers
+    LR3LG1 = 17, // Light color matrix source (lr3, lg1), 2 signed 16-bit integers
+    LG2LG3 = 18, // Light color matrix source (lg2, lg3), 2 signed 16-bit integers
+    LB1LB2 = 19, // Light color matrix source (lb1, lb2), 2 signed 16-bit integers
+    LB3    = 20, // Light color matrix source (lb3), signed 16-bit integer
+    RFC    = 21, // Far color R, unsigned 32-bit integer
+    GFC    = 22, // Far color G, unsigned 32-bit integer
+    BFC    = 23, // Far color B, unsigned 32-bit integer
+    OFX    = 24, // Screen offset X, signed 32-bit integer
+    OFY    = 25, // Screen offset Y, signed 32-bit integer
+    H      = 26, // Projection plane distance, unsigned 16-bit integer
+    DQA    = 27, // Depth queing parameter A (coefficient), signed 16-bit integer
+    DQB    = 28, // Depth queing parameter B (offset), unsigned 32-bit integer
+    ZSF3   = 29, // Z-averaging scale factor, signed 16-bit integer
+    ZSF4   = 30, // Z-averaging scale factor, signed 16-bit integer
+    FLAG   = 31  // Flag (read-only), returns any calculation errors, 20 bits
+}
 
 uint opR(ubyte op, ubyte rs, ubyte rt, ubyte rd, ubyte sh, ubyte fn)
 {
