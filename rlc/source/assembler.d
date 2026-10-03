@@ -266,7 +266,21 @@ Assembly parseAsm(string code, string labelPrefix = "", size_t instrIndexStart =
                 output ~= AsmInstr(Op.BREAK, args[0].makeImm, makeNone, makeNone, i);
         }
         
-        // TODO: coprocessor instructions
+        else if (op == "mtc2" && args.length == 2)
+            output ~= AsmInstr(Op.MTC2, args[0].makeReg, args[1].makeRegGteData, makeNone, i);
+        else if (op == "mfc2" && args.length == 2)
+            output ~= AsmInstr(Op.MFC2, args[0].makeReg, args[1].makeRegGteData, makeNone, i);
+        else if (op == "ctc2" && args.length == 2)
+            output ~= AsmInstr(Op.CTC2, args[0].makeReg, args[1].makeRegGteControl, makeNone, i);
+        else if (op == "cfc2" && args.length == 2)
+            output ~= AsmInstr(Op.CFC2, args[0].makeReg, args[1].makeRegGteControl, makeNone, i);
+        
+        else if (op == "rtps" && args.length == 0)
+            output ~= AsmInstr(Op.RTPS, makeNone, makeNone, makeNone, i);
+        else if (op == "rtpt" && args.length == 0)
+            output ~= AsmInstr(Op.RTPT, makeNone, makeNone, makeNone, i);
+        
+        // TODO: other GTE instruction opcodes
         
         else
             throw new Exception("Unknown instruction: " ~ op);

@@ -37,6 +37,8 @@ enum AsmOperandType
 {
     None,
     Reg,
+    RegGteData,
+    RegGteControl,
     Imm,
     Label
 }
@@ -58,6 +60,30 @@ string regToString(Reg r)
     return "unk(" ~ r.to!string ~ ")";
 }
 
+string gteDataRegToString(Reg r)
+{
+    static immutable string[32] regNames = [
+        0: "VXY0",  1: "VZ0",   2: "VXY1",  3: "VZ1",   4: "VXY2",  5: "VZ2",
+        6: "RGBC",  7: "OTZ",   8: "IR0",   9: "IR1",  10: "IR2",  11: "IR3",
+       12: "SXY0", 13: "SXY1", 14: "SXY2", 15: "SXYP", 16: "SZ0",  17: "SZ1",
+       18: "SZ2",  19: "SZ3",  20: "RGB0", 21: "RGB1", 22: "RGB2", 24: "MAC0",
+       25: "MAC1", 26: "MAC2", 27: "MAC3", 28: "IRGB", 29: "ORGB", 30: "LZCS",
+       31: "LZCR"
+    ];
+
+    if (r < regNames.length)
+        return regNames[r];
+        
+    return "unk(" ~ r.to!string ~ ")";
+}
+
+string gteControlRegToString(Reg r)
+{
+    // TODO
+    
+    return "unk(" ~ r.to!string ~ ")";
+}
+
 struct AsmOperand
 {
     Reg reg;
@@ -70,6 +96,10 @@ struct AsmOperand
     {
         if (type == AsmOperandType.Reg)
             return regToString(reg);
+        else if (type == AsmOperandType.RegGteData)
+            return gteDataRegToString(reg);
+        else if (type == AsmOperandType.RegGteControl)
+            return gteControlRegToString(reg);
         else if (type == AsmOperandType.Imm)
             return "0x" ~ to!string(imm, 16);
         else if (type == AsmOperandType.Label)
@@ -99,6 +129,22 @@ AsmOperand makeReg(string s)
     AsmOperand operand;
     operand.reg = parseReg(s);
     operand.type = AsmOperandType.Reg;
+    return operand;
+}
+
+AsmOperand makeRegGteData(string s)
+{
+    AsmOperand operand;
+    operand.reg = parseRegGteData(s);
+    operand.type = AsmOperandType.RegGteData;
+    return operand;
+}
+
+AsmOperand makeRegGteControl(string s)
+{
+    AsmOperand operand;
+    operand.reg = parseRegGteControl(s);
+    operand.type = AsmOperandType.RegGteControl;
     return operand;
 }
 
@@ -164,7 +210,7 @@ Reg parseReg(string s)
 
     switch (s)
     {
-        case "zero", "r0":  return R0;
+        case "zero", "r0": return R0;
         case "at": return AT;
         case "v0": return V0;
         case "v1": return V1;
@@ -194,6 +240,64 @@ Reg parseReg(string s)
         case "sp": return SP;
         case "fp", "s8": return FP;
         case "ra": return RA;
+        
         default: throw new Exception("Unsupported register");
+    }
+}
+
+Reg parseRegGteData(string s)
+{
+    s = s.strip.toLower;
+    if (s.startsWith("$"))
+        s = s[1..$];
+
+    switch (s)
+    {
+        case "vxy0": return VXY0;
+        case "vz0": return VZ0;
+        case "vxy1": return VXY1;
+        case "vz1": return VZ1;
+        case "vxy2": return VXY2;
+        case "vz2": return VZ2;
+        case "rgbc": return RGBC;
+        case "otz": return OTZ;
+        case "ir0": return IR0;
+        case "ir1": return IR1;
+        case "ir2": return IR2;
+        case "ir3": return IR3;
+        case "sxy0": return SXY0;
+        case "sxy1": return SXY1;
+        case "sxy2": return SXY2;
+        case "sxyp": return SXYP;
+        case "sz0": return SZ0;
+        case "sz1": return SZ1;
+        case "sz2": return SZ2;
+        case "sz3": return SZ3;
+        case "rgb0": return RGB0;
+        case "rgb1": return RGB1;
+        case "rgb2": return RGB2;
+        case "mac0": return MAC0;
+        case "mac1": return MAC1;
+        case "mac2": return MAC2;
+        case "mac3": return MAC3;
+        case "irgb": return IRGB;
+        case "orgb": return ORGB;
+        case "lzcs": return LZCS;
+        case "lzcr": return LZCR;
+        
+        default: throw new Exception("Unsupported GTE data register");
+    }
+}
+
+Reg parseRegGteControl(string s)
+{
+    s = s.strip.toLower;
+    if (s.startsWith("$"))
+        s = s[1..$];
+
+    switch (s)
+    {
+        // TODO
+        default: throw new Exception("Unsupported GTE control register");
     }
 }

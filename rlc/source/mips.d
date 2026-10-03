@@ -56,7 +56,12 @@ enum Op
     SWC0, SWC1, SWC2, SWC3,
     BEQ, BNE, BLEZ, BGTZ, BGEZ, BLTZ, BGEZAL, BLTZAL,
     MTC0, MFC0, RFE,
-    MTC2, MFC2, CTC2, CFC2
+    MTC2, MFC2, CTC2, CFC2,
+    
+    // GTE opcodes
+    RTPS, RTPT
+    
+    // TODO: other GTE opcodes
 }
 
 enum: Reg
@@ -99,10 +104,48 @@ enum: Reg
     GP   = 28,
     SP   = 29,
     FP   = 30,
-    //S8   = 30,
     
     RA   = 31
 }
+
+// GTE data registers
+enum: Reg
+{
+    VXY0 = 0,  // Vector0 X and Y, 2 packed signed 16-bit integers
+    VZ0  = 1,  // Vector0 Z, signed 16-bit integer
+    VXY1 = 2,  // Vector1 X and Y, 2 packed signed 16-bit integers
+    VZ1  = 3,  // Vector1 Z, signed 16-bit integer
+    VXY2 = 4,  // Vector2 X and Y, 2 packed signed 16-bit integers
+    VZ2  = 5,  // Vector2 Z, signed 16-bit integer
+    RGBC = 6,  // Color/code value, 4 packed unsigned bytes
+    OTZ  = 7,  // Average Z value (for Ordering Table), unsigned 16-bit integer
+    IR0  = 8,  // 16-bit Accumulator (Interpolate), signed 16-bit integer
+    IR1  = 9,  // 16-bit Accumulator (Vector X), signed 16-bit integer
+    IR2  = 10, // 16-bit Accumulator (Vector Y), signed 16-bit integer
+    IR3  = 11, // 16-bit Accumulator (Vector Z), signed 16-bit integer
+    SXY0 = 12, // Screen XY-coordinate FIFO stage1, 2 packed signed 16-bit integers
+    SXY1 = 13, // Screen XY-coordinate FIFO stage2, 2 packed signed 16-bit integers
+    SXY2 = 14, // Screen XY-coordinate FIFO stage3, 2 packed signed 16-bit integers
+    SXYP = 15, // Screen XY-coordinate FIFO stage4, 2 packed signed 16-bit integers
+    SZ0  = 16, // Screen Z-coordinate FIFO stage1, unsigned 16-bit integer
+    SZ1  = 17, // Screen Z-coordinate FIFO stage2, unsigned 16-bit integer
+    SZ2  = 18, // Screen Z-coordinate FIFO stage3, unsigned 16-bit integer
+    SZ3  = 19, // Screen Z-coordinate FIFO stage4, unsigned 16-bit integer
+    RGB0 = 20, // Color CRGB-code/color FIFO stage1, 4 packed unsigned bytes
+    RGB1 = 21, // Color CRGB-code/color FIFO stage2, 4 packed unsigned bytes
+    RGB2 = 22, // Color CRGB-code/color FIFO stage3, 4 packed unsigned bytes
+    // $23 is undefined/prohibited
+    MAC0 = 24, // 32bit Maths Accumulators (Value), signed 32-bit integer
+    MAC1 = 25, // 32bit Maths Accumulators (Vector X), signed 32-bit integer
+    MAC2 = 26, // 32bit Maths Accumulators (Vector Y), signed 32-bit integer
+    MAC3 = 27, // 32bit Maths Accumulators (Vector Z), signed 32-bit integer
+    IRGB = 28, // Convert RGB Color (48bit vs 15bit), unsigned 16-bit integer
+    ORGB = 29, // 
+    LZCS = 30, // Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
+    LZCR = 31  // Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
+}
+
+// TODO: GTE control registers
 
 uint opR(ubyte op, ubyte rs, ubyte rt, ubyte rd, ubyte sh, ubyte fn)
 {
@@ -184,13 +227,13 @@ Word opJal(uint addr)                   { return opJ(0x03, addr); }
 // Misc
 Word opSyscall(uint code = 0)
 {
-    // mask to 20 bits and place into bits [6..25], funct = 0x0C
+    // Mask to 20 bits and place into bits [6..25], funct = 0x0C
     return ((0u << 26) | ((code & 0xFFFFFu) << 6) | 0x0Cu);
 }
 
 Word opBreak(uint code = 0)
 {
-    // mask to 20 bits and place into bits [6..25], funct = 0x0D
+    // Mask to 20 bits and place into bits [6..25], funct = 0x0D
     return ((0u << 26) | ((code & 0xFFFFFu) << 6) | 0x0Du);
 }
 
@@ -220,15 +263,21 @@ Word[] opLi(T)(Reg rt, T imm)
         ushort hi = cast(ushort)((imm >> 16) & 0xffff);
         ushort lo = cast(ushort)(imm & 0xffff);
         
-        /*
-        // sign-extend
-        if (lo & 0x8000)
-            hi++;
-        */
-        
         code ~= opLui(rt, hi);
         code ~= opOri(rt, rt, lo);
     }
     
     return code;
 }
+
+Word opMfc2(Reg rt, Reg rd) { return opR(0x12, 0x00, rt, rd, 0, 0); }
+Word opCfc2(Reg rt, Reg rd) { return opR(0x12, 0x02, rt, rd, 0, 0); }
+Word opMtc2(Reg rt, Reg rd) { return opR(0x12, 0x04, rt, rd, 0, 0); }
+Word opCtc2(Reg rt, Reg rd) { return opR(0x12, 0x06, rt, rd, 0, 0); }
+
+Word opCop2(uint command) { return (0x12u << 26) | (command & 0x01ffffff); }
+
+Word opRtps() { return opCop2(0x000001); }
+Word opRtpt() { return opCop2(0x000003); }
+
+// TODO: other GTE instructions

@@ -112,6 +112,16 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             case Op.SYSCALL: ins.code = [opSyscall(cast(uint)ins.operand1.imm)]; break;
             case Op.BREAK: ins.code = [opBreak(cast(uint)ins.operand1.imm)]; break;
             
+            case Op.MTC2: ins.code = [opMtc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.MFC2: ins.code = [opMfc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.CTC2: ins.code = [opCtc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.CFC2: ins.code = [opCfc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            
+            case Op.RTPS: ins.code = [opRtps()]; break;
+            case Op.RTPT: ins.code = [opRtpt()]; break;
+            
+            // TODO: other GTE instructions
+            
             default: break;
         }
         
