@@ -2,9 +2,9 @@
  * 2D sprite rendering test.
  */
 
-#include "core.ri"
-#include "pad.ri"
-#include "gpu.ri"
+#include "../../include/core.ri"
+#include "../../include/pad.ri"
+#include "../../include/gpu.ri"
 
 struct GpuSettings gpu;
 
@@ -42,8 +42,8 @@ void main()
     // Fill the screen with middle-grey color
     gpuClear(0x808080);
 
-    // Draw a sprite
-    struct GpuSprite sprite;
+    // Draw a textured sprite
+    struct GpuSprite2 sprite;
     sprite.texture = &tex;
     sprite.x = 128;
     sprite.y = 88;
@@ -52,7 +52,7 @@ void main()
     sprite.width = tex.width;
     sprite.height = tex.height;
     sprite.color = 0x00ffffff;
-    gpuDrawTexSprite(&sprite);
+    gpuDrawSprite2(&sprite);
 
     while(1)
     {

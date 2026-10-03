@@ -8,9 +8,12 @@
 #define GP0_MASK      0xe6000000
 
 #define GP0_FAST_RECT 0x02000000
+#define GP0_TRI1      0x20000000
 #define GP0_TRI2      0x30000000
-#define GP0_RECT1     0x60000000
-#define GP0_SPRITE    0xe1000000
+#define GP0_LINE1     0x40000000
+#define GP0_LINE2     0x50000000
+#define GP0_SPRITE1   0x60000000
+#define GP0_SPRITE2   0xe1000000
 
 #define GP0_RECT_TEX  0x64000000
 
@@ -50,12 +53,33 @@ struct GpuRect
     int height;
 };
 
-struct GpuLine
+struct GpuLine1
 {
     int x1;
     int y1;
     int x2;
     int y2;
+};
+
+struct GpuLine2
+{
+    int x1;
+    int y1;
+    int color1;
+    int x2;
+    int y2;
+    int color2;
+};
+
+struct GpuTriangle1
+{
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+    int x3;
+    int y3;
+    int color;
 };
 
 struct GpuTriangle2
@@ -73,7 +97,9 @@ struct GpuTriangle2
     int color3;
 };
 
-struct GpuSprite
+#define GpuSprite1 GpuRect
+
+struct GpuSprite2
 {
     struct GpuTexture* texture;
     int x;
@@ -348,24 +374,57 @@ void gpuFillRectFast(struct GpuRect* rect, int color)
 }
 
 /// Draws a solid-colored line.
-void gpuDrawLine(struct GpuLine* line, int color)
+void gpuDrawLine1(struct GpuLine1* line, int color)
 {
     gpuWaitIdle();
-    *gp0 = 0x40000000 | color;
+    *gp0 = GP0_LINE1 | color;
     *gp0 = (line->y1 << 16) | line->x1;
     *gp0 = (line->y2 << 16) | line->x2;
 }
 
-/// Draws a rectangular sprite.
-void gpuDrawSolidSprite(struct GpuRect* rect, int color)
+/// Draws a Gouraud-shaded line.
+void gpuDrawLine2(struct GpuLine2* line)
 {
     gpuWaitIdle();
-    *gp0 = GP0_RECT1 | color;
-    *gp0 = (rect->y << 16) | rect->x;
-    *gp0 = (rect->height << 16) | rect->width;
+    *gp0 = GP0_LINE2 | line->color1;
+    *gp0 = (line->y1 << 16) | line->x1;
+    *gp0 = line->color2;
+    *gp0 = (line->y2 << 16) | line->x2;
 }
 
-/// Draws a colored triangle.
+/// Draws a solid-colored sprite.
+void gpuDrawSprite1(struct GpuSprite1* sprite, int color)
+{
+    gpuWaitIdle();
+    *gp0 = GP0_SPRITE1 | color;
+    *gp0 = (sprite->y << 16) | sprite->x;
+    *gp0 = (sprite->height << 16) | sprite->width;
+}
+
+/// Draws a textured, color-modulated sprite.
+void gpuDrawSprite2(struct GpuSprite2* sprite)
+{
+    uint u = sprite->texture->px + sprite->u;
+    uint v = sprite->texture->py + sprite->v;
+    gpuWaitIdle();
+    *gp0 = GP0_SPRITE2 | sprite->texture->tpage;
+    *gp0 = GP0_RECT_TEX | sprite->color;
+    *gp0 = (sprite->y << 16) | sprite->x;
+    *gp0 = ((uint)sprite->texture->clutId << 16) | (v << 8) | u;
+    *gp0 = ((uint)sprite->height << 16) | sprite->width;
+}
+
+/// Draws a solid-colored triangle.
+void gpuDrawTriangle1(struct GpuTriangle1* tri, int color)
+{
+    gpuWaitIdle();
+    *gp0 = GP0_TRI1 | color;
+    *gp0 = (tri->y1 << 16) | tri->x1;
+    *gp0 = (tri->y2 << 16) | tri->x2;
+    *gp0 = (tri->y3 << 16) | tri->x3;
+}
+
+/// Draws a Gouraud-shaded triangle.
 void gpuDrawTriangle2(struct GpuTriangle2* tri)
 {
     gpuWaitIdle();
@@ -375,17 +434,4 @@ void gpuDrawTriangle2(struct GpuTriangle2* tri)
     *gp0 = (tri->y2 << 16) | tri->x2;
     *gp0 = tri->color3;
     *gp0 = (tri->y3 << 16) | tri->x3;
-}
-
-/// Draws a textured, color-modulated sprite.
-void gpuDrawTexSprite(struct GpuSprite* sprite)
-{
-    uint u = sprite->texture->px + sprite->u;
-    uint v = sprite->texture->py + sprite->v;
-    gpuWaitIdle();
-    *gp0 = GP0_SPRITE | sprite->texture->tpage;
-    *gp0 = GP0_RECT_TEX | sprite->color;
-    *gp0 = (sprite->y << 16) | sprite->x;
-    *gp0 = ((uint)sprite->texture->clutId << 16) | (v << 8) | u;
-    *gp0 = ((uint)sprite->height << 16) | sprite->width;
 }

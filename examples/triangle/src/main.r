@@ -32,7 +32,7 @@ void main()
     // Fills the screen with middle-gray color
     gpuClear(0x808080);
 
-    // Draws a colored triangle
+    // Draws a shaded triangle
     struct GpuTriangle2 tri;
     tri.x1 = 160;
     tri.y1 = 40;
