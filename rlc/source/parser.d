@@ -321,7 +321,29 @@ class Parser
                     } while (acceptSym(","));
                 }
                 expectSym(")");
-                if (acceptSym(";"))
+                
+                if (acceptSym("@"))
+                {
+                    f.body_ = null;
+                    expectSym("(");
+                    if (!isSym(")"))
+                    {
+                        auto attrType = peek().kind;
+                        if (attrType == TK.Str)
+                        {
+                            Token s = next();
+                            f.attrFilename = s.text;
+                            f.isExternal = true;
+                        }
+                        else
+                            throw err(line, "attribute requires a string");
+                        
+                        expectSym(")");
+                    }
+                    
+                    acceptSym(";");
+                }
+                else if (acceptSym(";"))
                     f.body_ = null;
                 else
                     f.body_ = parseBlock();

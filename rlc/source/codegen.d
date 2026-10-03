@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 module codegen;
 
 import std.format: format;
-import std.file: read, exists;
+import std.file: read, readText, exists;
 
 import error;
 import lexer;
@@ -38,6 +38,7 @@ import parser;
 import utils;
 import mips;
 import ir;
+import assembler;
 import psxexe: STACK_ADDR;
 
 // ---------------------------------------------------------------------------
@@ -1707,6 +1708,114 @@ class CodeGen
         flush();
     }
 
+    void genAsmFunc(Func f)
+    {
+        cur = null;
+        curLbls = null;
+        scopes = null;
+        savedS = null;
+        breakStack = null;
+        contStack = null;
+        pmoves = null;
+        td = 0;
+        nextS = 0;
+        maxS = 0;
+        localsTop = TEMP_SAVE_AREA;
+        hasCall = true;
+        curRet = f.ret;
+        curLine = f.line;
+        retLabel = newLabel();
+        addrTaken = null;
+        
+        if (f.params.length > 4)
+            throw err(f.line, "functions may have at most 4 parameters");
+
+        pushScope();
+        foreach (i, prm; f.params)
+        {
+            Var v = declareLocal(prm.name, prm.ty, -1, f.line);
+            pmoves ~= PMove(v, argRegs[i]);
+        }
+        
+        if (f.attrFilename != "")
+        {
+            string asmFilename = f.attrFilename;
+            if (!exists(asmFilename))
+                throw err(f.line, "can't find file \"" ~ asmFilename ~ "\"");
+            string asmCode = readText(asmFilename);
+            Assembly extAsm = parseAsm(asmCode, asmFilename, cur.length);
+            cur ~= extAsm.instructions;
+            ass.dataEntries ~= extAsm.dataEntries;
+        }
+        
+        popScope();
+
+        placeLabel(retLabel);
+
+        // Peephole: drop a trailing "j ret; nop" (a return as the last statement).
+        if (cur.length >= 2
+            && cur[$ - 2].op == Op.J
+            && cur[$ - 2].operand1.type == AsmOperandType.Label
+            && cur[$ - 2].operand1.label == retLabel
+            && cur[$ - 1].op == Op.NOP)
+        {
+            cur = cur[0 .. $ - 2];
+            foreach (ref l; curLbls)
+            {
+                if (l.idx > cur.length)
+                    l.idx = cur.length;
+            }
+        }
+
+        AsmInstr[] bodyInstrs = cur;
+        Lbl[] bodyLbls = curLbls;
+        cur = null;
+        curLbls = null;
+
+        int savedBase = (localsTop + 3) & ~3;
+        int raOff = savedBase + 4 * maxS;
+        int frame = (raOff + 4 + 7) & ~7;
+        if (frame > 32000)
+            throw err(f.line, "stack frame too large");
+
+        // Prologue
+        placeLabel("f_" ~ f.name);
+        rri(Op.ADDIU, SP, SP, -frame);
+        if (hasCall)
+            mem(Op.SW, RA, raOff, SP);
+        foreach (i; 0 .. maxS)
+            mem(Op.SW, sRegs[i], savedBase + 4 * i, SP);
+        foreach (pm; pmoves)
+        {
+            if (pm.v.st == Storage.InReg)
+            {
+                move(pm.v.reg, pm.src);
+                narrowReg(pm.v.reg, pm.v.ty);
+            }
+            else
+            {
+                emitStore(pm.v.ty, pm.src, pm.v.offset, SP);
+            }
+        }
+
+        // Body
+        size_t bodyBase = cur.length;
+        foreach (l; bodyLbls)
+            curLbls ~= Lbl(l.name, l.idx + bodyBase);
+        cur ~= bodyInstrs;
+
+        // Epilogue ($ra is reloaded first so the load delay is covered)
+        if (hasCall)
+            mem(Op.LW, RA, raOff, SP);
+        foreach (i; 0 .. maxS)
+            mem(Op.LW, sRegs[i], savedBase + 4 * i, SP);
+        rri(Op.ADDIU, SP, SP, frame);
+        emit(Op.JR, makeReg(RA), makeNone(), makeNone());
+        nop();
+
+        flush();
+    }
+
     // Append the current buffer to the program and register its labels.
     void flush()
     {
@@ -1802,7 +1911,7 @@ class CodeGen
                 throw err(g.line, "string initializers are only supported for char arrays");
             if (isStructVal(g.ty))
             {
-                data = new ubyte[esz];      // zero-initialized
+                data = new ubyte[esz]; // zero-initialized
             }
             else
             {
@@ -1830,7 +1939,7 @@ class CodeGen
         FuncInfo fi;
         fi.ret = f.ret;
         fi.params = ps;
-        fi.defined = alreadyDefined || f.body_ !is null;
+        fi.defined = alreadyDefined || f.body_ !is null || f.isExternal;
         funcs[f.name] = fi;
     }
 
@@ -1853,6 +1962,8 @@ class CodeGen
         {
             if (f.body_ !is null)
                 genFunc(f);
+            else if (f.attrFilename != "")
+                genAsmFunc(f);
         }
 
         ass.instructions = program;

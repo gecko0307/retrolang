@@ -94,8 +94,10 @@ class Func
     CType ret;
     string name;
     Param[] params;
-    Stmt body_;     // null for a prototype
+    Stmt body_; // null for a prototype or external
     int line;
+    bool isExternal;
+    string attrFilename;
 }
 
 class GlobalDecl

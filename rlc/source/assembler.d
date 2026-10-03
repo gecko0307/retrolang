@@ -37,16 +37,18 @@ import mips;
 import ir;
 import utils;
 
-Assembly parseAsm(string code)
+Assembly parseAsm(string code, string labelPrefix = "", size_t instrIndexStart = 0)
 {
     AsmInstr[] output;
     AsmDataEntry[] dataEntries;
     
     size_t[string] sections; // label -> instruction index
     size_t[string] dataLabels;
-    size_t instrIndex = 0;
+    size_t instrIndex = instrIndexStart;
     
-    string currentSection = ".text";
+    string textSection = labelPrefix ~ ".text";
+    string dataSection = labelPrefix ~ ".data";
+    string currentSection = textSection;
     string currentDataLabel = "";
 
     foreach(i, line; code.splitLines)
@@ -56,8 +58,8 @@ Assembly parseAsm(string code)
 
         if (line.endsWith(":"))
         {
-            auto label = line[0..$-1].strip;
-            if (currentSection != ".data")
+            auto label = labelPrefix ~ line[0..$-1].strip;
+            if (currentSection != dataSection)
                 throw new Exception("Illegal label \"" ~ label ~ "\" in section \"" ~ currentSection ~ "\"");
             dataLabels[label] = instrIndex;
             currentDataLabel = label;
@@ -65,7 +67,7 @@ Assembly parseAsm(string code)
         }
         if (line.startsWith("."))
         {
-            auto label = line[0..$].strip;
+            auto label = labelPrefix ~ line[0..$].strip;
             sections[label] = instrIndex;
             currentSection = label;
             currentDataLabel = "";
@@ -81,8 +83,8 @@ Assembly parseAsm(string code)
             continue;
         }
         
-        if (currentSection != ".text")
-            throw new Exception("Instruction code should be in \".text\" section");
+        if (currentSection != textSection)
+            throw new Exception("Instruction code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
 
         string[] parts = line.splitter(regex(r"[\s,()]+")).filter!(s => !s.empty).array;
 
@@ -127,7 +129,7 @@ Assembly parseAsm(string code)
         {
             AsmOperand imm;
             if (args[0].startsWith("."))
-                imm = makeLabel(args[0]);
+                imm = makeLabel(labelPrefix ~ args[0]);
             else
                 imm = makeImm(args[0]);
             output ~= AsmInstr(Op.J, imm, makeNone, makeNone, i);
@@ -138,7 +140,7 @@ Assembly parseAsm(string code)
         {
             AsmOperand imm;
             if (args[0].startsWith("."))
-                imm = makeLabel(args[0]);
+                imm = makeLabel(labelPrefix ~ args[0]);
             else
                 imm = makeImm(args[0]);
             output ~= AsmInstr(Op.JAL, imm, makeNone, makeNone, i);
@@ -155,7 +157,7 @@ Assembly parseAsm(string code)
         {
             AsmOperand imm;
             if (args[1].startsWith("."))
-                imm = makeLabel(args[1]);
+                imm = makeLabel(labelPrefix ~ args[1]);
             else
                 imm = makeImm(args[1]);
             output ~= AsmInstr(Op.LI, args[0].makeReg, imm, makeNone, i);
