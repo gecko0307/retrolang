@@ -266,6 +266,11 @@ Assembly parseAsm(string code, string labelPrefix = "", size_t instrIndexStart =
                 output ~= AsmInstr(Op.BREAK, args[0].makeImm, makeNone, makeNone, i);
         }
         
+        else if (op == "mtc0" && args.length == 2)
+            output ~= AsmInstr(Op.MTC0, args[0].makeReg, args[1].makeReg, makeNone, i); // TODO: makeRegCop0Data
+        else if (op == "mfc0" && args.length == 2)
+            output ~= AsmInstr(Op.MFC0, args[0].makeReg, args[1].makeReg, makeNone, i); // TODO: makeRegCop0Data
+        
         else if (op == "mtc2" && args.length == 2)
             output ~= AsmInstr(Op.MTC2, args[0].makeReg, args[1].makeRegGteData, makeNone, i);
         else if (op == "mfc2" && args.length == 2)
@@ -274,6 +279,8 @@ Assembly parseAsm(string code, string labelPrefix = "", size_t instrIndexStart =
             output ~= AsmInstr(Op.CTC2, args[0].makeReg, args[1].makeRegGteControl, makeNone, i);
         else if (op == "cfc2" && args.length == 2)
             output ~= AsmInstr(Op.CFC2, args[0].makeReg, args[1].makeRegGteControl, makeNone, i);
+        else if (op == "cop2" && args.length == 1)
+            output ~= AsmInstr(Op.COP2, args[0].makeImm, makeNone, makeNone, i);
         
         else if (op == "rtps" && args.length == 0)
             output ~= AsmInstr(Op.RTPS, makeNone, makeNone, makeNone, i);

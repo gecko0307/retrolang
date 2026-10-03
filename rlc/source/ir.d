@@ -220,6 +220,9 @@ Reg parseReg(string s)
     if (s.startsWith("$"))
         s = s[1..$];
 
+    if (s.isNumeric)
+        return s.to!ubyte;
+
     switch (s)
     {
         case "zero", "r0": return R0;
@@ -262,6 +265,9 @@ Reg parseRegGteData(string s)
     s = s.strip.toLower;
     if (s.startsWith("$"))
         s = s[1..$];
+
+    if (s.isNumeric)
+        return s.to!ubyte;
 
     switch (s)
     {
@@ -306,6 +312,9 @@ Reg parseRegGteControl(string s)
     s = s.strip.toLower;
     if (s.startsWith("$"))
         s = s[1..$];
+
+    if (s.isNumeric)
+        return s.to!ubyte;
 
     switch (s)
     {

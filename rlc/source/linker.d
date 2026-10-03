@@ -116,6 +116,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             case Op.MFC2: ins.code = [opMfc2(ins.operand1.reg, ins.operand2.reg)]; break;
             case Op.CTC2: ins.code = [opCtc2(ins.operand1.reg, ins.operand2.reg)]; break;
             case Op.CFC2: ins.code = [opCfc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.COP2: ins.code = [opCop2(cast(uint)ins.operand1.imm)]; break;
             
             case Op.RTPS: ins.code = [opRtps()]; break;
             case Op.RTPT: ins.code = [opRtpt()]; break;

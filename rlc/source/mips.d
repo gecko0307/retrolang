@@ -58,6 +58,7 @@ enum Op
     BEQ, BNE, BLEZ, BGTZ, BGEZ, BLTZ, BGEZAL, BLTZAL,
     MTC0, MFC0, RFE,
     MTC2, MFC2, CTC2, CFC2,
+    COP2,
     
     // GTE opcode enums
     RTPS, RTPT
@@ -306,14 +307,17 @@ Word[] opLi(T)(Reg rt, T imm)
     return code;
 }
 
+Word opMfc0(Reg rt, Reg rd) { return opR(0x10, 0x00, rt, rd, 0, 0); }
+Word opMtc0(Reg rt, Reg rd) { return opR(0x10, 0x04, rt, rd, 0, 0); }
+
 Word opMfc2(Reg rt, Reg rd) { return opR(0x12, 0x00, rt, rd, 0, 0); }
 Word opCfc2(Reg rt, Reg rd) { return opR(0x12, 0x02, rt, rd, 0, 0); }
 Word opMtc2(Reg rt, Reg rd) { return opR(0x12, 0x04, rt, rd, 0, 0); }
 Word opCtc2(Reg rt, Reg rd) { return opR(0x12, 0x06, rt, rd, 0, 0); }
 
-Word opCop2(uint command) { return (0x12u << 26) | (command & 0x01ffffff); }
+Word opCop2(uint command) { return 0x4A000000 | (command & 0x01ffffff); }
 
-Word opRtps() { return opCop2(0x000001); }
-Word opRtpt() { return opCop2(0x000003); }
+Word opRtps() { return opCop2(0x00180001); }
+Word opRtpt() { return opCop2(0x00280030); }
 
 // TODO: other GTE instructions
