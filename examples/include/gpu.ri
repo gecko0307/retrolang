@@ -57,15 +57,17 @@
 #define DMA2_BLOCK_START 0x01000201 // RAM -> GPU, block (request) mode, start
 #define GPU_LIST_END     0x00ffffff
 
-// Two command buffers at fixed RAM addresses (so they do not bloat the EXE).
-// Make sure this area does not collide with your data
+/*
+ * Two command buffers at fixed RAM addresses.
+ * Make sure this area does not collide with your data.
+ */
 #define GPU_BUF_WORDS 4096
 #define GPU_BUF0 0x80180000
 #define GPU_BUF1 0x80184000
 
-int* gpuCur = GPU_BUF0; // buffer being filled
-int  gpuPos = 0;        // next free word in gpuCur
-int* gpuLast = 0;       // header of the last packet in gpuCur
+int* gpuCurrentBuffer = GPU_BUF0; // buffer being filled
+int  gpuBufferPos = 0;            // next free word in gpuCurrentBuffer
+int* gpuLast = 0;                 // header of the last packet in gpuCurrentBuffer
 
 struct GpuRect
 {
@@ -221,7 +223,10 @@ int* timer1Mode  = 0x1f801114;
 // bit 8   : clock source = Hblank
 #define T1_VBLANK_RESET 0x0103
 
-//
+/**
+ * Initialize the GPU.
+ * The pointer to the GpuSettings struct must be valid till the end of the program.
+ */
 void gpuInit(struct GpuSettings* settings)
 {
     __gpuSettings = settings;
@@ -232,8 +237,8 @@ void gpuInit(struct GpuSettings* settings)
     // Enable DMA channel 2 and select CPU->GP0 transfer direction.
     *dmaDpcr = *dmaDpcr | DMA_CH2_ENABLE;
     *gp1 = 0x04000002;
-    gpuCur = GPU_BUF0;
-    gpuPos = 0;
+    gpuCurrentBuffer = GPU_BUF0;
+    gpuBufferPos = 0;
     gpuLast = 0;
     
     // Set drawing mode bits
@@ -361,13 +366,13 @@ void gpuVSyncN(int n)
  */
 int* gpuAlloc(int n)
 {
-    if (gpuPos + n + 1 >= GPU_BUF_WORDS)
+    if (gpuBufferPos + n + 1 >= GPU_BUF_WORDS)
         gpuFlush();
 
-    int* hdr = gpuCur + gpuPos;
-    gpuPos += n + 1;
+    int* hdr = gpuCurrentBuffer + gpuBufferPos;
+    gpuBufferPos += n + 1;
     // size in the top byte, the next packet follows directly after this one
-    *hdr = (n << 24) | ((uint)(gpuCur + gpuPos) & GPU_LIST_END);
+    *hdr = (n << 24) | ((uint)(gpuCurrentBuffer + gpuBufferPos) & GPU_LIST_END);
     gpuLast = hdr;
     return hdr + 1;
 }
@@ -375,38 +380,42 @@ int* gpuAlloc(int n)
 /// Terminates the list in the current buffer and starts the DMA transfer.
 void gpuKick()
 {
-    if (gpuPos == 0)
+    if (gpuBufferPos == 0)
         return;
 
     // the previous transfer must be finished before the channel is reprogrammed
     gpuWaitDma();
 
     *gpuLast = *gpuLast | GPU_LIST_END;
-    *dma2Madr = (uint)gpuCur & 0xffffff;
+    *dma2Madr = (uint)gpuCurrentBuffer & 0xffffff;
     *dma2Bcr = 0;
     *dma2Chcr = DMA2_LIST_START;
 }
 
-/// Sends the queued commands, waits until the GPU has executed all of them and
-/// restarts the current buffer. Use before touching GP0 directly.
+/**
+ * Sends the queued commands, waits until the GPU has executed all of them and
+ * restarts the current buffer. Call this before touching GP0 directly.
+ */
 void gpuFlush()
 {
     gpuKick();
     gpuWaitDma();
     gpuWaitIdle();
-    gpuPos = 0;
+    gpuBufferPos = 0;
 }
 
-/// Ends the frame: starts the DMA and switches to the other buffer. The GPU keeps
-/// drawing while the CPU builds the next frame.
+/**
+ * Ends the frame: starts the DMA and swaps command buffers.
+ * The GPU keeps drawing while the CPU builds the next frame.
+ */
 void gpuEndFrame()
 {
     gpuKick();
-    if (gpuCur == GPU_BUF0)
-        gpuCur = GPU_BUF1;
+    if (gpuCurrentBuffer == GPU_BUF0)
+        gpuCurrentBuffer = GPU_BUF1;
     else
-        gpuCur = GPU_BUF0;
-    gpuPos = 0;
+        gpuCurrentBuffer = GPU_BUF0;
+    gpuBufferPos = 0;
 }
 
 /// Creates a texture from a TIM file.
