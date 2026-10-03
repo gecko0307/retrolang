@@ -8,6 +8,10 @@ At the moment Retrolang allows to write basic PlayStation programs: print to TTY
 ![Cat](media/cat.png)
 ![Text](media/text.png)
 
+## Core Idea
+
+Main philosophy of the project: PSX programming doesn't require a full-fledged C. A subset is sufficient. What we really need is platform-specific language capabilities and a simple, readable and easily hackable standard library.
+
 ## RLC
 
 The main tool is RLC, the Retrolang Compiler. It combines an assembler, compiler, and a linker in a single program and directly outputs `PSX.EXE`.
