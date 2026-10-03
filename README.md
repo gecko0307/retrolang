@@ -51,7 +51,9 @@ char hello[] = "Hello!";
 
 **Intrinsics**: BIOS calls `bios_a(n, ...)`, `bios_b(n, ...)`, `bios_c(n, ...)` through the `A0h`/`B0h`/`C0h` vectors with up to 3 further arguments. `n` is a function number which is passed in `$t1` register.
 
-**Attributes**: a global array can have an attribute `@("file.bin")` to embed files to the executable.
+**Embedded files**: a global array can have an attribute `@("file.bin")` to embed a file to the executable.
+
+**External assembly**: a function with an attribute `@("file.s")` relies on external implementation in Retrolang assembly. The compiler still generates prologue/epilogue for such functions. Local data/jump labels can be used inside the assembly source. Globally visible assembly labels are not supported.
 
 **Code generation notes:**
 
