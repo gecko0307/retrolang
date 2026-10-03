@@ -15,7 +15,10 @@
 #define GP0_SPRITE1   0x60000000
 #define GP0_SPRITE2   0xe1000000
 
-#define GP0_RECT_TEX  0x64000000
+#define GP0_SPRITE_TEX1 0x64000000
+#define GP0_SPRITE_TEX2 0x65000000
+
+#define COLOR_NEUTRAL 0x808080
 
 #define GP1_RESET     0x00000000
 #define GP1_DISP_ON   0x03000000
@@ -44,6 +47,22 @@
 
 #define COLORDEPTH_15BIT 0
 #define COLORDEPTH_24BIT 1
+
+#define DMA_CH2_ENABLE   0x00000800
+#define DMA_BUSY         0x01000000
+#define DMA2_LIST_START  0x01000401 // RAM -> GPU, linked list, start
+#define DMA2_BLOCK_START 0x01000201 // RAM -> GPU, block (request) mode, start
+#define GPU_LIST_END     0x00ffffff
+
+// Two command buffers at fixed RAM addresses (so they do not bloat the EXE).
+// Make sure this area does not collide with your data
+#define GPU_BUF_WORDS 4096
+#define GPU_BUF0 0x80180000
+#define GPU_BUF1 0x80184000
+
+int* gpuCur = GPU_BUF0; // buffer being filled
+int  gpuPos = 0;        // next free word in gpuCur
+int* gpuLast = 0;       // header of the last packet in gpuCur
 
 struct GpuRect
 {
@@ -173,6 +192,12 @@ int screenX = 0;
 int screenY = 0;
 int cyclesPerPixel = 0;
 
+// DMA registers
+int* dmaDpcr  = 0x1f8010f0; // DMA control (channel enables / priorities)
+int* dma2Madr = 0x1f8010a0; // channel 2: base address
+int* dma2Bcr  = 0x1f8010a4; // channel 2: block control
+int* dma2Chcr = 0x1f8010a8; // channel 2: channel control
+
 //
 void gpuInit(struct GpuSettings* settings)
 {
@@ -181,8 +206,12 @@ void gpuInit(struct GpuSettings* settings)
     // Reset GPU
     *gp1 = GP1_RESET;
     
-    // Enable linked-list DMA transfer (TODO)
-    //gp1 = 0x04000002;
+    // Enables DMA channel 2 and selects CPU->GP0 transfer direction.
+    *dmaDpcr = *dmaDpcr | DMA_CH2_ENABLE;
+    *gp1 = 0x04000002;
+    gpuCur = GPU_BUF0;
+    gpuPos = 0;
+    gpuLast = 0;
     
     // Enable DMA channel 2 (TODO)
     //d_pcr |= 0x0800;
@@ -261,16 +290,100 @@ void gpuInit(struct GpuSettings* settings)
     *gp1 = GP1_DISP_ON;
 }
 
-//
+///
 void gpuWaitIdle()
 {
     while ((*gp1 & (1 << 28)) == 0) {}
 }
 
-//
+///
 void gpuWaitCmd()
 {
     while ((*gp1 & (1 << 26)) == 0) {}
+}
+
+/// Waits until the DMA channel is idle.
+void gpuWaitDma()
+{
+    while ((*dma2Chcr & DMA_BUSY) != 0) {}
+}
+
+/**
+ * Reserves a packet of n command words in the current buffer and returns a
+ * pointer to the first of them. If the buffer is full, what has been queued so
+ * far is sent and the buffer is reused.
+ */
+int* gpuAlloc(int n)
+{
+    if (gpuPos + n + 1 >= GPU_BUF_WORDS)
+        gpuFlush();
+
+    int* hdr = gpuCur + gpuPos;
+    gpuPos += n + 1;
+    // size in the top byte, the next packet follows directly after this one
+    *hdr = (n << 24) | ((uint)(gpuCur + gpuPos) & GPU_LIST_END);
+    gpuLast = hdr;
+    return hdr + 1;
+}
+
+/// Terminates the list in the current buffer and starts the DMA transfer.
+/*
+void gpuKick()
+{
+    if (gpuPos == 0)
+        return;
+
+    // the previous transfer must be finished before the channel is reprogrammed
+    gpuWaitDma();
+
+    *gpuLast = *gpuLast | GPU_LIST_END;     // end marker
+    *dma2Madr = (uint)gpuCur & 0xffffff;
+    *dma2Bcr = 0;
+    *dma2Chcr = DMA2_LIST_START;
+}
+*/
+void gpuKick()
+{
+    if (gpuPos == 0)
+        return;
+
+    *gpuLast = *gpuLast | GPU_LIST_END;
+
+    int* p = gpuCur;
+    while (1)
+    {
+        uint h = *p;
+        uint n = h >> 24;
+        uint i;
+        gpuWaitIdle();
+        for (i = 1; i <= n; i++)
+            *gp0 = p[i];
+        if ((h & GPU_LIST_END) == GPU_LIST_END)
+            break;
+        p = (int*)(0x80000000 | (h & GPU_LIST_END));
+    }
+}
+
+/// Sends the queued commands, waits until the GPU has executed all of them and
+/// restarts the current buffer. Use before touching GP0 directly.
+void gpuFlush()
+{
+    gpuKick();
+    gpuWaitDma();
+    gpuWaitIdle();
+    gpuPos = 0;
+}
+
+/// Ends the frame: starts the DMA and switches to the other buffer. The GPU keeps
+/// drawing while the CPU builds the next frame.
+void gpuEndFrame()
+{
+    gpuKick();
+    if (gpuCur == GPU_BUF0)
+        gpuCur = GPU_BUF1;
+    else
+        gpuCur = GPU_BUF0;
+    gpuPos = 0;
 }
 
 /// Creates a texture from a TIM file.
@@ -351,6 +464,10 @@ void gpuTextureUpload(struct GpuTexture* tex)
         gpuMemToVram(tex->clut, tex->clut->size);
 }
 
+// ---------------------------------------------------------------------------
+// Direct drawing
+// ---------------------------------------------------------------------------
+
 /// Clears the screen with the given color.
 void gpuClear(int color)
 {
@@ -401,14 +518,14 @@ void gpuDrawSprite1(struct GpuSprite1* sprite, int color)
     *gp0 = (sprite->height << 16) | sprite->width;
 }
 
-/// Draws a textured, color-modulated sprite.
+/// Draws a textured sprite.
 void gpuDrawSprite2(struct GpuSprite2* sprite)
 {
     uint u = sprite->texture->px + sprite->u;
     uint v = sprite->texture->py + sprite->v;
     gpuWaitIdle();
     *gp0 = GP0_SPRITE2 | sprite->texture->tpage;
-    *gp0 = GP0_RECT_TEX | sprite->color;
+    *gp0 = GP0_SPRITE_TEX2 | sprite->color;
     *gp0 = (sprite->y << 16) | sprite->x;
     *gp0 = ((uint)sprite->texture->clutId << 16) | (v << 8) | u;
     *gp0 = ((uint)sprite->height << 16) | sprite->width;
@@ -434,4 +551,93 @@ void gpuDrawTriangle2(struct GpuTriangle2* tri)
     *gp0 = (tri->y2 << 16) | tri->x2;
     *gp0 = tri->color3;
     *gp0 = (tri->y3 << 16) | tri->x3;
+}
+
+// ---------------------------------------------------------------------------
+// Queued drawing
+// ---------------------------------------------------------------------------
+
+/// Clears the screen with the given color.
+void gpuQueueClear(int color)
+{
+    int* p = gpuAlloc(3);
+    p[0] = GP0_FAST_RECT | color;
+    p[1] = (__gpuSettings->display.y << 16) | (__gpuSettings->display.x & 0xffff);
+    p[2] = (__gpuSettings->display.height << 16) | __gpuSettings->display.width;
+}
+
+/**
+ * Fast rectangle filling command.
+ * GP0(02h) rounds down the x-coordinate to the nearest multiple of 16.
+ * The width is rounded up to a multiple of 16 pixels.
+ */
+void gpuQueueFillRectFast(struct GpuRect* rect, int color)
+{
+    int* p = gpuAlloc(3);
+    p[0] = GP0_FAST_RECT | color;
+    p[1] = (rect->y << 16) | (rect->x & 0xffff);
+    p[2] = (rect->height << 16) | rect->width;
+}
+
+/// Draws a solid-colored line.
+void gpuQueueDrawLine1(struct GpuLine1* line, int color)
+{
+    int* p = gpuAlloc(3);
+    p[0] = GP0_LINE1 | color;
+    p[1] = (line->y1 << 16) | (line->x1 & 0xffff);
+    p[2] = (line->y2 << 16) | (line->x2 & 0xffff);
+}
+
+/// Draws a Gouraud-shaded line.
+void gpuQueueDrawLine2(struct GpuLine2* line)
+{
+    int* p = gpuAlloc(4);
+    p[0] = GP0_LINE2 | line->color1;
+    p[1] = (line->y1 << 16) | (line->x1 & 0xffff);
+    p[2] = line->color2;
+    p[3] = (line->y2 << 16) | (line->x2 & 0xffff);
+}
+
+/// Draws a solid-colored sprite.
+void gpuQueueDrawSprite1(struct GpuSprite1* sprite, int color)
+{
+    int* p = gpuAlloc(3);
+    p[0] = GP0_SPRITE1 | color;
+    p[1] = (sprite->y << 16) | (sprite->x & 0xffff);
+    p[2] = (sprite->height << 16) | sprite->width;
+}
+
+/// Draws a textured sprite.
+void gpuQueueDrawSprite2(struct GpuSprite2* sprite)
+{
+    uint u = sprite->texture->px + sprite->u;
+    uint v = sprite->texture->py + sprite->v;
+    int* p = gpuAlloc(5);
+    p[0] = GP0_SPRITE2 | sprite->texture->tpage;
+    p[1] = GP0_SPRITE_TEX2 | sprite->color;
+    p[2] = (sprite->y << 16) | (sprite->x & 0xffff);
+    p[3] = ((uint)sprite->texture->clutId << 16) | (v << 8) | u;
+    p[4] = ((uint)sprite->height << 16) | sprite->width;
+}
+
+/// Draws a solid-colored triangle.
+void gpuQueueDrawTriangle1(struct GpuTriangle1* tri, int color)
+{
+    int* p = gpuAlloc(4);
+    p[0] = GP0_TRI1 | color;
+    p[1] = (tri->y1 << 16) | (tri->x1 & 0xffff);
+    p[2] = (tri->y2 << 16) | (tri->x2 & 0xffff);
+    p[3] = (tri->y3 << 16) | (tri->x3 & 0xffff);
+}
+
+/// Draws a Gouraud-shaded triangle.
+void gpuQueueDrawTriangle2(struct GpuTriangle2* tri)
+{
+    int* p = gpuAlloc(6);
+    p[0] = GP0_TRI2 | tri->color1;
+    p[1] = (tri->y1 << 16) | (tri->x1 & 0xffff);
+    p[2] = tri->color2;
+    p[3] = (tri->y2 << 16) | (tri->x2 & 0xffff);
+    p[4] = tri->color3;
+    p[5] = (tri->y3 << 16) | (tri->x3 & 0xffff);
 }

@@ -209,20 +209,22 @@ Word[] opLi(T)(Reg rt, T imm)
     // If 16-bit
     if (imm >= -32768 && imm <= 32767)
     {
-        code ~= opAddi(rt, R0, cast(short)imm); // addi rt, r0, imm
+        code ~= opAddi(rt, R0, cast(short)imm);
     }
     else if (imm >= 0 && imm <= 0xffff)
     {
-        code ~= opOri(rt, R0, cast(ushort)imm); // ori rt, r0, imm
+        code ~= opOri(rt, R0, cast(ushort)imm);
     }
     else
     {
         ushort hi = cast(ushort)((imm >> 16) & 0xffff);
         ushort lo = cast(ushort)(imm & 0xffff);
         
+        /*
         // sign-extend
         if (lo & 0x8000)
             hi++;
+        */
         
         code ~= opLui(rt, hi);
         code ~= opOri(rt, rt, lo);
