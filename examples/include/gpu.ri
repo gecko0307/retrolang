@@ -37,7 +37,7 @@
 #define HSTART 608
 
 #define VCENTER_NTSC 136
-#define VCENTER_PAL 163
+#define VCENTER_PAL  163
 
 #define HRES_256 0
 #define HRES_320 1
