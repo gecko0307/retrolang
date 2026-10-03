@@ -6,6 +6,7 @@ At the moment Retrolang allows to write basic PlayStation programs: print to TTY
 
 ![Triangle](media/hello_triangle.png)
 ![Cat](media/cat.png)
+![Text](media/text.png)
 
 ## RLC
 
