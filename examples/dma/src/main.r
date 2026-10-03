@@ -25,20 +25,35 @@ void main()
     gpuInit(&gpu);
     padInit();
     
+    int x = 160;
+    int y = 40;
+    
     struct GpuTriangle2 tri;
-    tri.x1 = 160;
-    tri.y1 = 40;
+    tri.x1 = x;
+    tri.y1 = y;
     tri.color1 = 0x000000ff; // red
-    tri.x2 = 80;
-    tri.y2 = 180;
+    tri.x2 = x - 80;
+    tri.y2 = y + 140;
     tri.color2 = 0x0000ff00; // green
-    tri.x3 = 240;
-    tri.y3 = 180;
+    tri.x3 = x + 80;
+    tri.y3 = y + 140;
     tri.color3 = 0x00ff0000; // blue
     
     while(1)
     {
         int pad1 = padRead1();
+             if (pad1 & PAD_UP)    y -= 1;
+        else if (pad1 & PAD_DOWN)  y += 1;
+        else if (pad1 & PAD_LEFT)  x -= 1;
+        else if (pad1 & PAD_RIGHT) x += 1;
+        
+        // Move the triangle
+        tri.x1 = x;
+        tri.y1 = y;
+        tri.x2 = x - 80;
+        tri.y2 = y + 140;
+        tri.x3 = x + 80;
+        tri.y3 = y + 140;
         
         gpuQueueClear(0x808080);
         gpuQueueDrawTriangle2(&tri);
