@@ -9,7 +9,7 @@
 			publisher ="GECKO"
 			data_preparer ="MKPSXISO"
 		/>
-		<license file="licenses/infoeur.dat"/>
+		<license file="../licenses/infoeur.dat"/>
 		<directory_tree>
 			<file name="PSX.EXE" type="data" source="iso/PSX.EXE"/>
 			<dummy sectors="1024"/>

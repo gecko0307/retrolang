@@ -3,10 +3,11 @@
  * Clears the screen with a solid color and draws a triangle.
  */
 
-#include "core.ri"
-#include "pad.ri"
-#include "gpu.ri"
+#include "../../include/core.ri"
+#include "../../include/pad.ri"
+#include "../../include/gpu.ri"
 
+// Global GPU config
 struct GpuSettings gpu;
 
 void main()
@@ -26,12 +27,12 @@ void main()
     gpuInit(&gpu);
     padInit();
     
-    gpuWaitReady();
+    gpuWaitIdle();
 
-    // Fills the screen with middle-grey color
+    // Fills the screen with middle-gray color
     gpuClear(0x808080);
 
-    // Draws a triangle
+    // Draws a colored triangle
     struct GpuTriangle2 tri;
     tri.x1 = 160;
     tri.y1 = 40;

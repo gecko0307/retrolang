@@ -8,7 +8,11 @@
 #define GP0_MASK      0xe6000000
 
 #define GP0_FAST_RECT 0x02000000
+#define GP0_TRI2      0x30000000
 #define GP0_RECT1     0x60000000
+#define GP0_SPRITE    0xe1000000
+
+#define GP0_RECT_TEX  0x64000000
 
 #define GP1_RESET     0x00000000
 #define GP1_DISP_ON   0x03000000
@@ -46,6 +50,14 @@ struct GpuRect
     int height;
 };
 
+struct GpuLine
+{
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+};
+
 struct GpuTriangle2
 {
     int x1;
@@ -61,6 +73,18 @@ struct GpuTriangle2
     int color3;
 };
 
+struct GpuSprite
+{
+    struct GpuTexture* texture;
+    int x;
+    int y;
+    int u;
+    int v;
+    int width;
+    int height;
+    int color;
+};
+
 struct GpuSettings
 {
     int videoMode;
@@ -68,6 +92,49 @@ struct GpuSettings
     struct GpuRect clip;
     int interleaving; // 0 - off, 1 - on
     int colorDepth;
+};
+
+struct TimHeader
+{
+    uint magic;
+    uint flags;
+};
+
+struct TimData
+{
+    uint size;
+    uint pos;
+    uint wh;
+};
+
+struct GpuTexture
+{
+    /// Pixel format
+    uint pmode;
+    
+    /// X offset within the texture page
+    ushort px;
+    
+    /// Y offset
+    ushort py;
+    
+    /// Width
+    ushort width;
+    
+    /// Height
+    ushort height;
+    
+    /// CLUT ID
+    ushort clutId;
+    
+    /// Texture page
+    ushort tpage;
+    
+    /// CLUT info
+    struct TimData* clut;
+    
+    /// Image info
+    struct TimData* image;
 };
 
 // GPU I/O ports
@@ -95,7 +162,8 @@ void gpuInit(struct GpuSettings* settings)
     //d_pcr |= 0x0800;
     
     // Drawing mode bits
-    *gp0 = 0xe1000200;
+    //*gp0 = 0xe1000200;
+    *gp0 = 0xe1000600;
     
     // Texture window settings
     *gp0 = 0xe2000000;
@@ -168,48 +236,156 @@ void gpuInit(struct GpuSettings* settings)
 }
 
 //
-void gpuWaitReady()
+void gpuWaitIdle()
 {
     while ((*gp1 & (1 << 28)) == 0) {}
 }
 
-// Clears the screen with the given color.
+//
+void gpuWaitCmd()
+{
+    while ((*gp1 & (1 << 26)) == 0) {}
+}
+
+/// Creates a texture from a TIM file.
+void gpuTextureInit(struct TimHeader* tim, struct GpuTexture* tex)
+{
+    char* p = (char*)tim;
+    p += sizeof(struct TimHeader);
+    
+    struct TimData* clut = 0;
+    struct TimData* image = 0;
+    uchar* imageData = 0;
+    uchar* clutData = 0;
+    
+    // get the color mode
+    tex->pmode = (tim->flags & 0x03);
+    
+    if ((tim->flags & 0x08) == 0)
+    {
+        // No CLUT present
+        image = (struct TimData*)p;
+        imageData = p + sizeof(struct TimData);
+        tex->clutId = 0;
+    }
+    else
+    {
+        clut = (struct TimData*)p;
+        clutData = p + sizeof(struct TimData);
+        p += clut->size;
+        image = (struct TimData*)p;
+        imageData = p + sizeof(struct TimData);
+        
+        tex->clutId = ((clut->pos >> 10) | (clut->pos & 0xffff) >> 4);
+    }
+    
+    tex->px = (image->pos & 0xffff);
+    tex->py = (image->pos >> 16);
+    
+    tex->tpage = ((tex->py & 0x100) >> 4) | ((tex->px & 0x3ff) >> 6) | ((tex->py & 0x200) << 2);
+    tex->tpage = ((tex->pmode << 7) | tex->tpage);
+    
+    tex->px %= 64; // x/y offset within tpage
+    if (tex->py > 255)
+        tex->py -= 256;
+    
+    // width/height of pixel data
+    tex->width = (image->wh & 0xffff) << (2 - tex->pmode);
+    tex->height = (image->wh >> 16);
+    
+    tex->clut = clut;
+    tex->image = image;
+}
+
+/// Copies texture data (pixel data or CLUT) to VRAM
+void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
+{
+    uint i;
+    uint* pp = (uint*)timData;
+    uint sizeInWords = (sizeInBytes >> 2) - 3;
+
+    gpuWaitIdle();
+
+    //*gp1 = 0x01000000; // reset the command queue
+    *gp0 = 0xa0000000;
+    *gp0 = pp[1]; // send x and y coordinates
+    *gp0 = pp[2]; // send width and height
+
+    for (i = 0; i < sizeInWords; i++)
+        *gp0 = pp[3 + i];
+
+    //*gp1 = 0x01000000; // reset the command queue
+}
+
+///
+void gpuTextureUpload(struct GpuTexture* tex)
+{
+    gpuMemToVram(tex->image, tex->image->size);
+    if (tex->clut != null)
+        gpuMemToVram(tex->clut, tex->clut->size);
+}
+
+/// Clears the screen with the given color.
 void gpuClear(int color)
 {
-    gpuWaitReady();
+    gpuWaitIdle();
     *gp0 = GP0_FAST_RECT | color;
     *gp0 = (__gpuSettings->display.y << 16) | __gpuSettings->display.x;
     *gp0 = (__gpuSettings->display.height << 16) | __gpuSettings->display.width;
 }
 
-// Fast rectangle filling command.
-// GP0(02h) rounds down the x-coordinate to the nearest multiple of 16.
-// The with is rounded up to a multiple of 16 pixels.
+/**
+ * Fast rectangle filling command.
+ * GP0(02h) rounds down the x-coordinate to the nearest multiple of 16.
+ * The with is rounded up to a multiple of 16 pixels.
+ */
 void gpuFillRectFast(struct GpuRect* rect, int color)
 {
-    gpuWaitReady();
+    gpuWaitIdle();
     *gp0 = GP0_FAST_RECT | color;
     *gp0 = (rect->y << 16) | rect->x;
     *gp0 = (rect->height << 16) | rect->width;
 }
 
-// Draws a rectangular sprite.
+/// Draws a solid-colored line.
+void gpuDrawLine(struct GpuLine* line, int color)
+{
+    gpuWaitIdle();
+    *gp0 = 0x40000000 | color;
+    *gp0 = (line->y1 << 16) | line->x1;
+    *gp0 = (line->y2 << 16) | line->x2;
+}
+
+/// Draws a rectangular sprite.
 void gpuDrawSolidSprite(struct GpuRect* rect, int color)
 {
-    gpuWaitReady();
+    gpuWaitIdle();
     *gp0 = GP0_RECT1 | color;
     *gp0 = (rect->y << 16) | rect->x;
     *gp0 = (rect->height << 16) | rect->width;
 }
 
-// Draws a colored triangle.
+/// Draws a colored triangle.
 void gpuDrawTriangle2(struct GpuTriangle2* tri)
 {
-    gpuWaitReady();
-    *gp0 = 0x30000000 | tri->color1;
+    gpuWaitIdle();
+    *gp0 = GP0_TRI2 | tri->color1;
     *gp0 = (tri->y1 << 16) | tri->x1;
     *gp0 = tri->color2;
     *gp0 = (tri->y2 << 16) | tri->x2;
     *gp0 = tri->color3;
     *gp0 = (tri->y3 << 16) | tri->x3;
+}
+
+/// Draws a textured, color-modulated sprite.
+void gpuDrawTexSprite(struct GpuSprite* sprite)
+{
+    uint u = sprite->texture->px + sprite->u;
+    uint v = sprite->texture->py + sprite->v;
+    gpuWaitIdle();
+    *gp0 = GP0_SPRITE | sprite->texture->tpage;
+    *gp0 = GP0_RECT_TEX | sprite->color;
+    *gp0 = (sprite->y << 16) | sprite->x;
+    *gp0 = ((uint)sprite->texture->clutId << 16) | (v << 8) | u;
+    *gp0 = ((uint)sprite->height << 16) | sprite->width;
 }

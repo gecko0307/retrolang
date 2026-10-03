@@ -50,6 +50,14 @@ struct GpuRect
     int height;
 };
 
+struct GpuLine
+{
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+};
+
 struct GpuTriangle2
 {
     int x1;
@@ -337,6 +345,15 @@ void gpuFillRectFast(struct GpuRect* rect, int color)
     *gp0 = GP0_FAST_RECT | color;
     *gp0 = (rect->y << 16) | rect->x;
     *gp0 = (rect->height << 16) | rect->width;
+}
+
+/// Draws a solid-colored line.
+void gpuDrawLine(struct GpuLine* line, int color)
+{
+    gpuWaitIdle();
+    *gp0 = 0x40000000 | color;
+    *gp0 = (line->y1 << 16) | line->x1;
+    *gp0 = (line->y2 << 16) | line->x2;
 }
 
 /// Draws a rectangular sprite.

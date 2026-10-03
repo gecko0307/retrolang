@@ -3,7 +3,7 @@
  * Prints pressed buttons to TTY
  */
 
-#include "pad.ri"
+#include "../../include/pad.ri"
 
 void main()
 {
