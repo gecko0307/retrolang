@@ -309,6 +309,14 @@ void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
     //*gp1 = 0x01000000; // reset the command queue
 }
 
+///
+void gpuTextureUpload(struct GpuTexture* tex)
+{
+    gpuMemToVram(tex->image, tex->image->size);
+    if (tex->clut != null)
+        gpuMemToVram(tex->clut, tex->clut->size);
+}
+
 /// Clears the screen with the given color.
 void gpuClear(int color)
 {
@@ -352,7 +360,7 @@ void gpuDrawTriangle2(struct GpuTriangle2* tri)
     *gp0 = (tri->y3 << 16) | tri->x3;
 }
 
-/// Draws a textured sprite.
+/// Draws a textured, color-modulated sprite.
 void gpuDrawTexSprite(struct GpuSprite* sprite)
 {
     uint u = sprite->texture->px + sprite->u;

@@ -37,9 +37,7 @@ void main()
     bios_a(0x3f, "tex.height = %d\n", tex.height);
     
     // Upload to VRAM
-    gpuMemToVram(tex.image, tex.image->size);
-    if (tex.clut != null)
-        gpuMemToVram(tex.clut, tex.clut->size);
+    gpuTextureUpload(&tex);
 
     // Fill the screen with middle-grey color
     gpuClear(0x808080);
