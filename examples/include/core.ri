@@ -2,4 +2,5 @@
  * Core definitions.
  */
 
-#define null 0
+#define null 0x00000000
+#define size_t int
