@@ -12,7 +12,7 @@ All provided software is experimental and is in alpha stage.
 
 ## Core Idea
 
-Main philosophy of the project: PSX programming doesn't require a full-fledged C. A subset is sufficient. What we really need is platform-specific language capabilities and a simple, readable and easily hackable standard library.
+Main philosophy of the project: PSX programming doesn't require a full-fledged C. A subset is sufficient. What we really need are platform-specific language capabilities and a simple, readable and easily hackable standard library.
 
 ## RLC
 
