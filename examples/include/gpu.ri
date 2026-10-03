@@ -22,13 +22,14 @@
 
 #define COLOR_NEUTRAL 0x808080
 
-#define GP1_RESET     0x00000000
-#define GP1_DISP_ON   0x03000000
-#define GP1_DISP_OFF  0x03000001
-#define GP1_DISP_OFFS 0x05000000
-#define GP1_HRANGE    0x06000000
-#define GP1_VRANGE    0x07000000
-#define GP1_DISP_MODE 0x08000000
+#define GP1_RESET      0x00000000
+#define GP1_RESET_FIFO 0x01000000
+#define GP1_DISP_ON    0x03000000
+#define GP1_DISP_OFF   0x03000001
+#define GP1_DISP_OFFS  0x05000000
+#define GP1_HRANGE     0x06000000
+#define GP1_VRANGE     0x07000000
+#define GP1_DISP_MODE  0x08000000
 
 #define VMODE_NTSC  0
 #define VMODE_PAL   1
@@ -467,7 +468,8 @@ void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
 
     gpuWaitIdle();
 
-    //*gp1 = 0x01000000; // reset the command queue
+    //*gp1 = GP1_RESET_FIFO; // reset the command queue
+    
     *gp0 = GP0_MEM2VRAM;
     *gp0 = pp[1]; // x, y
     *gp0 = pp[2]; // width, height
@@ -475,7 +477,7 @@ void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
     for (i = 0; i < sizeInWords; i++)
         *gp0 = pp[3 + i];
 
-    //*gp1 = 0x01000000; // reset the command queue
+    //*gp1 = GP1_RESET_FIFO; // reset the command queue
 }
 
 /// Copies texture data (pixel data or CLUT) to VRAM using DMA
