@@ -2,6 +2,8 @@
  * GPU driver.
  */
 
+#define GP0_MEM2VRAM  0xa0000000
+
 #define GP0_CLIP_POS  0xe3000000
 #define GP0_CLIP_SIZE 0xe4000000
 #define GP0_DRAW_OFFS 0xe5000000
@@ -466,9 +468,9 @@ void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
     gpuWaitIdle();
 
     //*gp1 = 0x01000000; // reset the command queue
-    *gp0 = 0xa0000000;
-    *gp0 = pp[1]; // send x and y coordinates
-    *gp0 = pp[2]; // send width and height
+    *gp0 = GP0_MEM2VRAM;
+    *gp0 = pp[1]; // x, y
+    *gp0 = pp[2]; // width, height
 
     for (i = 0; i < sizeInWords; i++)
         *gp0 = pp[3 + i];
@@ -476,7 +478,38 @@ void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
     //*gp1 = 0x01000000; // reset the command queue
 }
 
-///
+/// Copies texture data (pixel data or CLUT) to VRAM using DMA
+void gpuQueueMemToVram(struct TimData* timData, uint sizeInBytes)
+{
+    uint i;
+    uint* pp = (uint*)timData;
+    uint words = (sizeInBytes >> 2) - 3; // skip size/pos/wh
+    uint* data = pp + 3;
+
+    gpuFlush();
+
+    *gp0 = GP0_MEM2VRAM;
+    *gp0 = pp[1]; // x, y
+    *gp0 = pp[2]; // width, height
+
+    // Bulk of the data: DMA in blocks of 16 words
+    uint blocks = words >> 4;
+    uint rest = words & 15;
+    if (blocks > 0)
+    {
+        *dma2Madr = (uint)data & 0xffffff;
+        *dma2Bcr = (blocks << 16) | 16;
+        *dma2Chcr = DMA2_BLOCK_START;
+        gpuWaitDma();
+        data += blocks << 4;
+    }
+
+    // Remaining words by hand
+    for (i = 0; i < rest; i++)
+        *gp0 = data[i];
+}
+
+/// Uploads a texture to VRAM
 void gpuTextureUpload(struct GpuTexture* tex)
 {
     gpuMemToVram(tex->image, tex->image->size);
