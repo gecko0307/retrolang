@@ -253,7 +253,7 @@ Reg parseReg(string s)
         case "fp", "s8": return FP;
         case "ra": return RA;
         
-        default: throw new Exception("Unsupported register");
+        default: throw new Exception("Unsupported register: " ~ s);
     }
 }
 
@@ -297,7 +297,7 @@ Reg parseRegGteData(string s)
         case "lzcs": return LZCS;
         case "lzcr": return LZCR;
         
-        default: throw new Exception("Unsupported GTE data register");
+        default: throw new Exception("Unsupported GTE data register: " ~ s);
     }
 }
 
@@ -342,6 +342,6 @@ Reg parseRegGteControl(string s)
         case "zsf4":   return ZSF4;
         case "flag":   return FLAG;
         
-        default: throw new Exception("Unsupported GTE control register");
+        default: throw new Exception("Unsupported GTE control register: " ~ s);
     }
 }
