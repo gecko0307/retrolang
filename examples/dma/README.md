@@ -1,6 +1,6 @@
 # Rendering via DMA
 
-Draws a bunch of sprites.
+Draws a triangle using a command buffer.
 
 Use `build.bat` to compile `iso/PSX.EXE`.
 

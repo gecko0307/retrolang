@@ -38,11 +38,11 @@ void main()
     
     while(1)
     {
-        padWaitSync();
         int pad1 = padRead1();
         
         gpuQueueClear(0x808080);
         gpuQueueDrawTriangle2(&tri);
         gpuEndFrame();
+        gpuVSync();
     }
 }

@@ -198,6 +198,26 @@ int* dma2Madr = 0x1f8010a0; // channel 2: base address
 int* dma2Bcr  = 0x1f8010a4; // channel 2: block control
 int* dma2Chcr = 0x1f8010a8; // channel 2: channel control
 
+/**
+ * VSync.
+ * Note: this takes over root counter 1. Do not use it for anything else.
+ *
+ * Root counter 1 is set to count Hblanks (scanlines) and to reset itself to 0 at
+ * every Vblank (sync mode 1). The counter therefore climbs through the frame and
+ * falls back to 0 exactly when Vblank starts; polling for that drop is a VSync.
+ *
+ * Why not poll I_STAT (0x1f801070) bit 0? The BIOS Vblank handler (it drives the
+ * pad and memory card) acknowledges that bit within microseconds, so a polling
+ * loop would miss it most of the time.
+ */
+int* timer1Count = 0x1f801110;
+int* timer1Mode  = 0x1f801114;
+
+// bit 0   : synchronization enabled
+// bits 1-2: sync mode 1 = reset counter to 0 at Vblank
+// bit 8   : clock source = Hblank
+#define T1_VBLANK_RESET 0x0103
+
 //
 void gpuInit(struct GpuSettings* settings)
 {
@@ -206,17 +226,14 @@ void gpuInit(struct GpuSettings* settings)
     // Reset GPU
     *gp1 = GP1_RESET;
     
-    // Enables DMA channel 2 and selects CPU->GP0 transfer direction.
+    // Enable DMA channel 2 and select CPU->GP0 transfer direction.
     *dmaDpcr = *dmaDpcr | DMA_CH2_ENABLE;
     *gp1 = 0x04000002;
     gpuCur = GPU_BUF0;
     gpuPos = 0;
     gpuLast = 0;
     
-    // Enable DMA channel 2 (TODO)
-    //d_pcr |= 0x0800;
-    
-    // Drawing mode bits
+    // Set drawing mode bits
     //*gp0 = 0xe1000200;
     *gp0 = 0xe1000600;
     
@@ -288,6 +305,9 @@ void gpuInit(struct GpuSettings* settings)
     
     // Enable display
     *gp1 = GP1_DISP_ON;
+    
+    // Init VSync
+    *timer1Mode = T1_VBLANK_RESET;
 }
 
 ///
@@ -306,6 +326,29 @@ void gpuWaitCmd()
 void gpuWaitDma()
 {
     while ((*dma2Chcr & DMA_BUSY) != 0) {}
+}
+
+/// Returns right after the start of the next Vblank.
+void gpuVSync()
+{
+    uint prev = *timer1Count & 0xffff;
+    uint cur;
+
+    while (1)
+    {
+        cur = *timer1Count & 0xffff;
+        if (cur < prev)
+            break;
+        prev = cur;
+    }
+}
+
+/// Waits for n Vblanks (n = 2 gives 30 fps on NTSC / 25 fps on PAL).
+void gpuVSyncN(int n)
+{
+    int i;
+    for (i = 0; i < n; i++)
+        gpuVSync();
 }
 
 /**
@@ -327,7 +370,6 @@ int* gpuAlloc(int n)
 }
 
 /// Terminates the list in the current buffer and starts the DMA transfer.
-/*
 void gpuKick()
 {
     if (gpuPos == 0)
@@ -336,32 +378,10 @@ void gpuKick()
     // the previous transfer must be finished before the channel is reprogrammed
     gpuWaitDma();
 
-    *gpuLast = *gpuLast | GPU_LIST_END;     // end marker
+    *gpuLast = *gpuLast | GPU_LIST_END;
     *dma2Madr = (uint)gpuCur & 0xffffff;
     *dma2Bcr = 0;
     *dma2Chcr = DMA2_LIST_START;
-}
-*/
-void gpuKick()
-{
-    if (gpuPos == 0)
-        return;
-
-    *gpuLast = *gpuLast | GPU_LIST_END;
-
-    int* p = gpuCur;
-    while (1)
-    {
-        uint h = *p;
-        uint n = h >> 24;
-        uint i;
-        gpuWaitIdle();
-        for (i = 1; i <= n; i++)
-            *gp0 = p[i];
-        if ((h & GPU_LIST_END) == GPU_LIST_END)
-            break;
-        p = (int*)(0x80000000 | (h & GPU_LIST_END));
-    }
 }
 
 /// Sends the queued commands, waits until the GPU has executed all of them and

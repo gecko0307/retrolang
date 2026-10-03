@@ -29,6 +29,7 @@ void padInit()
 
 int padRead1()
 {
+    _pad_data = _pad_buf;
     return (~_pad_data) & 0xFFFF;
 }
 
@@ -37,5 +38,5 @@ void padWaitSync()
     int* p = &_pad_buf;
     *p = 0x0000;
     while (*p == 0x0000) {};
-    _pad_data = *p;
+    //_pad_data = *p;
 }
