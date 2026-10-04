@@ -44,6 +44,20 @@ import compiler;
 import linker;
 import error;
 
+version(Windows)
+{
+    import core.sys.windows.windows;
+    
+    enum CP_UTF8 = 65001;
+    
+    static this()
+    {
+        // Set console code page to UTF-8
+        SetConsoleCP(CP_UTF8);
+        SetConsoleOutputCP(CP_UTF8);
+    }
+}
+
 enum DefaultOutputFile = "PSX.EXE";
 
 int main(string[] args)
@@ -88,13 +102,13 @@ int main(string[] args)
     } 
     catch (Exception e)
     {
-        printError(format("error reading file \"%s\": %s", filename, e.msg));
+        printError(format("error reading file \"%s\":\n%s", filename, e.msg));
         return 1;
     }
 
+    // Compilation
     Assembly ass;
     string ext = extension(filename);
-
     if (ext == ".r")
     {
         printInfo("Compiling \"%s\"...", filename);
@@ -104,7 +118,6 @@ int main(string[] args)
         }
         catch (Exception e)
         {
-            //stderr.writefln("Compilation error:\n%s", e.msg);
             printError(e);
             return 1;
         }
