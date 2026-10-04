@@ -12,7 +12,6 @@ void main()
     while(1)
     {
         padWaitSync();
-        
         int pad1 = padRead1();
 
              if (pad1 & PAD_UP)       bios_a(0x3f, "UP\n");

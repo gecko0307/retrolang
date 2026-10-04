@@ -41,6 +41,7 @@ void main()
     
     while(1)
     {
+        padWaitSync();
         int pad1 = padRead1();
              if (pad1 & PAD_UP)    y -= 1;
         else if (pad1 & PAD_DOWN)  y += 1;
@@ -58,6 +59,5 @@ void main()
         gpuQueueClear(0x808080);
         gpuQueueDrawTriangle2(&tri);
         gpuEndFrame();
-        gpuVSync();
     }
 }

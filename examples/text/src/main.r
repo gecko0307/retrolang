@@ -73,11 +73,11 @@ void main()
     
     while(1)
     {
+        padWaitSync();
         int pad1 = padRead1();
         
         gpuQueueClear(0xcb0000);
         drawText(&font, 5, 5, "Hello, World!\n1234567890");
         gpuEndFrame();
-        gpuVSync();
     }
 }
