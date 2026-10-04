@@ -187,6 +187,7 @@ class CodeGen
     bool[string] addrTaken;
     string[] breakStack, contStack;
     PMove[] pmoves;
+    string curFile;
     int curLine;
     
     this(string path)
@@ -201,7 +202,7 @@ class CodeGen
 
     void emit(Op op, AsmOperand a, AsmOperand b, AsmOperand c)
     {
-        cur ~= AsmInstr(op, a, b, c, cast(size_t) curLine);
+        cur ~= AsmInstr(op, a, b, c, cast(size_t)curLine);
     }
 
     void rrr(Op op, Reg d, Reg s, Reg t)
@@ -324,7 +325,7 @@ class CodeGen
     Reg allocTemp()
     {
         if (td >= NTEMPS)
-            throw err(path, curLine, "expression too complex (out of temporary registers)");
+            throw err(curFile, curLine, "expression too complex (out of temporary registers)");
         return tempRegs[td++];
     }
 
@@ -392,7 +393,7 @@ class CodeGen
         int off = localsTop;
         localsTop += (bytes + 3) & ~3;
         if (localsTop > 32000)
-            throw err(path, curLine, "stack frame too large");
+            throw err(curFile, curLine, "stack frame too large");
         return off;
     }
 
@@ -579,6 +580,7 @@ class CodeGen
     // check Val.r.
     Val genExpr(Expr e, int want = -1)
     {
+        curFile = e.file;
         curLine = e.line;
 
         long cv;
@@ -661,6 +663,7 @@ class CodeGen
 
     LValue genLValue(Expr e)
     {
+        curFile = e.file;
         curLine = e.line;
         switch (e.kind)
         {
@@ -754,7 +757,7 @@ class CodeGen
     Val loadLV(LValue lv, int want, bool keepAddr)
     {
         if (isStructVal(lv.ty))
-            throw err(path, curLine, "a struct cannot be used as a value here (use its members, &, or '=')");
+            throw err(curFile, curLine, "a struct cannot be used as a value here (use its members, &, or '=')");
         if (lv.kind == LK.RegVar)
             return Val(lv.reg, false);
         Val d;
@@ -1191,7 +1194,7 @@ class CodeGen
                 rrr(Op.SLTU, x, R0, x);
                 break;
             default:
-                throw err(path, curLine, "unsupported operator " ~ op);
+                throw err(curFile, curLine, "unsupported operator " ~ op);
         }
         return d;
     }
@@ -1217,6 +1220,7 @@ class CodeGen
     // otherwise fall through.
     void genBranch(Expr e, string target, bool jumpIfTrue)
     {
+        curFile = e.file;
         curLine = e.line;
 
         long cv;
@@ -1425,6 +1429,7 @@ class CodeGen
 
     void genExprStmt(Expr e)
     {
+        curFile = e.file;
         curLine = e.line;
         Val v;
         if (e.kind == EK.Assign)
@@ -1441,6 +1446,7 @@ class CodeGen
 
     void genStmt(Stmt s)
     {
+        curFile = s.file;
         curLine = s.line;
         switch (s.kind)
         {
@@ -1552,7 +1558,7 @@ class CodeGen
                 if (s.e !is null)
                 {
                     if (curRet.ptr == 0 && curRet.base == Base.Void)
-                        throw err(path, s.line, "void function cannot return a value");
+                        throw err(s.file, s.line, "void function cannot return a value");
                     Val v = genExpr(s.e, V0);
                     move(V0, v.r);
                     release(v);
@@ -1641,6 +1647,7 @@ class CodeGen
         localsTop = TEMP_SAVE_AREA;
         hasCall = false;
         curRet = f.ret;
+        curFile = f.file;
         curLine = f.line;
         retLabel = newLabel();
         addrTaken = null;
@@ -1739,6 +1746,7 @@ class CodeGen
         localsTop = TEMP_SAVE_AREA;
         hasCall = true;
         curRet = f.ret;
+        curFile = f.file;
         curLine = f.line;
         retLabel = newLabel();
         addrTaken = null;
@@ -1852,6 +1860,7 @@ class CodeGen
     {
         cur = null;
         curLbls = null;
+        curFile = path;
         curLine = 0;
         placeLabel("_start");
         li(SP, STACK_ADDR);

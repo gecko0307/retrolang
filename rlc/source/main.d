@@ -70,8 +70,8 @@ int main(string[] args)
 
     if (args.length < 2)
     {
-        stderr.writeln("Ошибка: Не указан входной файл.");
-        stderr.writeln("Использование: rlc [options] <input_file>");
+        stderr.writeln("Error: no input file");
+        stderr.writeln("Usage: rlc [options] <input_file>");
         return 1;
     }
 
@@ -84,21 +84,16 @@ int main(string[] args)
     } 
     catch (Exception e)
     {
-        stderr.writefln("Error reading file %s: %s", filename, e.msg);
+        stderr.writefln("Error reading file \"%s\": %s", filename, e.msg);
         return 1;
     }
 
     Assembly ass;
     string ext = extension(filename);
 
-    if (ext == ".s")
+    if (ext == ".r")
     {
-        writefln("Assembling %s...", filename);
-        ass = parseAsm(sourceCode);
-    } 
-    else if (ext == ".r")
-    {
-        writefln("Compiling %s...", filename);
+        writefln("Compiling \"%s\"...", filename);
         try
         {
             ass = compile(sourceCode, filename);
@@ -108,10 +103,15 @@ int main(string[] args)
             stderr.writefln("Compilation error:\n%s", e.msg);
             return 1;
         }
-    } 
+    }
+    else if (ext == ".s")
+    {
+        writefln("Assembling \"%s\"...", filename);
+        ass = parseAsm(sourceCode);
+    }
     else
     {
-        stderr.writefln("Unknown extension of %s", filename);
+        stderr.writefln("Unknown extension of \"%s\", must be *.r or *.s", filename);
         return 1;
     }
 
