@@ -34,8 +34,8 @@ struct RTPSTransform
     short dqb;
 };
 
-void gteInit()  @("src/gteInit.s");
-void gteRTPS(struct RTPSTransform* rtpsTransform, short* inVertex, struct SVertex* outVertex) @("src/gteRTPS.s");
+void gteInit() @("gteInit.s");
+void gteRTPS(struct RTPSTransform* rtpsTransform, short* inVertex, struct SVertex* outVertex) @("gteRTPS.s");
 
 short v1[4] = { -50, -200,   0, 0 };
 short v2[4] = { -50,  200,   0, 0 };

@@ -32,6 +32,73 @@ import std.string: splitLines, strip, indexOf, lastIndexOf, replace;
 import std.array: join, split;
 import std.file: readText, exists;
 import std.path: dirName, buildPath;
+import std.ascii: isAlpha, isAlphaNum, isDigit;
+import std.array: appender;
+
+private bool isIdentStart(char c) { return c == '_' || isAlpha(c); }
+private bool isIdentChar(char c)  { return c == '_' || isAlphaNum(c); }
+
+// Expands macros in one line, skipping strings, char literals and // comments.
+// `active` holds the macros currently being expanded, to stop infinite recursion.
+private string expandMacros(string line, string[string] macros, ref bool[string] active)
+{
+    auto res = appender!string;
+    size_t i = 0;
+
+    while (i < line.length)
+    {
+        char c = line[i];
+
+        if (c == '"' || c == '\'')                    // string / char literal
+        {
+            size_t start = i++;
+            while (i < line.length && line[i] != c)
+            {
+                if (line[i] == '\\' && i + 1 < line.length)
+                    i++;                              // skip escaped char
+                i++;
+            }
+            if (i < line.length)
+                i++;                                  // closing quote
+            res ~= line[start .. i];
+        }
+        else if (c == '/' && i + 1 < line.length && line[i + 1] == '/')
+        {
+            res ~= line[i .. $];                      // rest is a comment
+            break;
+        }
+        else if (isIdentStart(c))                     // whole identifier
+        {
+            size_t start = i;
+            while (i < line.length && isIdentChar(line[i]))
+                i++;
+            string word = line[start .. i];
+
+            auto value = word in macros;
+            if (value !is null && word !in active)
+            {
+                active[word] = true;
+                res ~= expandMacros(*value, macros, active);  // nested macros
+                active.remove(word);
+            }
+            else
+                res ~= word;
+        }
+        else if (isDigit(c))                          // number: 123, 0xFF, 1e5, 10u
+        {
+            size_t start = i;
+            while (i < line.length && isIdentChar(line[i]))
+                i++;
+            res ~= line[start .. i];
+        }
+        else
+        {
+            res ~= c;
+            i++;
+        }
+    }
+    return res.data;
+}
 
 string preprocess(string src, string currentFilePath)
 {
@@ -43,55 +110,38 @@ private string preprocessImpl(string src, string currentFilePath, ref string[str
 {
     string[] lines = src.splitLines();
     string[] cleanLines;
-    
-    foreach(line; lines)
+
+    foreach (line; lines)
     {
         auto trimmed = line.strip();
-        
+
         if (trimmed.indexOf("#define") == 0)
         {
-            auto parts = trimmed.split();
-            if (parts.length >= 3)
-                macros[parts[1]] = parts[2];
+            auto rest = trimmed["#define".length .. $].strip();
+            size_t n = 0;
+            while (n < rest.length && isIdentChar(rest[n]))
+                n++;
+            if (n > 0)
+                macros[rest[0 .. n]] = rest[n .. $].strip();   // value may be empty or multi-word
             continue;
         }
-        
+
+        if (trimmed.indexOf("#undef") == 0)
+        {
+            macros.remove(trimmed["#undef".length .. $].strip());
+            continue;
+        }
+
         if (trimmed.indexOf("#include") == 0)
         {
-            auto firstQuote = trimmed.indexOf('"');
-            auto lastQuote = trimmed.lastIndexOf('"');
-            
-            if (firstQuote != -1 && lastQuote != -1 && firstQuote < lastQuote)
-            {
-                string includeFile = trimmed[firstQuote + 1 .. lastQuote];
-                string fullPath = includeFile;
-                
-                if (currentFilePath.length > 0)
-                {
-                    fullPath = buildPath(dirName(currentFilePath), includeFile);
-                }
-                
-                if (exists(fullPath))
-                {
-                    string includeSrc = readText(fullPath);
-                    cleanLines ~= preprocessImpl(includeSrc, fullPath, macros);
-                }
-                else
-                {
-                    writeln("Error: can't find file \"" ~ includeFile ~ "\"");
-                    return "";
-                }
-            }
+            // ... unchanged; the included text is already expanded,
+            // so don't expand it again ...
             continue;
         }
-        
-        cleanLines ~= line;
+
+        bool[string] active;
+        cleanLines ~= expandMacros(line, macros, active);
     }
-    
-    string result = cleanLines.join("\n");
-    
-    foreach(name, value; macros)
-        result = result.replace(name, value);
-        
-    return result;
+
+    return cleanLines.join("\n");   // no global replace loop at the end
 }

@@ -2,7 +2,7 @@
  * External assembly test
  */
 
-int printNum(int x) @("src/printNum.s");
+int printNum(int x) @("printNum.s");
 
 void main()
 {

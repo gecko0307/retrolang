@@ -29,6 +29,8 @@ module lexer;
 
 import std.format: format;
 import std.ascii: isAlpha, isAlphaNum, isDigit, isWhite;
+import std.file: readText, exists;
+import std.path: dirName, buildPath, buildNormalizedPath, absolutePath;
 import error;
 import utils;
 
@@ -50,6 +52,9 @@ struct Token
     
     /// Num: unsigned literal
     bool uns;
+    
+    /// Source file (for error messages)
+    string file;
 }
 
 immutable string[] syms2 = [
@@ -57,7 +62,7 @@ immutable string[] syms2 = [
     "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "->"
 ];
 
-immutable string singleSyms = "+-*/%&|^~!<>=(){}[];,.@";
+immutable string singleSyms = "+-*/%&|^~!<>=(){}[];,.@#";
 
 bool inList(string s, const(string)[] list)
 {
@@ -78,7 +83,23 @@ bool isReserved(string s)
     ]);
 }
 
-Token[] lex(string src)
+/// Lexes a file and runs the preprocessing pass.
+Token[] lex(string src, string path = "")
+{
+    Token[][string] macros;
+    bool[string] including;
+    if (path.length)
+        including[buildNormalizedPath(absolutePath(path))] = true;
+
+    Token[] toks = lexRaw(src, path);
+    int lastLine = toks[$ - 1].line;
+
+    Token[] res = preprocess(toks, path, macros, including);
+    res ~= Token(TK.Eof, "<end of file>", 0, lastLine, false, path);
+    return res;
+}
+
+private Token[] lexRaw(string src, string file)
 {
     Token[] toks;
     size_t i = 0;
@@ -214,7 +235,115 @@ Token[] lex(string src)
         toks ~= Token(TK.Sym, sym, 0, line);
         i += sym.length;
     }
-
+    
     toks ~= Token(TK.Eof, "<end of file>", 0, line);
+    foreach (ref t; toks)
+        t.file = file;
     return toks;
+}
+
+private Token[] preprocess(
+    Token[] toks,
+    string path,
+    ref Token[][string] macros,
+    ref bool[string] including)
+{
+    Token[] res;
+    size_t i = 0;
+
+    while (i < toks.length)
+    {
+        Token t = toks[i];
+        if (t.kind == TK.Eof)
+            break;
+
+        // A token is first on its line if the previous token is on a different line
+        bool bol = (i == 0) || toks[i - 1].line != t.line;
+
+        if (bol && t.kind == TK.Sym && t.text == "#")
+        {
+            // A directive occupies the rest of the line
+            size_t end = i + 1;
+            while (end < toks.length && toks[end].kind != TK.Eof && toks[end].line == t.line)
+                end++;
+            Token[] d = toks[i + 1 .. end];
+
+            if (d.length == 0 || d[0].kind != TK.Ident)
+                throw err(t.line, "expected directive name after '#'");
+
+            switch (d[0].text)
+            {
+                case "define":
+                    if (d.length < 2 || d[1].kind != TK.Ident)
+                        throw err(t.line, "#define needs a name");
+                    macros[d[1].text] = d[2 .. $].dup;   // body is already tokenized
+                    break;
+
+                case "undef":
+                    if (d.length != 2 || d[1].kind != TK.Ident)
+                        throw err(t.line, "#undef needs a name");
+                    macros.remove(d[1].text);
+                    break;
+
+                case "include":
+                    if (d.length != 2 || d[1].kind != TK.Str)
+                        throw err(t.line, "#include needs a quoted file name");
+
+                    string name = d[1].text;
+                    string full = path.length ? buildPath(dirName(path), name) : name;
+                    if (!exists(full))
+                        throw err(t.line, "can't find file \"" ~ name ~ "\"");
+
+                    string norm = buildNormalizedPath(absolutePath(full));
+                    if (norm in including)
+                        throw err(t.line, "circular include of \"" ~ name ~ "\"");
+
+                    including[norm] = true;
+                    res ~= preprocess(lexRaw(readText(full), full), full, macros, including);
+                    including.remove(norm);
+                    break;
+
+                default:
+                    throw err(t.line, "unknown directive '#" ~ d[0].text ~ "'");
+            }
+
+            i = end;
+            continue;
+        }
+
+        if (t.kind == TK.Ident && t.text in macros)
+        {
+            bool[string] active;
+            active[t.text] = true;
+            res ~= expand(t, macros, active);
+        }
+        else
+            res ~= t;
+
+        i++;
+    }
+
+    return res;
+}
+
+/// Expands a macro use into tokens. `active` stops recursion like `#define X X + 1`.
+private Token[] expand(Token use, Token[][string] macros, ref bool[string] active)
+{
+    Token[] res;
+    foreach (bt; macros[use.text])
+    {
+        Token t = bt;
+        t.line = use.line;    // errors point at the use site
+        t.file = use.file;
+
+        if (t.kind == TK.Ident && t.text in macros && t.text !in active)
+        {
+            active[t.text] = true;
+            res ~= expand(t, macros, active);
+            active.remove(t.text);
+        }
+        else
+            res ~= t;
+    }
+    return res;
 }

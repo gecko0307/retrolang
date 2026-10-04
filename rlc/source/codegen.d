@@ -29,6 +29,7 @@ module codegen;
 
 import std.format: format;
 import std.file: read, readText, exists;
+import std.path;
 
 import error;
 import lexer;
@@ -153,6 +154,12 @@ string invertCmp(string op)
 
 class CodeGen
 {
+    /// Path to the processed file.
+    string path;
+    
+    /// Containing directory of the processed file.
+    string parentDirectory;
+    
     Program prog;
     Assembly ass;
     AsmInstr[] program;
@@ -178,6 +185,12 @@ class CodeGen
     string[] breakStack, contStack;
     PMove[] pmoves;
     int curLine;
+    
+    this(string path)
+    {
+        this.path = path;
+        this.parentDirectory = dirName(path);
+    }
 
     // ------------------------------------------------------------------
     // Emission helpers
@@ -1739,7 +1752,7 @@ class CodeGen
         
         if (f.attrFilename != "")
         {
-            string asmFilename = f.attrFilename;
+            string asmFilename = buildPath(parentDirectory, f.attrFilename);
             if (!exists(asmFilename))
                 throw err(f.line, "can't find file \"" ~ asmFilename ~ "\"");
             string asmCode = readText(asmFilename);

@@ -81,10 +81,10 @@ import codegen;
 import ir;
 
 /// Compiles source text to Assembly object.
-Assembly compile(string source)
+Assembly compile(string source, string filename)
 {
     structDefs = null;
-    Token[] toks = lex(source);
+    Token[] toks = lex(source, filename);
     Program p = (new Parser(toks)).parseProgram();
-    return (new CodeGen()).generate(p);
+    return (new CodeGen(filename)).generate(p);
 }
