@@ -99,7 +99,15 @@ int main(string[] args)
     else if (ext == ".r")
     {
         writefln("Compiling %s...", filename);
-        ass = compile(sourceCode, filename);
+        try
+        {
+            ass = compile(sourceCode, filename);
+        }
+        catch (Exception e)
+        {
+            stderr.writefln("Compilation error:\n%s", e.msg);
+            return 1;
+        }
     } 
     else
     {

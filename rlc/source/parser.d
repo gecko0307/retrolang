@@ -190,14 +190,14 @@ class Parser
     void expectSym(string s)
     {
         if (!acceptSym(s))
-            throw err(peek().line, format("expected '%s' but found '%s'", s, peek().text));
+            throw err(peek().file, peek().line, format("expected '%s' but found '%s'", s, peek().text));
     }
 
     string expectIdent()
     {
         Token t = next();
         if (t.kind != TK.Ident || isReserved(t.text))
-            throw err(t.line, format("expected an identifier but found '%s'", t.text));
+            throw err(t.file, t.line, format("expected an identifier but found '%s'", t.text));
         return t.text;
     }
 
@@ -247,7 +247,7 @@ class Parser
                     ty.base = Base.Char;
                 }
                 break;
-            default: throw err(t.line, format("expected a type but found '%s'", t.text));
+            default: throw err(t.file, t.line, format("expected a type but found '%s'", t.text));
         }
         return ty;
     }
@@ -257,25 +257,26 @@ class Parser
         CType ty = parseBaseType();
         while (acceptSym("*"))
             ty.ptr++;
-        checkComplete(ty, peek().line);
+        checkComplete(ty, peek().file, peek().line);
         return ty;
     }
 
     // A struct may only be used by value once it is fully defined
     // (pointers to incomplete structs are fine).
-    void checkComplete(CType ty, int line)
+    void checkComplete(CType ty, string file, int line)
     {
         if (isStructVal(ty) && !structDefs[ty.sname].complete)
-            throw err(line, format("incomplete type 'struct %s'", ty.sname));
+            throw err(file, line, format("incomplete type 'struct %s'", ty.sname));
     }
 
     long parseConstExpr()
     {
         int line = peek().line;
+        string file = peek().file;
         Expr e = parseAssign();
         long v;
         if (!constEval(e, v))
-            throw err(line, "constant expression expected");
+            throw err(file, line, "constant expression expected");
         return v;
     }
 
@@ -293,16 +294,18 @@ class Parser
             }
 
             int line = peek().line;
+            string file = peek().file;
             CType ty = parseType();
             string name = expectIdent();
 
             if (isSym("("))
             {
                 if (isStructVal(ty))
-                    throw err(line, "functions cannot return structs by value (return a pointer)");
+                    throw err(file, line, "functions cannot return structs by value (return a pointer)");
                 auto f = new Func();
                 f.ret = ty;
                 f.name = name;
+                f.file = file;
                 f.line = line;
                 next();
                 if (isKw("void") && isSym(")", 1))
@@ -315,7 +318,7 @@ class Parser
                     {
                         CType pt = parseType();
                         if (isStructVal(pt))
-                            throw err(peek().line, "structs cannot be passed by value (pass a pointer)");
+                            throw err(peek().file, peek().line, "structs cannot be passed by value (pass a pointer)");
                         string pn = expectIdent();
                         f.params ~= Param(pt, pn);
                     } while (acceptSym(","));
@@ -336,7 +339,7 @@ class Parser
                             f.isExternal = true;
                         }
                         else
-                            throw err(line, "attribute requires a string");
+                            throw err(file, line, "attribute requires a string");
                         
                         expectSym(")");
                     }
@@ -351,13 +354,13 @@ class Parser
             }
             else
             {
-                parseGlobals(prog, ty, name, line);
+                parseGlobals(prog, ty, name, file, line);
             }
         }
         return prog;
     }
 
-    void parseGlobals(Program prog, CType firstTy, string firstName, int firstLine)
+    void parseGlobals(Program prog, CType firstTy, string firstName, string file, int firstLine)
     {
         CType baseT = firstTy;
         baseT.ptr = 0;
@@ -370,6 +373,7 @@ class Parser
             auto g = new GlobalDecl();
             g.ty = ty;
             g.name = name;
+            g.file = file;
             g.line = line;
 
             if (acceptSym("["))
@@ -379,14 +383,14 @@ class Parser
                 {
                     long n = parseConstExpr();
                     if (n <= 0 || n > 4000000)
-                        throw err(line, "invalid array size");
+                        throw err(file, line, "invalid array size");
                     g.arrLen = cast(int) n;
                 }
                 expectSym("]");
             }
 
             if (isStructVal(g.ty) && isSym("="))
-                throw err(line, "struct initializers are not supported (assign the members in code)");
+                throw err(file, line, "struct initializers are not supported (assign the members in code)");
 
             if (acceptSym("="))
             {
@@ -429,7 +433,7 @@ class Parser
                         g.attrFilename = s.text;
                     }
                     else
-                        throw err(line, "attribute requires a string");
+                        throw err(file, line, "attribute requires a string");
                     
                     expectSym(")");
                 }
@@ -440,10 +444,11 @@ class Parser
             if (acceptSym(","))
             {
                 line = peek().line;
+                file = peek().file;
                 ty = baseT;
                 while (acceptSym("*"))
                     ty.ptr++;
-                checkComplete(ty, line);
+                checkComplete(ty, file, line);
                 name = expectIdent();
                 continue;
             }
@@ -460,6 +465,7 @@ class Parser
         next(); // 'struct'
         string name = expectIdent();
         int line = peek().line;
+        string file = peek().file;
 
         StructDef sd;
         if (auto p0 = name in structDefs)
@@ -471,7 +477,7 @@ class Parser
             structDefs[name] = sd;
         }
         if (sd.complete)
-            throw err(line, "redefinition of struct '" ~ name ~ "'");
+            throw err(file, line, "redefinition of struct '" ~ name ~ "'");
 
         expectSym("{");
         int off = 0;
@@ -479,7 +485,7 @@ class Parser
         while (!isSym("}"))
         {
             if (peek().kind == TK.Eof)
-                throw err(peek().line, "unexpected end of file in struct definition");
+                throw err(peek().file, peek().line, "unexpected end of file in struct definition");
             CType bt = parseBaseType();
             do
             {
@@ -487,9 +493,10 @@ class Parser
                 while (acceptSym("*"))
                     ty.ptr++;
                 int fline = peek().line;
+                string ffile = peek().file;
                 if (ty.ptr == 0 && ty.base == Base.Void)
-                    throw err(fline, "struct member cannot have type void");
-                checkComplete(ty, fline);
+                    throw err(ffile, fline, "struct member cannot have type void");
+                checkComplete(ty, ffile, fline);
 
                 Field fd;
                 fd.ty = ty;
@@ -497,13 +504,13 @@ class Parser
                 foreach (other; sd.fields)
                 {
                     if (other.name == fd.name)
-                        throw err(fline, "duplicate member '" ~ fd.name ~ "'");
+                        throw err(ffile, fline, "duplicate member '" ~ fd.name ~ "'");
                 }
                 if (acceptSym("["))
                 {
                     long n = parseConstExpr();
                     if (n <= 0 || n > 1000000)
-                        throw err(fline, "invalid array size");
+                        throw err(ffile, fline, "invalid array size");
                     fd.isArray = true;
                     fd.arrLen = cast(int) n;
                     expectSym("]");
@@ -524,7 +531,7 @@ class Parser
         expectSym(";");
 
         if (sd.fields.length == 0)
-            throw err(line, "empty struct");
+            throw err(file, line, "empty struct");
         sd.align_ = al;
         sd.size = (off + al - 1) & ~(al - 1);
         sd.complete = true;
@@ -534,8 +541,9 @@ class Parser
     Stmt parseDecl()
     {
         int line = peek().line;
+        string file = peek().file;
         CType baseT = parseBaseType();
-        auto blk = new Stmt(SK.Block, line);
+        auto blk = new Stmt(SK.Block, file, line);
         blk.scoped = false;
 
         do
@@ -543,15 +551,15 @@ class Parser
             CType ty = baseT;
             while (acceptSym("*"))
                 ty.ptr++;
-            checkComplete(ty, peek().line);
-            auto d = new Stmt(SK.Decl, peek().line);
+            checkComplete(ty, peek().file, peek().line);
+            auto d = new Stmt(SK.Decl, peek().file, peek().line);
             d.ty = ty;
             d.name = expectIdent();
             if (acceptSym("["))
             {
                 long n = parseConstExpr();
                 if (n <= 0 || n > 1000000)
-                    throw err(d.line, "invalid array size");
+                    throw err(d.file, d.line, "invalid array size");
                 d.arrLen = cast(int) n;
                 expectSym("]");
             }
@@ -568,12 +576,12 @@ class Parser
 
     Stmt parseBlock()
     {
-        auto blk = new Stmt(SK.Block, peek().line);
+        auto blk = new Stmt(SK.Block, peek().file, peek().line);
         expectSym("{");
         while (!isSym("}"))
         {
             if (peek().kind == TK.Eof)
-                throw err(peek().line, "unexpected end of file, missing '}'");
+                throw err(peek().file, peek().line, "unexpected end of file, missing '}'");
             blk.stmts ~= parseStmt();
         }
         expectSym("}");
@@ -588,12 +596,12 @@ class Parser
             return parseBlock();
 
         if (acceptSym(";"))
-            return new Stmt(SK.Empty, t.line);
+            return new Stmt(SK.Empty, t.file, t.line);
 
         if (isKw("if"))
         {
             next();
-            auto s = new Stmt(SK.If, t.line);
+            auto s = new Stmt(SK.If, t.file, t.line);
             expectSym("(");
             s.e = parseExpr();
             expectSym(")");
@@ -609,7 +617,7 @@ class Parser
         if (isKw("while"))
         {
             next();
-            auto s = new Stmt(SK.While, t.line);
+            auto s = new Stmt(SK.While, t.file, t.line);
             expectSym("(");
             s.e = parseExpr();
             expectSym(")");
@@ -620,10 +628,10 @@ class Parser
         if (isKw("do"))
         {
             next();
-            auto s = new Stmt(SK.DoWhile, t.line);
+            auto s = new Stmt(SK.DoWhile, t.file, t.line);
             s.thenS = parseStmt();
             if (!isKw("while"))
-                throw err(peek().line, "expected 'while' after do-body");
+                throw err(peek().file, peek().line, "expected 'while' after do-body");
             next();
             expectSym("(");
             s.e = parseExpr();
@@ -635,7 +643,7 @@ class Parser
         if (isKw("for"))
         {
             next();
-            auto s = new Stmt(SK.For, t.line);
+            auto s = new Stmt(SK.For, t.file, t.line);
             expectSym("(");
             if (acceptSym(";"))
             {
@@ -647,7 +655,7 @@ class Parser
             }
             else
             {
-                auto init = new Stmt(SK.ExprS, peek().line);
+                auto init = new Stmt(SK.ExprS, peek().file, peek().line);
                 init.e = parseExpr();
                 expectSym(";");
                 s.forInit = init;
@@ -665,7 +673,7 @@ class Parser
         if (isKw("return"))
         {
             next();
-            auto s = new Stmt(SK.Return, t.line);
+            auto s = new Stmt(SK.Return, t.file, t.line);
             if (!isSym(";"))
                 s.e = parseExpr();
             expectSym(";");
@@ -676,20 +684,20 @@ class Parser
         {
             next();
             expectSym(";");
-            return new Stmt(SK.Break, t.line);
+            return new Stmt(SK.Break, t.file, t.line);
         }
 
         if (isKw("continue"))
         {
             next();
             expectSym(";");
-            return new Stmt(SK.Continue, t.line);
+            return new Stmt(SK.Continue, t.file, t.line);
         }
 
         if (isTypeStart())
             return parseDecl();
 
-        auto es = new Stmt(SK.ExprS, t.line);
+        auto es = new Stmt(SK.ExprS, t.file, t.line);
         es.e = parseExpr();
         expectSym(";");
         return es;
@@ -709,7 +717,7 @@ class Parser
         if (t.kind == TK.Sym && inList(t.text, assignOps))
         {
             next();
-            auto e = new Expr(EK.Assign, t.line);
+            auto e = new Expr(EK.Assign, t.file, t.line);
             e.op = t.text;
             e.a = l;
             e.b = parseAssign();
@@ -730,7 +738,7 @@ class Parser
             if (t.kind != TK.Sym || !inList(t.text, binLevels[lvl]))
                 break;
             next();
-            auto e = new Expr(EK.Binary, t.line);
+            auto e = new Expr(EK.Binary, t.file, t.line);
             e.op = t.text;
             e.a = l;
             e.b = parseBin(lvl + 1);
@@ -747,17 +755,17 @@ class Parser
             next();
             expectSym("(");
             if (!isTypeStart())
-                throw err(t.line, "sizeof needs a type, e.g. sizeof(struct Foo)");
+                throw err(t.file, t.line, "sizeof needs a type, e.g. sizeof(struct Foo)");
             CType sty = parseType();
             expectSym(")");
-            return numExpr(sty.size(), t.line);
+            return numExpr(sty.size(), t.file, t.line);
         }
         if (t.kind == TK.Sym)
         {
             if (t.text == "-" || t.text == "!" || t.text == "~" || t.text == "*" || t.text == "&")
             {
                 next();
-                auto e = new Expr(EK.Unary, t.line);
+                auto e = new Expr(EK.Unary, t.file, t.line);
                 e.op = t.text;
                 e.a = parseUnary();
                 return e;
@@ -770,7 +778,7 @@ class Parser
             if (t.text == "++" || t.text == "--")
             {
                 next();
-                auto e = new Expr(EK.IncDec, t.line);
+                auto e = new Expr(EK.IncDec, t.file, t.line);
                 e.op = t.text;
                 e.a = parseUnary();
                 e.post = false;
@@ -781,7 +789,7 @@ class Parser
                 next();
                 CType ty = parseType();
                 expectSym(")");
-                auto e = new Expr(EK.Cast, t.line);
+                auto e = new Expr(EK.Cast, t.file, t.line);
                 e.ty = ty;
                 e.a = parseUnary();
                 return e;
@@ -799,7 +807,7 @@ class Parser
             if (isSym("["))
             {
                 next();
-                auto n = new Expr(EK.Index, t.line);
+                auto n = new Expr(EK.Index, t.file, t.line);
                 n.a = e;
                 n.b = parseExpr();
                 expectSym("]");
@@ -808,9 +816,9 @@ class Parser
             else if (isSym("("))
             {
                 if (e.kind != EK.Var)
-                    throw err(t.line, "only named functions can be called");
+                    throw err(t.file, t.line, "only named functions can be called");
                 next();
-                auto c = new Expr(EK.Call, t.line);
+                auto c = new Expr(EK.Call, t.file, t.line);
                 c.name = e.name;
                 if (!isSym(")"))
                 {
@@ -825,7 +833,7 @@ class Parser
             else if (isSym(".") || isSym("->"))
             {
                 next();
-                auto m = new Expr(EK.Member, t.line);
+                auto m = new Expr(EK.Member, t.file, t.line);
                 m.a = e;
                 m.arrow = (t.text == "->");
                 m.name = expectIdent();
@@ -834,7 +842,7 @@ class Parser
             else if (isSym("++") || isSym("--"))
             {
                 next();
-                auto n = new Expr(EK.IncDec, t.line);
+                auto n = new Expr(EK.IncDec, t.file, t.line);
                 n.op = t.text;
                 n.a = e;
                 n.post = true;
@@ -851,19 +859,19 @@ class Parser
         Token t = next();
         if (t.kind == TK.Num)
         {
-            auto ne = numExpr(t.num, t.line);
+            auto ne = numExpr(t.num, t.file, t.line);
             ne.uns = t.uns;
             return ne;
         }
         if (t.kind == TK.Str)
         {
-            auto e = new Expr(EK.Str, t.line);
+            auto e = new Expr(EK.Str, t.file, t.line);
             e.name = t.text;
             return e;
         }
         if (t.kind == TK.Ident && !isReserved(t.text))
         {
-            auto e = new Expr(EK.Var, t.line);
+            auto e = new Expr(EK.Var, t.file, t.line);
             e.name = t.text;
             return e;
         }
@@ -873,6 +881,6 @@ class Parser
             expectSym(")");
             return e;
         }
-        throw err(t.line, format("unexpected '%s'", t.text));
+        throw err(t.file, t.line, format("unexpected '%s'", t.text));
     }
 }

@@ -51,7 +51,6 @@ struct GpuSettings gpu;
 #define HALF_SCR_HEIGHT 120
 
 #define SCALE 0x1000
-//0x7000
 #define HARDWARE_NEAR_PLANE 20
 
 void main()

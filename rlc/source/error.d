@@ -28,8 +28,9 @@ DEALINGS IN THE SOFTWARE.
 module error;
 
 import std.format: format;
+import std.path;
 
-Exception err(int line, string msg)
+Exception err(string file, int line, string msg)
 {
-    return new Exception(format("line %s: %s", line, msg));
+    return new Exception(format("%s(%s): %s", buildNormalizedPath(file), line, msg));
 }

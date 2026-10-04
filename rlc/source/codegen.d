@@ -324,7 +324,7 @@ class CodeGen
     Reg allocTemp()
     {
         if (td >= NTEMPS)
-            throw err(curLine, "expression too complex (out of temporary registers)");
+            throw err(path, curLine, "expression too complex (out of temporary registers)");
         return tempRegs[td++];
     }
 
@@ -375,7 +375,7 @@ class CodeGen
         savedS = savedS[0 .. $ - 1];
     }
 
-    Var lookup(string name, int line)
+    Var lookup(string name, string file, int line)
     {
         foreach_reverse (ref sc; scopes)
         {
@@ -384,7 +384,7 @@ class CodeGen
         }
         if (auto p = name in globals)
             return *p;
-        throw err(line, "undefined variable '" ~ name ~ "'");
+        throw err(file, line, "undefined variable '" ~ name ~ "'");
     }
 
     int allocStack(int bytes)
@@ -392,16 +392,16 @@ class CodeGen
         int off = localsTop;
         localsTop += (bytes + 3) & ~3;
         if (localsTop > 32000)
-            throw err(curLine, "stack frame too large");
+            throw err(path, curLine, "stack frame too large");
         return off;
     }
 
-    Var declareLocal(string name, CType ty, int arrLen, int line)
+    Var declareLocal(string name, CType ty, int arrLen, string file, int line)
     {
         if (name in scopes[$ - 1])
-            throw err(line, "redeclaration of '" ~ name ~ "'");
+            throw err(file, line, "redeclaration of '" ~ name ~ "'");
         if (ty.base == Base.Void && ty.ptr == 0)
-            throw err(line, "variable '" ~ name ~ "' cannot have type void");
+            throw err(file, line, "variable '" ~ name ~ "' cannot have type void");
 
         auto v = new Var();
         v.name = name;
@@ -460,7 +460,7 @@ class CodeGen
 
             case EK.Var:
             {
-                Var v = lookup(e.name, e.line);
+                Var v = lookup(e.name, e.file, e.line);
                 CType t = v.ty;
                 if (v.isArray)
                     t.ptr++;
@@ -473,12 +473,12 @@ class CodeGen
                 {
                     CType t = typeOf(e.a);
                     if (!t.isPtr)
-                        throw err(e.line, "cannot dereference a non-pointer");
+                        throw err(e.file, e.line, "cannot dereference a non-pointer");
                     return t.deref();
                 }
                 if (e.op == "&")
                 {
-                    if (e.a.kind == EK.Var && lookup(e.a.name, e.a.line).isArray)
+                    if (e.a.kind == EK.Var && lookup(e.a.name, e.a.file, e.a.line).isArray)
                         return typeOf(e.a);
                     if (e.a.kind == EK.Member && memberField(e.a).isArray)
                         return typeOf(e.a);
@@ -520,14 +520,14 @@ class CodeGen
                     return CType(Base.Int, 0);
                 if (auto p = e.name in funcs)
                     return p.ret;
-                throw err(e.line, "call to undefined function '" ~ e.name ~ "'");
+                throw err(e.file, e.line, "call to undefined function '" ~ e.name ~ "'");
             }
 
             case EK.Index:
             {
                 CType t = typeOf(e.a);
                 if (!t.isPtr)
-                    throw err(e.line, "subscripted value is neither array nor pointer");
+                    throw err(e.file, e.line, "subscripted value is neither array nor pointer");
                 return t.deref();
             }
 
@@ -559,12 +559,12 @@ class CodeGen
         if (e.arrow)
         {
             if (!(bt.ptr == 1 && bt.base == Base.Struct))
-                throw err(e.line, "'->' needs a pointer to a struct");
+                throw err(e.file, e.line, "'->' needs a pointer to a struct");
         }
         else
         {
             if (!isStructVal(bt))
-                throw err(e.line, "'.' needs a struct value (use '->' on pointers)");
+                throw err(e.file, e.line, "'.' needs a struct value (use '->' on pointers)");
         }
         StructDef sd = structDefs[bt.sname];
         foreach (f; sd.fields)
@@ -572,7 +572,7 @@ class CodeGen
             if (f.name == e.name)
                 return f;
         }
-        throw err(e.line, format("struct %s has no member '%s'", bt.sname, e.name));
+        throw err(e.file, e.line, format("struct %s has no member '%s'", bt.sname, e.name));
     }
 
     // `want` is a hint: the result may be placed in that register. Callers must
@@ -641,7 +641,7 @@ class CodeGen
 
     Val genVar(Expr e, int want)
     {
-        Var v = lookup(e.name, e.line);
+        Var v = lookup(e.name, e.file, e.line);
         if (v.isArray)
         {
             Val d = dest0(want);
@@ -666,9 +666,9 @@ class CodeGen
         {
             case EK.Var:
             {
-                Var v = lookup(e.name, e.line);
+                Var v = lookup(e.name, e.file, e.line);
                 if (v.isArray)
-                    throw err(e.line, "cannot assign to array '" ~ v.name ~ "'");
+                    throw err(e.file, e.line, "cannot assign to array '" ~ v.name ~ "'");
                 if (v.st == Storage.InReg)
                     return LValue(LK.RegVar, v.reg, 0, v.ty, false);
                 if (v.st == Storage.InStack)
@@ -681,13 +681,13 @@ class CodeGen
             case EK.Unary:
             {
                 if (e.op != "*")
-                    throw err(e.line, "expression is not assignable");
+                    throw err(e.file, e.line, "expression is not assignable");
                 CType pt = typeOf(e.a);
                 if (!pt.isPtr)
-                    throw err(e.line, "cannot dereference a non-pointer");
+                    throw err(e.file, e.line, "cannot dereference a non-pointer");
                 CType et = pt.deref();
                 if (et.ptr == 0 && et.base == Base.Void)
-                    throw err(e.line, "cannot dereference void*");
+                    throw err(e.file, e.line, "cannot dereference void*");
                 Val pv = genExpr(e.a);
                 return LValue(LK.Mem, pv.r, 0, et, pv.isTemp);
             }
@@ -696,10 +696,10 @@ class CodeGen
             {
                 CType bt = typeOf(e.a);
                 if (!bt.isPtr)
-                    throw err(e.line, "subscripted value is neither array nor pointer");
+                    throw err(e.file, e.line, "subscripted value is neither array nor pointer");
                 CType et = bt.deref();
                 if (et.ptr == 0 && et.base == Base.Void)
-                    throw err(e.line, "cannot index void*");
+                    throw err(e.file, e.line, "cannot index void*");
                 int esz = et.size();
 
                 long ci;
@@ -708,7 +708,7 @@ class CodeGen
                     long off = ci * esz;
                     if (e.a.kind == EK.Var)
                     {
-                        Var av = lookup(e.a.name, e.a.line);
+                        Var av = lookup(e.a.name, e.a.file, e.a.line);
                         if (av.isArray && av.st == Storage.InStack && fits16(av.offset + off))
                             return LValue(LK.Mem, SP, av.offset + off, et, false);
                     }
@@ -735,9 +735,9 @@ class CodeGen
                 }
                 LValue blv = genLValue(e.a);
                 if (blv.kind != LK.Mem)
-                    throw err(e.line, "internal error: struct held in a register");
+                    throw err(e.file, e.line, "internal error: struct held in a register");
                 if (!fits16(blv.off + f.offset))
-                    throw err(e.line, "struct member offset too large");
+                    throw err(e.file, e.line, "struct member offset too large");
                 blv.off += f.offset;
                 blv.ty = f.ty;
                 blv.isArr = f.isArray;
@@ -745,7 +745,7 @@ class CodeGen
             }
 
             default:
-                throw err(e.line, "expression is not assignable");
+                throw err(e.file, e.line, "expression is not assignable");
         }
     }
 
@@ -754,7 +754,7 @@ class CodeGen
     Val loadLV(LValue lv, int want, bool keepAddr)
     {
         if (isStructVal(lv.ty))
-            throw err(curLine, "a struct cannot be used as a value here (use its members, &, or '=')");
+            throw err(path, curLine, "a struct cannot be used as a value here (use its members, &, or '=')");
         if (lv.kind == LK.RegVar)
             return Val(lv.reg, false);
         Val d;
@@ -835,14 +835,14 @@ class CodeGen
         Val res;
 
         if (lv.isArr)
-            throw err(e.line, "cannot assign to an array member");
+            throw err(e.file, e.line, "cannot assign to an array member");
         if (isStructVal(lv.ty))
         {
             if (e.op != "=")
-                throw err(e.line, "invalid operator for structs");
+                throw err(e.file, e.line, "invalid operator for structs");
             if (!discard)
-                throw err(e.line, "a struct assignment cannot be used as a value");
-            genStructCopy(lv, e.b, e.line);
+                throw err(e.file, e.line, "a struct assignment cannot be used as a value");
+            genStructCopy(lv, e.b, e.file, e.line);
             return Val(R0, false);
         }
 
@@ -889,10 +889,10 @@ class CodeGen
         // Prefix form (or value not needed): same as  x += 1  /  x -= 1
         if (!e.post || discard)
         {
-            auto c = new Expr(EK.Assign, e.line);
+            auto c = new Expr(EK.Assign, e.file, e.line);
             c.op = (e.op == "++") ? "+=" : "-=";
             c.a = e.a;
-            c.b = numExpr(1, e.line);
+            c.b = numExpr(1, e.file, e.line);
             return genAssign(c, want, discard);
         }
 
@@ -904,7 +904,7 @@ class CodeGen
 
         LValue lv = genLValue(e.a);
         if (lv.isArr)
-            throw err(e.line, "cannot modify an array member");
+            throw err(e.file, e.line, "cannot modify an array member");
         if (lv.kind == LK.RegVar)
         {
             Reg old = allocTemp();
@@ -923,20 +923,20 @@ class CodeGen
     }
 
     // dst = <struct lvalue expression>: unrolled word / halfword / byte copy.
-    void genStructCopy(LValue dst, Expr srcExpr, int line)
+    void genStructCopy(LValue dst, Expr srcExpr, string file, int line)
     {
         CType st = typeOf(srcExpr);
         if (!isStructVal(st) || st.sname != dst.ty.sname)
-            throw err(line, "struct assignment needs the same struct type on both sides");
+            throw err(file, line, "struct assignment needs the same struct type on both sides");
         LValue src = genLValue(srcExpr);
         if (src.kind != LK.Mem || dst.kind != LK.Mem)
-            throw err(line, "internal error: struct held in a register");
+            throw err(file, line, "internal error: struct held in a register");
 
         StructDef sd = structDefs[dst.ty.sname];
         int chunk = (sd.align_ >= 4) ? 4 : sd.align_;
         int n = sd.size / chunk;
         if (n > 32)
-            throw err(line, "struct too large to copy inline (limit 32 words)");
+            throw err(file, line, "struct too large to copy inline (limit 32 words)");
 
         CType ct = CType(chunk == 4 ? Base.Int : (chunk == 2 ? Base.Short : Base.Char), 0, true);
         Reg t = allocTemp();
@@ -973,7 +973,7 @@ class CodeGen
         else if (e.op == "!")
             rri(Op.SLTIU, d.r, a.r, 1);
         else
-            throw err(e.line, "unsupported unary operator " ~ e.op);
+            throw err(e.file, e.line, "unsupported unary operator " ~ e.op);
         return d;
     }
 
@@ -982,7 +982,7 @@ class CodeGen
         Expr t = e.a;
         if (t.kind == EK.Var)
         {
-            Var v = lookup(t.name, t.line);
+            Var v = lookup(t.name, t.file, t.line);
             if (v.isArray)
                 return genVar(t, want);
             if (v.st == Storage.InStack)
@@ -997,12 +997,12 @@ class CodeGen
                 liLabel(dg.r, v.label);
                 return dg;
             }
-            throw err(e.line, "internal error: address of a register variable");
+            throw err(e.file, e.line, "internal error: address of a register variable");
         }
 
         LValue lv = genLValue(t);
         if (lv.kind != LK.Mem)
-            throw err(e.line, "cannot take the address of this expression");
+            throw err(e.file, e.line, "cannot take the address of this expression");
         Val dm = dest1(want, Val(lv.reg, lv.tempAddr));
         if (dm.r != lv.reg || lv.off != 0)
             rri(Op.ADDIU, dm.r, lv.reg, lv.off);
@@ -1191,7 +1191,7 @@ class CodeGen
                 rrr(Op.SLTU, x, R0, x);
                 break;
             default:
-                throw err(curLine, "unsupported operator " ~ op);
+                throw err(path, curLine, "unsupported operator " ~ op);
         }
         return d;
     }
@@ -1358,22 +1358,22 @@ class CodeGen
         if (bios)
         {
             if (args.length < 1 || !constEval(args[0], biosFn))
-                throw err(e.line, name ~ "() needs a constant function number as its first argument");
+                throw err(e.file, e.line, name ~ "() needs a constant function number as its first argument");
             args = args[1 .. $];
         }
         else
         {
             auto pf = name in funcs;
             if (pf is null)
-                throw err(e.line, "call to undefined function '" ~ name ~ "'");
+                throw err(e.file, e.line, "call to undefined function '" ~ name ~ "'");
             if (!pf.defined)
-                throw err(e.line, "function '" ~ name ~ "' is declared but never defined");
+                throw err(e.file, e.line, "function '" ~ name ~ "' is declared but never defined");
             if (args.length != pf.params.length)
-                throw err(e.line, format("'%s' expects %s argument(s) but %s given",
+                throw err(e.file, e.line, format("'%s' expects %s argument(s) but %s given",
                                          name, pf.params.length, args.length));
         }
         if (args.length > 4)
-            throw err(e.line, "at most 4 call arguments are supported");
+            throw err(e.file, e.line, "at most 4 call arguments are supported");
 
         hasCall = true;
         int d0 = td; // temporaries that are live across the call
@@ -1552,7 +1552,7 @@ class CodeGen
                 if (s.e !is null)
                 {
                     if (curRet.ptr == 0 && curRet.base == Base.Void)
-                        throw err(s.line, "void function cannot return a value");
+                        throw err(path, s.line, "void function cannot return a value");
                     Val v = genExpr(s.e, V0);
                     move(V0, v.r);
                     release(v);
@@ -1564,13 +1564,13 @@ class CodeGen
 
             case SK.Break:
                 if (breakStack.length == 0)
-                    throw err(s.line, "'break' outside of a loop");
+                    throw err(s.file, s.line, "'break' outside of a loop");
                 jump(breakStack[$ - 1]);
                 break;
 
             case SK.Continue:
                 if (contStack.length == 0)
-                    throw err(s.line, "'continue' outside of a loop");
+                    throw err(s.file, s.line, "'continue' outside of a loop");
                 jump(contStack[$ - 1]);
                 break;
 
@@ -1581,14 +1581,14 @@ class CodeGen
 
     void genDecl(Stmt s)
     {
-        Var v = declareLocal(s.name, s.ty, s.arrLen, s.line);
+        Var v = declareLocal(s.name, s.ty, s.arrLen, s.file, s.line);
         if (s.e !is null)
         {
             if (v.isArray)
-                throw err(s.line, "local array initializers are not supported");
-            auto target = new Expr(EK.Var, s.line);
+                throw err(s.file, s.line, "local array initializers are not supported");
+            auto target = new Expr(EK.Var, s.file, s.line);
             target.name = s.name;
-            auto asg = new Expr(EK.Assign, s.line);
+            auto asg = new Expr(EK.Assign, s.file, s.line);
             asg.op = "=";
             asg.a = target;
             asg.b = s.e;
@@ -1647,12 +1647,12 @@ class CodeGen
         scanStmt(f.body_);
 
         if (f.params.length > 4)
-            throw err(f.line, "functions may have at most 4 parameters");
+            throw err(f.file, f.line, "functions may have at most 4 parameters");
 
         pushScope();
         foreach (i, prm; f.params)
         {
-            Var v = declareLocal(prm.name, prm.ty, -1, f.line);
+            Var v = declareLocal(prm.name, prm.ty, -1, f.file, f.line);
             pmoves ~= PMove(v, argRegs[i]);
         }
         genStmt(f.body_);
@@ -1684,7 +1684,7 @@ class CodeGen
         int raOff = savedBase + 4 * maxS;
         int frame = (raOff + 4 + 7) & ~7;
         if (frame > 32000)
-            throw err(f.line, "stack frame too large");
+            throw err(f.file, f.line, "stack frame too large");
 
         // Prologue
         placeLabel("f_" ~ f.name);
@@ -1744,12 +1744,12 @@ class CodeGen
         addrTaken = null;
         
         if (f.params.length > 4)
-            throw err(f.line, "functions may have at most 4 parameters");
+            throw err(f.file, f.line, "functions may have at most 4 parameters");
 
         pushScope();
         foreach (i, prm; f.params)
         {
-            Var v = declareLocal(prm.name, prm.ty, -1, f.line);
+            Var v = declareLocal(prm.name, prm.ty, -1, f.file, f.line);
             pmoves ~= PMove(v, argRegs[i]);
         }
         
@@ -1757,10 +1757,10 @@ class CodeGen
         {
             string asmFilename = buildPath(parentDirectory, f.attrFilename).buildNormalizedPath;
             if (!exists(asmFilename))
-                throw err(f.line, "can't find file \"" ~ asmFilename ~ "\"");
+                throw err(f.file, f.line, "can't find file \"" ~ asmFilename ~ "\"");
             
             if (auto owner = asmFilename in asmFileOwner)
-                throw err(f.line, "assembly file \"" ~ asmFilename ~ "\" is already used by function \"" ~ *owner ~ "\"");
+                throw err(f.file, f.line, "assembly file \"" ~ asmFilename ~ "\" is already used by function \"" ~ *owner ~ "\"");
             asmFileOwner[asmFilename] = f.name;
             
             string asmCode = readText(asmFilename);
@@ -1797,7 +1797,7 @@ class CodeGen
         int raOff = savedBase + 4 * maxS;
         int frame = (raOff + 4 + 7) & ~7;
         if (frame > 32000)
-            throw err(f.line, "stack frame too large");
+            throw err(f.file, f.line, "stack frame too large");
 
         // Prologue
         placeLabel("f_" ~ f.name);
@@ -1865,12 +1865,12 @@ class CodeGen
     void declareGlobal(GlobalDecl g)
     {
         if (g.name in globals)
-            throw err(g.line, "redefinition of global '" ~ g.name ~ "'");
+            throw err(g.file, g.line, "redefinition of global '" ~ g.name ~ "'");
         if (g.ty.ptr == 0 && g.ty.base == Base.Void)
-            throw err(g.line, "variable '" ~ g.name ~ "' cannot have type void");
+            throw err(g.file, g.line, "variable '" ~ g.name ~ "' cannot have type void");
 
         if (isStructVal(g.ty) && g.hasInit)
-            throw err(g.line, "struct initializers are not supported");
+            throw err(g.file, g.line, "struct initializers are not supported");
 
         auto v = new Var();
         v.name = g.name;
@@ -1884,14 +1884,14 @@ class CodeGen
         if (g.attrFilename.length > 0)
         {
             if (g.ty.ptr == 0)
-                throw err(g.line, "file attribute requires an array");
+                throw err(g.file, g.line, "file attribute requires an array");
             
             // TODO: build path for searching external files
             string externalFile = g.attrFilename;
             if (exists(externalFile))
                 data = cast(ubyte[])read(externalFile);
             else
-                throw err(g.line, "can't find file \"" ~ externalFile ~ "\"");
+                throw err(g.file, g.line, "can't find file \"" ~ externalFile ~ "\"");
             v.isArray = true;
             v.arrLen = cast(int)data.length;
         }
@@ -1901,11 +1901,11 @@ class CodeGen
             if (g.strInit)
             {
                 if (g.ty.ptr != 0 || g.ty.base != Base.Char)
-                    throw err(g.line, "a string initializer requires a char array");
+                    throw err(g.file, g.line, "a string initializer requires a char array");
                 if (n < 0)
                     n = cast(int) g.strBytes.length;
                 if (cast(int) g.strBytes.length > n)
-                    throw err(g.line, "string initializer is too long for the array");
+                    throw err(g.file, g.line, "string initializer is too long for the array");
                 data = g.strBytes.dup;
                 data.length = n;
             }
@@ -1914,11 +1914,11 @@ class CodeGen
                 if (n < 0)
                 {
                     if (!g.hasInit)
-                        throw err(g.line, "array needs a size or an initializer");
+                        throw err(g.file, g.line, "array needs a size or an initializer");
                     n = cast(int) g.inits.length;
                 }
                 if (cast(int) g.inits.length > n)
-                    throw err(g.line, "too many initializers");
+                    throw err(g.file, g.line, "too many initializers");
                 foreach (x; g.inits)
                     data ~= toBytes(x, esz);
                 data.length = n * esz;
@@ -1929,7 +1929,7 @@ class CodeGen
         else
         {
             if (g.strInit)
-                throw err(g.line, "string initializers are only supported for char arrays");
+                throw err(g.file, g.line, "string initializers are only supported for char arrays");
             if (isStructVal(g.ty))
             {
                 data = new ubyte[esz]; // zero-initialized
@@ -1955,7 +1955,7 @@ class CodeGen
         if (auto q = f.name in funcs)
             alreadyDefined = q.defined;
         if (alreadyDefined && f.body_ !is null)
-            throw err(f.line, "redefinition of function '" ~ f.name ~ "'");
+            throw err(f.file, f.line, "redefinition of function '" ~ f.name ~ "'");
 
         FuncInfo fi;
         fi.ret = f.ret;
@@ -1976,7 +1976,7 @@ class CodeGen
 
         auto pm = "main" in funcs;
         if (pm is null || !pm.defined)
-            throw new Exception("program has no main() function");
+            throw err(path, 0, "program has no main() function");
 
         genStartup();
         foreach (f; p.funcs)

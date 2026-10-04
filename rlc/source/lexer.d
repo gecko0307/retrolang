@@ -130,7 +130,7 @@ private Token[] lexRaw(string src, string file)
                 i++;
             }
             if (i + 1 >= src.length)
-                throw err(startLine, "unterminated comment");
+                throw err(file, startLine, "unterminated comment");
             i += 2;
             continue;
         }
@@ -162,9 +162,9 @@ private Token[] lexRaw(string src, string file)
             try
                 v = parseInt(t);
             catch (Exception ex)
-                throw err(line, "bad number '" ~ t ~ "'");
+                throw err(file, line, "bad number '" ~ t ~ "'");
             if (v > 0xFFFFFFFFL)
-                throw err(line, "number too large for 32 bits: " ~ t);
+                throw err(file, line, "number too large for 32 bits: " ~ t);
             if (v > 0x7FFFFFFFL)
                 uns = true;
             toks ~= Token(TK.Num, t, cast(int) v, line, uns);
@@ -183,12 +183,12 @@ private Token[] lexRaw(string src, string file)
                 i++;
             }
             if (i >= src.length)
-                throw err(line, "unterminated character literal");
+                throw err(file, line, "unterminated character literal");
             string body_ = src[s .. i];
             i++;
             ubyte[] b = parseEscapes(body_);
             if (b.length != 1)
-                throw err(line, "bad character literal");
+                throw err(file, line, "bad character literal");
             toks ~= Token(TK.Num, body_, b[0], line);
             continue;
         }
@@ -201,13 +201,13 @@ private Token[] lexRaw(string src, string file)
             while (i < src.length && src[i] != '"')
             {
                 if (src[i] == '\n')
-                    throw err(line, "newline in string literal");
+                    throw err(file, line, "newline in string literal");
                 if (src[i] == '\\')
                     i++;
                 i++;
             }
             if (i >= src.length)
-                throw err(line, "unterminated string literal");
+                throw err(file, line, "unterminated string literal");
             toks ~= Token(TK.Str, src[s .. i], 0, line);
             i++;
             continue;
@@ -231,7 +231,7 @@ private Token[] lexRaw(string src, string file)
             }
         }
         if (sym.length == 0)
-            throw err(line, format("unexpected character '%s'", c));
+            throw err(file, line, format("unexpected character '%s'", c));
         toks ~= Token(TK.Sym, sym, 0, line);
         i += sym.length;
     }
@@ -269,34 +269,34 @@ private Token[] preprocess(
             Token[] d = toks[i + 1 .. end];
 
             if (d.length == 0 || d[0].kind != TK.Ident)
-                throw err(t.line, "expected directive name after '#'");
+                throw err(path, t.line, "expected directive name after '#'");
 
             switch (d[0].text)
             {
                 case "define":
                     if (d.length < 2 || d[1].kind != TK.Ident)
-                        throw err(t.line, "#define needs a name");
+                        throw err(path, t.line, "#define needs a name");
                     macros[d[1].text] = d[2 .. $].dup;   // body is already tokenized
                     break;
 
                 case "undef":
                     if (d.length != 2 || d[1].kind != TK.Ident)
-                        throw err(t.line, "#undef needs a name");
+                        throw err(path, t.line, "#undef needs a name");
                     macros.remove(d[1].text);
                     break;
 
                 case "include":
                     if (d.length != 2 || d[1].kind != TK.Str)
-                        throw err(t.line, "#include needs a quoted file name");
+                        throw err(path, t.line, "#include needs a quoted file name");
 
                     string name = d[1].text;
                     string full = path.length ? buildPath(dirName(path), name) : name;
                     if (!exists(full))
-                        throw err(t.line, "can't find file \"" ~ name ~ "\"");
+                        throw err(path, t.line, "can't find file \"" ~ name ~ "\"");
 
                     string norm = buildNormalizedPath(absolutePath(full));
                     if (norm in including)
-                        throw err(t.line, "circular include of \"" ~ name ~ "\"");
+                        throw err(path, t.line, "circular include of \"" ~ name ~ "\"");
 
                     including[norm] = true;
                     res ~= preprocess(lexRaw(readText(full), full), full, macros, including);
@@ -304,7 +304,7 @@ private Token[] preprocess(
                     break;
 
                 default:
-                    throw err(t.line, "unknown directive '#" ~ d[0].text ~ "'");
+                    throw err(path, t.line, "unknown directive '#" ~ d[0].text ~ "'");
             }
 
             i = end;

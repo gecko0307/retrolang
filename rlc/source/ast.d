@@ -34,6 +34,7 @@ enum EK { Num, Str, Var, Unary, Binary, Assign, IncDec, Call, Index, Cast, Membe
 class Expr
 {
     EK kind;
+    string file;
     int line;
     string op;      // operator text (Unary, Binary, Assign, IncDec)
     string name;    // identifier (Var, Call) or raw string contents (Str)
@@ -45,16 +46,17 @@ class Expr
     bool uns;       // Num: unsigned literal
     bool arrow;     // Member: '->' instead of '.'
 
-    this(EK k, int ln)
+    this(EK kind, string file, int line)
     {
-        kind = k;
-        line = ln;
+        this.kind = kind;
+        this.file = file;
+        this.line = line;
     }
 }
 
-Expr numExpr(long v, int line)
+Expr numExpr(long v, string file, int line)
 {
-    auto e = new Expr(EK.Num, line);
+    auto e = new Expr(EK.Num, file, line);
     e.num = v;
     return e;
 }
@@ -64,6 +66,7 @@ enum SK { Block, Decl, ExprS, If, While, DoWhile, For, Return, Break, Continue, 
 class Stmt
 {
     SK kind;
+    string file;
     int line;
     Stmt[] stmts;           // Block
     bool scoped = true;     // Block: opens a new scope?
@@ -76,10 +79,11 @@ class Stmt
     string name;            // Decl
     int arrLen = -1;        // Decl: -1 = scalar
 
-    this(SK k, int ln)
+    this(SK kind, string file, int line)
     {
-        kind = k;
-        line = ln;
+        this.kind = kind;
+        this.file = file;
+        this.line = line;
     }
 }
 
@@ -95,6 +99,7 @@ class Func
     string name;
     Param[] params;
     Stmt body_; // null for a prototype or external
+    string file;
     int line;
     bool isExternal;
     string attrFilename;
@@ -104,6 +109,7 @@ class GlobalDecl
 {
     CType ty; // element type for arrays
     string name;
+    string file;
     int line;
     bool isArray;
     int arrLen = -1;
