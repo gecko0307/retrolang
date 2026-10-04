@@ -25,12 +25,118 @@ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
+
+/**
+ * Structured compile errors and colored output.
+ */
 module error;
 
+import std.stdio;
 import std.format: format;
-import std.path;
+import std.path: buildNormalizedPath;
+import std.process: environment;
+
+class CompileError: Exception
+{
+    string file;
+    int line;
+    string detail; // message without the "file(line):" prefix
+
+    this(string file, int line, string detail)
+    {
+        super(format("%s(%s): %s", buildNormalizedPath(file), line, detail));
+        this.file = file;
+        this.line = line;
+        this.detail = detail;
+    }
+}
 
 Exception err(string file, int line, string msg)
 {
-    return new Exception(format("%s(%s): %s", buildNormalizedPath(file), line, msg));
+    return new CompileError(file, line, msg);
+}
+
+version (Windows)
+{
+    import core.sys.windows.windows;
+ 
+    // Windows 10+ consoles understand ANSI sequences once this mode flag is set.
+    bool enableAnsi(bool forStderr)
+    {
+        HANDLE h = GetStdHandle(forStderr ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
+        DWORD mode;
+        if (h == INVALID_HANDLE_VALUE || !GetConsoleMode(h, &mode))
+            return false;                       // redirected to a file or pipe
+        return SetConsoleMode(h, mode | 0x0004) != 0;   // ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    }
+}
+else
+{
+    import core.sys.posix.unistd : isatty;
+ 
+    bool enableAnsi(bool forStderr)
+    {
+        return isatty(forStderr ? 2 : 1) != 0;
+    }
+}
+
+// stdout and stderr are checked separately: one may be redirected while the other is not
+private bool colorErr = false;
+private bool colorOut = false;
+ 
+/// Call once at program start.
+void initDiagnostics()
+{
+    bool allowed = environment.get("NO_COLOR") is null;
+    colorErr = allowed && enableAnsi(true);
+    colorOut = allowed && enableAnsi(false);
+}
+
+enum Style: string
+{
+    bold    = "\x1b[1m",
+    boldRed = "\x1b[1;31m",
+    boldYel = "\x1b[1;33m",
+    green     = "\x1b[92m",
+    boldGreen = "\x1b[1;92m",
+    dim     = "\x1b[2m",
+}
+
+string paint(string style, string s, bool toStderr = true)
+{
+    bool on = toStderr ? colorErr : colorOut;
+    return on ? style ~ s ~ "\x1b[0m" : s;
+}
+
+void printInfo(Args...)(string fmt, Args args)
+{
+    writeln(paint(Style.green, format(fmt, args), false));
+}
+
+void printError(string msg)
+{
+    stderr.writefln("%s %s", paint(Style.boldRed, "Error:"), msg);
+}
+
+void printError(Exception e)
+{
+    if (auto ce = cast(CompileError) e)
+    {
+        stderr.writefln("%s %s %s",
+            paint(Style.bold, format("%s(%s):", buildNormalizedPath(ce.file), ce.line)),
+            paint(Style.boldRed, "error:"),
+            ce.detail);
+    }
+    else
+    {
+        stderr.writefln("%s %s", paint(Style.boldRed, "error:"), e.msg);
+    }
+}
+
+void printWarning(string file, int line, string msg)
+{
+    stderr.writefln("%s %s %s",
+        paint(Style.bold, format("%s(%s):", buildNormalizedPath(file), line)),
+        paint(Style.boldYel, "warning:"),
+        msg);
 }
