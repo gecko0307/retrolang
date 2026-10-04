@@ -129,7 +129,7 @@ int main(string[] args)
     }
     else
     {
-        printError(format("unknown extension of \"%s\", must be *.r or *.s", filename));
+        printError(format("unknown file extension of \"%s\", must be *.r or *.s", filename));
         return 1;
     }
 
