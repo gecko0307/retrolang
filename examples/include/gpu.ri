@@ -23,9 +23,7 @@
 #define COLOR_NEUTRAL 0x808080
 
 #define GP1_RESET      0x00000000
-#define GP1_RESET_FIFO 0x01000000
-#define GP1_DISP_ON    0x03000000
-#define GP1_DISP_OFF   0x03000001
+//#define GP1_RESET_FIFO 0x01000000
 #define GP1_DISP_OFFS  0x05000000
 #define GP1_HRANGE     0x06000000
 #define GP1_VRANGE     0x07000000
@@ -203,6 +201,8 @@ int* dma2Madr = 0x1f8010a0; // channel 2: base address
 int* dma2Bcr  = 0x1f8010a4; // channel 2: block control
 int* dma2Chcr = 0x1f8010a8; // channel 2: channel control
 
+int bufferOffset = 0;
+
 /**
  * Initialize the GPU.
  * The pointer to the GpuSettings struct must be valid till the end of the program.
@@ -292,7 +292,7 @@ void gpuInit(struct GpuSettings* settings)
     *gp1 = GP1_DISP_MODE | x1 | y1 | interleaving | bitDepth | (__gpuSettings->videoMode << 3);
     
     // Enable display
-    *gp1 = GP1_DISP_ON;
+    *gp1 = 0x03000000;
 }
 
 ///
@@ -358,6 +358,18 @@ void gpuFlush()
     gpuBufferPos = 0;
 }
 
+///
+void gpuQueueEnv()
+{
+    int* p = gpuAlloc(3);
+    p[0] = GP0_DRAW_OFFS | (bufferOffset << 11);
+    p[1] = GP0_CLIP_POS |
+        ((bufferOffset + __gpuSettings->clip.y) << 10 | __gpuSettings->clip.x);
+    p[2] = GP0_CLIP_SIZE |
+        ((__gpuSettings->clip.height - 1 + bufferOffset + __gpuSettings->clip.y) << 10 |
+         (__gpuSettings->clip.width - 1 + __gpuSettings->clip.x));
+}
+
 /**
  * Ends the frame: starts the DMA and swaps command buffers.
  * The GPU keeps drawing while the CPU builds the next frame.
@@ -365,11 +377,30 @@ void gpuFlush()
 void gpuEndFrame()
 {
     gpuKick();
+    
+    gpuWaitDma();
+    gpuWaitCmd();
+    gpuWaitIdle();
+
+    // show the buffer that was just drawn
+    *gp1 = GP1_DISP_OFFS |
+        ((bufferOffset + __gpuSettings->display.y) << 10) |
+        (__gpuSettings->display.x & 0xffff);
+
+    // switch to the other command buffer and the other framebuffer
     if (gpuCurrentBuffer == GPU_BUF0)
         gpuCurrentBuffer = GPU_BUF1;
     else
         gpuCurrentBuffer = GPU_BUF0;
+    
+    if (bufferOffset == 0)
+        bufferOffset = __gpuSettings->display.height;
+    else
+        bufferOffset = 0;
+    
     gpuBufferPos = 0;
+    gpuLast = 0;
+    gpuQueueEnv();
 }
 
 /// Creates a texture from a TIM file.
@@ -431,16 +462,12 @@ void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
 
     gpuWaitIdle();
 
-    //*gp1 = GP1_RESET_FIFO; // reset the command queue
-    
     *gp0 = GP0_MEM2VRAM;
     *gp0 = pp[1]; // x, y
     *gp0 = pp[2]; // width, height
 
     for (i = 0; i < sizeInWords; i++)
         *gp0 = pp[3 + i];
-
-    //*gp1 = GP1_RESET_FIFO; // reset the command queue
 }
 
 /// Copies texture data (pixel data or CLUT) to VRAM using DMA
@@ -491,7 +518,7 @@ void gpuClear(int color)
 {
     gpuWaitIdle();
     *gp0 = GP0_FAST_RECT | color;
-    *gp0 = (__gpuSettings->display.y << 16) | __gpuSettings->display.x;
+    *gp0 = ((bufferOffset + __gpuSettings->display.y) << 16) | __gpuSettings->display.x;
     *gp0 = (__gpuSettings->display.height << 16) | __gpuSettings->display.width;
 }
 
@@ -580,7 +607,7 @@ void gpuQueueClear(int color)
 {
     int* p = gpuAlloc(3);
     p[0] = GP0_FAST_RECT | color;
-    p[1] = (__gpuSettings->display.y << 16) | (__gpuSettings->display.x & 0xffff);
+    p[1] = ((bufferOffset + __gpuSettings->display.y) << 16) | (__gpuSettings->display.x & 0xffff);
     p[2] = (__gpuSettings->display.height << 16) | __gpuSettings->display.width;
 }
 

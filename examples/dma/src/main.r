@@ -39,14 +39,16 @@ void main()
     tri.y3 = y + 140;
     tri.color3 = 0x00ff0000; // blue
     
+    int speed = 1;
+    
     while(1)
     {
         padWaitSync();
         int pad1 = padRead1();
-             if (pad1 & PAD_UP)    y -= 1;
-        else if (pad1 & PAD_DOWN)  y += 1;
-        else if (pad1 & PAD_LEFT)  x -= 1;
-        else if (pad1 & PAD_RIGHT) x += 1;
+             if (pad1 & PAD_UP)    y -= speed;
+        else if (pad1 & PAD_DOWN)  y += speed;
+             if (pad1 & PAD_LEFT)  x -= speed;
+        else if (pad1 & PAD_RIGHT) x += speed;
         
         // Move the triangle
         tri.x1 = x;

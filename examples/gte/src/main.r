@@ -47,8 +47,8 @@ struct GpuSettings gpu;
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
-#define HALF_SCREEN_WIDTH 160
-#define HALF_SCREEN_HEIGHT 120
+#define HALF_SCR_WIDTH 160
+#define HALF_SCR_HEIGHT 120
 
 #define SCALE 0x1000
 //0x7000
@@ -80,8 +80,8 @@ void main()
     tr.r[3] = 0x0000; tr.r[4] = SCALE;  tr.r[5] = 0x0000;
     tr.r[6] = 0x0000; tr.r[7] = 0x0000; tr.r[8] = SCALE;
     tr.h = 0x100;
-    tr.ofx = 0x10000 * HALF_SCREEN_WIDTH;
-    tr.ofy = 0x10000 * HALF_SCREEN_HEIGHT;
+    tr.ofx = 0x10000 * HALF_SCR_WIDTH;
+    tr.ofy = 0x10000 * HALF_SCR_HEIGHT;
     tr.dqa = F_ONE;
     tr.dqb = 0x000;
 
@@ -102,7 +102,7 @@ void main()
     struct SVertex vout3;
     struct SVertex vout4;
     
-    int speed = 5;
+    int speed = 10;
 
     while(1)
     {
