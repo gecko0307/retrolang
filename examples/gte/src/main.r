@@ -37,9 +37,10 @@ struct RTPSTransform
 void gteInit()  @("src/gteInit.s");
 void gteRTPS(struct RTPSTransform* rtpsTransform, short* inVertex, struct SVertex* outVertex) @("src/gteRTPS.s");
 
-short v1[4] = { -50, -50,   0, 0 };
-short v2[4] = { -50,  50,   0, 0 };
-short v3[4] = { -50,  50, 100, 0 };
+short v1[4] = { -50, -200,   0, 0 };
+short v2[4] = { -50,  200,   0, 0 };
+short v3[4] = { -50,  200, 400, 0 };
+short v4[4] = { -50, -200, 400, 0 };
 
 // Global GPU config
 struct GpuSettings gpu;
@@ -48,6 +49,10 @@ struct GpuSettings gpu;
 #define SCREEN_HEIGHT 240
 #define HALF_SCREEN_WIDTH 160
 #define HALF_SCREEN_HEIGHT 120
+
+#define SCALE 0x1000
+//0x7000
+#define HARDWARE_NEAR_PLANE 20
 
 void main()
 {
@@ -70,10 +75,10 @@ void main()
     struct RTPSTransform tr;
     tr.tx = 0;
     tr.ty = 0;
-    tr.tz = 128;
-    tr.r[0] = F_ONE;  tr.r[1] = 0x0000; tr.r[2] = 0x0000;
-    tr.r[3] = 0x0000; tr.r[4] = F_ONE;  tr.r[5] = 0x0000;
-    tr.r[6] = 0x0000; tr.r[7] = 0x0000; tr.r[8] = F_ONE;
+    tr.tz = 256;
+    tr.r[0] = SCALE;  tr.r[1] = 0x0000; tr.r[2] = 0x0000;
+    tr.r[3] = 0x0000; tr.r[4] = SCALE;  tr.r[5] = 0x0000;
+    tr.r[6] = 0x0000; tr.r[7] = 0x0000; tr.r[8] = SCALE;
     tr.h = 0x100;
     tr.ofx = 0x10000 * HALF_SCREEN_WIDTH;
     tr.ofy = 0x10000 * HALF_SCREEN_HEIGHT;
@@ -95,30 +100,42 @@ void main()
     struct SVertex vout1;
     struct SVertex vout2;
     struct SVertex vout3;
+    struct SVertex vout4;
+    
+    int speed = 5;
 
     while(1)
     {
         padWaitSync();
         int pad1 = padRead1();
-             if (pad1 & PAD_UP)    tr.tz -= 1;
-        else if (pad1 & PAD_DOWN)  tr.tz += 1;
-        else if (pad1 & PAD_LEFT)  tr.tx -= 1;
-        else if (pad1 & PAD_RIGHT) tr.tx += 1;
-        else if (pad1 & PAD_L1)    tr.tx -= 1;
-        else if (pad1 & PAD_R1)    tr.tx += 1;
+             if (pad1 & PAD_UP)    tr.tz -= speed;
+        else if (pad1 & PAD_DOWN)  tr.tz += speed;
+             if (pad1 & PAD_LEFT)  tr.tx += speed;
+        else if (pad1 & PAD_RIGHT) tr.tx -= speed;
         
         gteRTPS(&tr, v1, &vout1);
         gteRTPS(&tr, v2, &vout2);
         gteRTPS(&tr, v3, &vout3);
+        gteRTPS(&tr, v4, &vout4);
+        
+        gpuQueueClear(0x808080);
+        
         tri.x1 = vout1.x;
         tri.y1 = vout1.y;
         tri.x2 = vout2.x;
         tri.y2 = vout2.y;
         tri.x3 = vout3.x;
         tri.y3 = vout3.y;
-        
-        gpuQueueClear(0x808080);
         gpuQueueDrawTriangle2(&tri);
+        
+        tri.x1 = vout1.x;
+        tri.y1 = vout1.y;
+        tri.x2 = vout4.x;
+        tri.y2 = vout4.y;
+        tri.x3 = vout3.x;
+        tri.y3 = vout3.y;
+        gpuQueueDrawTriangle2(&tri);
+        
         gpuEndFrame();
     }
 }

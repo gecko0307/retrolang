@@ -2,7 +2,7 @@
 
 The goal of this project is to build a PlayStation 1 development toolchain from scratch, without relying on GCC, LLVM, or other similar compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code.
 
-Retrolang currently allows you to write simple programs for PlayStation: output data to the TTY, request information from the gamepad, and draw simple 2D graphics (directly or via DMA).
+Retrolang currently allows you to write simple programs for PlayStation: output data to the TTY, request information from the gamepad, and draw simple graphics (directly or via DMA).
 
 All provided software is experimental and is in alpha stage.
 

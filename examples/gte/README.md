@@ -1,6 +1,6 @@
-# GTE Triangle Example
+# GTE Example
 
-Renders a 3D triangle. Use D-pad to move the camera left/right/up/down.
+Renders a colored 3D quad using the GTE transformation. Use the D-pad to move the camera left/right/forward/backward.
 
 Use `build.bat` to compile `iso/PSX.EXE`.
 
