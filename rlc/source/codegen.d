@@ -169,6 +169,9 @@ class CodeGen
     string[string] strPool;
     int labelCounter;
     int strCounter;
+    
+    // Needed to disallow using the same asm file more than once
+    string[string] asmFileOwner; // normalized path -> function name
 
     // Per-function state
     AsmInstr[] cur;
@@ -1752,9 +1755,14 @@ class CodeGen
         
         if (f.attrFilename != "")
         {
-            string asmFilename = buildPath(parentDirectory, f.attrFilename);
+            string asmFilename = buildPath(parentDirectory, f.attrFilename).buildNormalizedPath;
             if (!exists(asmFilename))
                 throw err(f.line, "can't find file \"" ~ asmFilename ~ "\"");
+            
+            if (auto owner = asmFilename in asmFileOwner)
+                throw err(f.line, "assembly file \"" ~ asmFilename ~ "\" is already used by function \"" ~ *owner ~ "\"");
+            asmFileOwner[asmFilename] = f.name;
+            
             string asmCode = readText(asmFilename);
             Assembly extAsm = parseAsm(asmCode, asmFilename, cur.length);
             cur ~= extAsm.instructions;

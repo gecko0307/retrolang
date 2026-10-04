@@ -42,9 +42,11 @@ import preprocessor;
 import compiler;
 import linker;
 
+enum DefaultOutputFile = "PSX.EXE";
+
 int main(string[] args)
 {
-    string outputFile = "PSX.EXE";
+    string outputFile = DefaultOutputFile;
     bool verbose = false;
     
     try
@@ -97,11 +99,6 @@ int main(string[] args)
     else if (ext == ".r")
     {
         writefln("Compiling %s...", filename);
-        //string processedCode = preprocess(sourceCode, filename);
-        //if (processedCode.length > 0)
-        //    ass = compile(processedCode);
-        //else
-        //    return 1;
         ass = compile(sourceCode, filename);
     } 
     else
@@ -115,11 +112,11 @@ int main(string[] args)
     if (!link(ass, verbose, exeCode)) return 1;
 
     // Generate PS-X EXE and save to file
-    writefln("Generating executable (%s)...", outputFile);
+    writefln("Saving to \"%s\"...", outputFile);
     PsxExe exe = new PsxExe(exeCode, 0);
     
     write(outputFile, exe.binary); 
     
-    writeln("Success!");
+    writeln("Done!");
     return 0;
 }
