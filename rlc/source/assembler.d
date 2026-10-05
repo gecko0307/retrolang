@@ -48,9 +48,10 @@ DEALINGS IN THE SOFTWARE.
  * $ra - return address; jumping to this address returns from the procedure.
  *
  * GTE data registers:
- * 
+ * TODO
  *
  * GTE control registers:
+ * TODO
  */
 module assembler;
 
