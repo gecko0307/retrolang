@@ -1772,7 +1772,8 @@ class CodeGen
             asmFileOwner[asmFilename] = f.name;
             
             string asmCode = readText(asmFilename);
-            Assembly extAsm = parseAsm(asmCode, asmFilename, cur.length);
+            string asmLabelPrefix = asmFilename;
+            Assembly extAsm = assemble(asmCode, asmFilename, asmLabelPrefix, cur.length);
             cur ~= extAsm.instructions;
             ass.dataEntries ~= extAsm.dataEntries;
         }

@@ -125,7 +125,7 @@ int main(string[] args)
     else if (ext == ".s")
     {
         printInfo("Assembling \"%s\"...", filename);
-        ass = parseAsm(sourceCode);
+        ass = assemble(sourceCode, filename, "", 0);
     }
     else
     {

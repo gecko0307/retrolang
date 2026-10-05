@@ -25,6 +25,20 @@ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
+
+/**
+ * Retrolang Intermediate Representation for MIPS-I code.
+ *
+ * Provided functionality allows to store the program in an abstract form,
+ * without encoding to machine code early, which is convenient for a compiler.
+ * `Assembly` struct separately stores program code and data, plus labels
+ * that reference the data (for variables) and sections with global indices
+ * (for functions).
+ * Indices in the `Assembly` are not machine word offsets! Exact machine code size
+ * and real offsets should be determined at the post-processing step
+ * after the program is fully assembled, because some pseudoinstructions
+ * are resolved to more than one word (see linker.d)
+ */
 module ir;
 
 import std.algorithm;

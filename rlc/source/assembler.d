@@ -25,6 +25,33 @@ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
+
+/**
+ * MIPS-I assembler.
+ *
+ * Syntax is similar to AT&T. Format:
+ *
+ * [.label] mnemonic [operands]
+ *
+ * CPU registers:
+ * $r0 - always zero
+ * $at - temporary data for certain assembler pseudo-instructions
+ * $v0..$v1 - procedure return values
+ * $a0..$a3 - procedure arguments
+ * $t0..$t7 - variables
+ * $s0..$s7 - static procedure variables
+ * $t8..$t9 - temporaries (variables)
+ * $k0..$k1 - reserved for BIOS
+ * $gp - global pointer
+ * $sp - stack pointer; holds the first free address on the stack
+ * $fp - frame pointer
+ * $ra - return address; jumping to this address returns from the procedure.
+ *
+ * GTE data registers:
+ * 
+ *
+ * GTE control registers:
+ */
 module assembler;
 
 import std.stdio;
@@ -37,7 +64,14 @@ import mips;
 import ir;
 import utils;
 
-Assembly parseAsm(string code, string labelPrefix = "", size_t instrIndexStart = 0)
+/**
+ * Translates an assembly text to Assembly object filled with IR opcodes, labels and data entries.
+ * If used in a broad context (e.g., with a compiler), unique `labelPrefix` should be provided
+ * to avoid label collisions across multiple files.
+ * `instrIndexStart` is a global index of the first IR opcode. It should be 0 if the program
+ * consists of a single assembly, otherwise the index at which the assembly is inserted into the program.
+ */
+Assembly assemble(string code, string filename, string labelPrefix = "", size_t instrIndexStart = 0)
 {
     AsmInstr[] output;
     AsmDataEntry[] dataEntries;
@@ -60,7 +94,7 @@ Assembly parseAsm(string code, string labelPrefix = "", size_t instrIndexStart =
         {
             auto label = labelPrefix ~ line[0..$-1].strip;
             if (currentSection != dataSection)
-                throw new Exception("Illegal label \"" ~ label ~ "\" in section \"" ~ currentSection ~ "\"");
+                throw new Exception("illegal label \"" ~ label ~ "\" in section \"" ~ currentSection ~ "\"");
             dataLabels[label] = instrIndex;
             currentDataLabel = label;
             continue;
@@ -79,12 +113,12 @@ Assembly parseAsm(string code, string labelPrefix = "", size_t instrIndexStart =
             if (currentDataLabel.length)
                 dataEntries ~= AsmDataEntry(currentDataLabel, parseEscapes(str));
             else
-                throw new Exception("Unlabeled ASCII data \"" ~ str ~ "\"");
+                throw new Exception("unlabeled ASCII data: \"" ~ str ~ "\"");
             continue;
         }
         
         if (currentSection != textSection)
-            throw new Exception("Instruction code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
+            throw new Exception("program code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
 
         string[] parts = line.splitter(regex(r"[\s,()]+")).filter!(s => !s.empty).array;
 
@@ -290,7 +324,7 @@ Assembly parseAsm(string code, string labelPrefix = "", size_t instrIndexStart =
         // TODO: other GTE instruction opcodes
         
         else
-            throw new Exception("Unknown instruction: " ~ op);
+            throw new Exception("unknown instruction \"" ~ op ~ "\"");
         
         instrIndex++;
     }
