@@ -59,7 +59,7 @@ void main()
         tri.y3 = y + 140;
         
         gpuQueueClear(0x808080);
-        gpuQueueDrawTriangle2(&tri);
+        gpuQueueDrawTriangle2(&tri, 0);
         gpuEndFrame();
     }
 }

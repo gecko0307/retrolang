@@ -53,6 +53,9 @@ struct GpuSettings gpu;
 #define SCALE 0x1000
 #define HARDWARE_NEAR_PLANE 20
 
+// OT_SIZE 1024 covers camera z 0..4095; tune to your scene
+#define Z_SHIFT 2
+
 void main()
 {
     gpu.videoMode = VMODE_PAL;

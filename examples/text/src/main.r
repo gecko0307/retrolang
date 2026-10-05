@@ -29,7 +29,7 @@ void drawText(struct GpuTexture* fontAtlas, int x, int y, char* text)
         
         uint u = fontAtlas->px + (ch & 15) * CH_WIDTH;
         uint v = fontAtlas->py + (ch >> 4) * CH_HEIGHT;
-        int* p = gpuAlloc(5);
+        int* p = gpuAllocZ_raw(5, 0);
         p[0] = GP0_SPRITE2 | fontAtlas->tpage;
         p[1] = GP0_SPRITE_TEX2;
         p[2] = (y << 16) | (x & 0xffff);
