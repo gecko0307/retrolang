@@ -12,6 +12,7 @@
 #define GP0_FAST_RECT 0x02000000
 #define GP0_TRI1      0x20000000
 #define GP0_TRI2      0x30000000
+#define GP0_TRI3      0x24000000
 #define GP0_LINE1     0x40000000
 #define GP0_LINE2     0x50000000
 #define GP0_SPRITE1   0x60000000
@@ -117,6 +118,24 @@ struct GpuTriangle2
     int x3;
     int y3;
     int color3;
+};
+
+struct GpuTriangle3
+{
+    struct GpuTexture* texture;
+    int x1;
+    int y1;
+    ushort u1;
+    ushort v1;
+    int x2;
+    int y2;
+    ushort u2;
+    ushort v2;
+    int x3;
+    int y3;
+    ushort u3;
+    ushort v3;
+    int color;
 };
 
 #define GpuSprite1 GpuRect
@@ -598,6 +617,28 @@ void gpuDrawTriangle2(struct GpuTriangle2* tri)
     *gp0 = (tri->y3 << 16) | tri->x3;
 }
 
+/// Draws a textured triangle.
+void gpuDrawTriangle3(struct GpuTriangle3* tri)
+{
+    uint px, py, u, v;
+    px = tri->texture->px;
+    py = tri->texture->py;
+    gpuWaitIdle();
+    *gp0 = GP0_TRI3 | tri->color;
+    *gp0 = (tri->y1 << 16) | tri->x1;
+    u = px + tri->u1;
+    v = py + tri->v1;
+    *gp0 = ((uint)tri->texture->clutId << 16) | (v << 8) | u;
+    *gp0 = (tri->y2 << 16) | tri->x2;
+    u = px + tri->u2;
+    v = py + tri->v2;
+    *gp0 = ((uint)tri->texture->tpage << 16)  | (v << 8) | u;
+    *gp0 = (tri->y3 << 16) | tri->x3;
+    u = px + tri->u3;
+    v = py + tri->v3;
+    *gp0 = (v << 8) | u;
+}
+
 // ---------------------------------------------------------------------------
 // Queued drawing
 // ---------------------------------------------------------------------------
@@ -685,4 +726,26 @@ void gpuQueueDrawTriangle2(struct GpuTriangle2* tri)
     p[3] = (tri->y2 << 16) | (tri->x2 & 0xffff);
     p[4] = tri->color3;
     p[5] = (tri->y3 << 16) | (tri->x3 & 0xffff);
+}
+
+/// Draws a textured triangle.
+void gpuQueueDrawTriangle3(struct GpuTriangle3* tri)
+{
+    uint px, py, u, v;
+    px = tri->texture->px;
+    py = tri->texture->py;
+    int* p = gpuAlloc(7);
+    p[0] = GP0_TRI3 | tri->color;
+    p[1] = (tri->y1 << 16) | tri->x1;
+    u = px + tri->u1;
+    v = py + tri->v1;
+    p[2] = ((uint)tri->texture->clutId << 16) | (v << 8) | u;
+    p[3] = (tri->y2 << 16) | tri->x2;
+    u = px + tri->u2;
+    v = py + tri->v2;
+    p[4] = ((uint)tri->texture->tpage << 16)  | (v << 8) | u;
+    p[5] = (tri->y3 << 16) | tri->x3;
+    u = px + tri->u3;
+    v = py + tri->v3;
+    p[6] = (v << 8) | u;
 }
