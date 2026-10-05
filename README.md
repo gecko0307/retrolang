@@ -145,6 +145,7 @@ What is not implemented yet in the language:
 In the library:
 
 - GTE intrinsics
+- Matrix transformations
 - CD-ROM I/O
 - Heap allocator
 - Sound
