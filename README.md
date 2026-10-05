@@ -2,7 +2,7 @@
 
 The goal of this project is to build a PlayStation 1 development toolchain from scratch, without relying on GCC, LLVM, or other similar compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code.
 
-Retrolang currently allows you to write simple programs for PlayStation: output data to the TTY, request information from the gamepad, and draw simple graphics (directly or via DMA).
+Retrolang currently allows you to write simple programs for PlayStation: output data to the TTY, read the gamepad, and draw simple graphics (directly or via DMA).
 
 All provided software is experimental and is in alpha stage.
 
@@ -36,7 +36,7 @@ RLC translates your program verbatim, without optimizations and unexpected chang
 
 ## The Language
 
-Retrolang is a very basic curly-bracket procedural language inspired by C, but desifned to run in extremely memory-constrained environments.
+Retrolang is a very basic curly-bracket procedural language inspired by C, but designed to run in extremely memory-constrained environments.
 
 **Primitive types**: `int`, `short`, `char`, `uint`, `ushort`, `uchar`, `void`, and pointers to them. Pointers compare as unsigned. Literals above `0x7FFFFFFF`, or with a 'u' suffix, are unsigned. Like C, `uchar`/`ushort` promote to (signed) `int` in arithmetic; only `uint` makes `/`, `%`, `>>` and comparisons unsigned. C-style type casts are supported.
 
