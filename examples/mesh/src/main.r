@@ -16,6 +16,7 @@ struct Vertex
     short _padding;
 };
 
+// Screen-space vertex
 struct SVertex
 {
     short x, y;
@@ -45,6 +46,7 @@ struct RTPSTransform
 void gteInit() @("gteInit.s");
 void gteRTPS(struct RTPSTransform* rtpsTransform, struct Vertex* inVertex, struct SVertex* outVertex) @("gteRTPS.s");
 
+// PSM file header
 struct PSMHeader
 {
     ushort numVerts;
@@ -208,11 +210,12 @@ void main()
             int z1 = vout1.z;
             int z2 = vout2.z;
             int z3 = vout3.z;
-            // near-plane rejection (GTE gives garbage / clamped values for z too small)
+            // Near-plane rejection
             if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
                 continue;
             int otz = (z1 + z2 + z3) / 3 >> Z_SHIFT;
-            if (otz >= OT_SIZE - 1) continue;   // beyond far range, drop it
+            if (otz >= OT_SIZE - 1)
+                continue; // Beyond far range, drop it
             gpuQueueDrawTriangle3(&tri, otz);
         }
         

@@ -1,8 +1,0 @@
-build/*
-iso/*
-licenses/*
-*.exe
-*.dll
-*.bin
-*.que
-run.bat
