@@ -316,7 +316,6 @@ Word opMtc2(Reg rt, Reg rd) { return opR(0x12, 0x04, rt, rd, 0, 0); }
 Word opCtc2(Reg rt, Reg rd) { return opR(0x12, 0x06, rt, rd, 0, 0); }
 
 Word opCop2(uint command) { return 0x4A000000 | (command & 0x01ffffff); }
-
 Word opRtps() { return opCop2(0x00180001); }
 Word opRtpt() { return opCop2(0x00280030); }
 

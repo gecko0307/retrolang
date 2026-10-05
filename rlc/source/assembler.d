@@ -62,6 +62,7 @@ import std.array;
 import std.regex;
 import mips;
 import ir;
+import error;
 import utils;
 
 /**
@@ -94,7 +95,7 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         {
             auto label = labelPrefix ~ line[0..$-1].strip;
             if (currentSection != dataSection)
-                throw new Exception("illegal label \"" ~ label ~ "\" in section \"" ~ currentSection ~ "\"");
+                throw err(filename, cast(uint)i, "illegal label \"" ~ label ~ "\" in section \"" ~ currentSection ~ "\"");
             dataLabels[label] = instrIndex;
             currentDataLabel = label;
             continue;
@@ -113,12 +114,12 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
             if (currentDataLabel.length)
                 dataEntries ~= AsmDataEntry(currentDataLabel, parseEscapes(str));
             else
-                throw new Exception("unlabeled ASCII data: \"" ~ str ~ "\"");
+                throw err(filename, cast(uint)i, "unlabeled ASCII data: \"" ~ str ~ "\"");
             continue;
         }
         
         if (currentSection != textSection)
-            throw new Exception("program code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
+            throw err(filename, cast(uint)i, "program code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
 
         string[] parts = line.splitter(regex(r"[\s,()]+")).filter!(s => !s.empty).array;
 
@@ -324,7 +325,7 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         // TODO: other GTE instruction opcodes
         
         else
-            throw new Exception("unknown instruction \"" ~ op ~ "\"");
+            throw err(filename, cast(uint)i, "unknown instruction \"" ~ op ~ "\"");
         
         instrIndex++;
     }
