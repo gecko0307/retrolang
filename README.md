@@ -1,6 +1,6 @@
 # Retrolang SDK
 
-The goal of this project is to build a PlayStation 1 development toolchain from scratch, without relying on GCC, LLVM, or other similar compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code.
+The goal of this project is to build a PlayStation 1 development toolchain completely from scratch, without relying on GCC, LLVM, or other similar compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code.
 
 Retrolang currently allows you to write simple programs for PlayStation: output data to the TTY, read the gamepad, and draw simple 2D and 3D graphics (directly or via DMA).
 
