@@ -78,7 +78,8 @@ int main(string[] args)
         if (exe.bssSize != 0)
             writefln("  BSS:       0x%08X (0x%X bytes)", exe.bssAddr, exe.bssSize);
 
-        auto disassembler = new MipsDisassembler(exe.trimmedCode.dup);
+        //auto disassembler = new MipsDisassembler(exe.trimmedCode.dup);
+        auto disassembler = new MipsDisassembler(exe.code, exe.loadAddr, exe.pc);
         return 0;
     }
     else

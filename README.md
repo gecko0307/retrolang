@@ -35,6 +35,10 @@ rlc -o PSX.EXE src/main.s
 
 RLC translates your program verbatim, without optimizations and unexpected changes behind your back. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
 
+## PSXDISASM
+
+Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files.
+
 ## The Language
 
 Retrolang is a very basic curly-bracket procedural language inspired by C, but designed to run in extremely memory-constrained environments.
