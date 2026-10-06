@@ -112,6 +112,9 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             case Op.SYSCALL: ins.code = [opSyscall(cast(uint)ins.operand1.imm)]; break;
             case Op.BREAK: ins.code = [opBreak(cast(uint)ins.operand1.imm)]; break;
             
+            case Op.MTC0: ins.code = [opMtc0(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.MFC0: ins.code = [opMfc0(ins.operand1.reg, ins.operand2.reg)]; break;
+            
             case Op.MTC2: ins.code = [opMtc2(ins.operand1.reg, ins.operand2.reg)]; break;
             case Op.MFC2: ins.code = [opMfc2(ins.operand1.reg, ins.operand2.reg)]; break;
             case Op.CTC2: ins.code = [opCtc2(ins.operand1.reg, ins.operand2.reg)]; break;
@@ -231,6 +234,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             }
             code ~= enc(opJal(cast(uint)ins.operand1.imm));
         }
+        /*
         else if (ins.op == Op.BEQ || ins.op == Op.BNE)
         {
             if (ins.operand3.type == AsmOperandType.Label)
@@ -260,6 +264,52 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
         {
             code ~= enc(ins.code);
         }
+        */
+        else if (ins.op == Op.BEQ || ins.op == Op.BNE)
+        {
+            if (ins.operand3.type == AsmOperandType.Label)
+            {
+                short off;
+                if (!resolveBranch(dataLabelAddrs, ins, ins.operand3, off))
+                    return false;
+                ins.code = [ins.op == Op.BEQ
+                    ? opBeq(ins.operand1.reg, ins.operand2.reg, off)
+                    : opBne(ins.operand1.reg, ins.operand2.reg, off)];
+            }
+            code ~= enc(ins.code);
+        }
+        else if (ins.op == Op.BLEZ || ins.op == Op.BGTZ || ins.op == Op.BGEZ ||
+                 ins.op == Op.BLTZ || ins.op == Op.BGEZAL || ins.op == Op.BLTZAL)
+        {
+            // one-register branches: the label is in operand2
+            if (ins.operand2.type == AsmOperandType.Label)
+            {
+                short off;
+                if (!resolveBranch(dataLabelAddrs, ins, ins.operand2, off))
+                    return false;
+                Reg rs = ins.operand1.reg;
+                switch (ins.op)
+                {
+                    case Op.BLEZ:   ins.code = [opBlez(rs, off)]; break;
+                    case Op.BGTZ:   ins.code = [opBgtz(rs, off)]; break;
+                    case Op.BGEZ:   ins.code = [opBgez(rs, off)]; break;
+                    case Op.BLTZ:   ins.code = [opBltz(rs, off)]; break;
+                    case Op.BGEZAL: ins.code = [opBgezal(rs, off)]; break;
+                    case Op.BLTZAL: ins.code = [opBltzal(rs, off)]; break;
+                    default: assert(0);
+                }
+            }
+            code ~= enc(ins.code);
+        }
+        else
+        {
+            if (ins.code.length == 0)
+            {
+                writefln("Error: instruction %s is not implemented in the linker (line %s)", ins.op, ins.line);
+                return false;
+            }
+            code ~= enc(ins.code);
+        }
         
         if (verbose)
             writefln("[0x%08X] %s %s, %s, %s", relocate(ins.offset), ins.op, ins.operand1, ins.operand2, ins.operand3);
@@ -275,5 +325,29 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
     
     executableCode = code;
     
+    return true;
+}
+
+// Resolves a branch label to a word offset relative to the delay slot.
+// On success the operand is rewritten as an immediate.
+bool resolveBranch(uint[string] dataLabelAddrs, ref AsmInstr ins, ref AsmOperand target, out short off)
+{
+    auto p = target.label in dataLabelAddrs;
+    if (p is null)
+    {
+        writefln("Error: undefined label \"%s\"", target.label);
+        return false;
+    }
+
+    int words = (cast(int)*p - (cast(int)relocate(ins.offset) + 4)) / 4;
+    if (words < short.min || words > short.max)
+    {
+        writefln("Error: branch to \"%s\" is out of range (%s instructions)", target.label, words);
+        return false;
+    }
+
+    off = cast(short)words;
+    target.imm = off;
+    target.type = AsmOperandType.Imm;
     return true;
 }
