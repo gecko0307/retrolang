@@ -1,140 +1,10 @@
-/*
 module disasm;
 
-import std.stdio;
-import mips;
-
-class MipsDisassembler
-{
-    public:
-    
-    this(uint[] text)
-    {
-        this.text = text;
-        disassemble();
-    }
-    
-    protected:
-    
-    uint[] text;
-    
-    void disassemble()
-    {
-        foreach(uint instr; text)
-        {
-            disasmInstruction(instr);
-        }
-    }
-    
-    void disasmInstruction(uint instr)
-    {
-        ubyte opcode = cast(ubyte)(instr >> 26);
-        
-        if (opcode == 0) // R-type
-            disasmRType(instr);
-        else if (opcode == MipsInstr.J || opcode == MipsInstr.JAL)
-            disasmJump(instr);
-        else if (opcode == MipsInstr.COP0)
-            disasmCOP0(instr);
-        else if (opcode == MipsInstr.COP2)
-            disasmCOP2(instr);
-        else // I-type
-            disasmIType(instr);
-    }
-    
-    // TODO: use separate disasm function for each r-type instruction
-    void disasmRType(uint instr)
-    {
-        ubyte funct = cast(ubyte)(instr & 0x3f);
-        ubyte rs    = cast(ubyte)((instr >> 21) & 0x1f);
-        ubyte rt    = cast(ubyte)((instr >> 16) & 0x1f);
-        ubyte rd    = cast(ubyte)((instr >> 11) & 0x1f);
-        ubyte shift = cast(ubyte)((instr >> 6)  & 0x1f);
-        
-        if (funct == MipsRType.JR)
-        {
-            writefln("  0x%08x: %s $%s", instr, cast(MipsRType)funct, rs);
-        }
-        else
-        {
-            if (funct == MipsRType.SLL && rs == 0 && rt == 0 && rd == 0 && shift == 0)
-            {
-                writefln("  0x%08x: NOP", instr);
-            }
-            else
-            {
-                writefln("  0x%08x: %s $%s, $%s, %d($%s)", instr, cast(MipsRType)funct, rd, rs, shift, rt);
-            }
-        }
-    }
-    
-    void disasmIType(uint instr)
-    {
-        ubyte opcode = cast(ubyte)(instr >> 26);
-        ubyte rs    = cast(ubyte)((instr >> 21) & 0x1f);
-        ubyte rt    = cast(ubyte)((instr >> 16) & 0x1f);
-        short imm   = cast(short)(instr & 0xffff);
-        
-        if (opcode == MipsInstr.LUI)
-        {
-            writefln("  0x%08x: %s $%s, 0x%04x", instr, cast(MipsInstr)opcode, rt, imm);
-        }
-        else
-        {
-            writefln("  0x%08x: %s $%s, $%s, 0x%04x", instr, cast(MipsInstr)opcode, rt, rs, imm);
-        }
-    }
-    
-    void disasmJump(uint instr)
-    {
-        ubyte opcode = cast(ubyte)(instr >> 26);
-        uint target = instr & 0x03ffffff;
-        writefln("  0x%08x: %s 0x%08x", instr, cast(MipsInstr)opcode, target);
-    }
-    
-    void disasmCOP0(uint instr)
-    {
-        ubyte op = cast(ubyte)((instr >> 21) & 0x1f);
-        
-        if (op == MipsCop0.MTC0 || op == MipsCop0.MFC0)
-        {
-            ubyte rt = cast(ubyte)((instr >> 16) & 0x1f);
-            ubyte rd = cast(ubyte)((instr >> 11) & 0x1f);
-            
-            writefln("  0x%08x: %s $%s, $%s", instr, cast(MipsCop0)op, rt, rd);
-        }
-        else
-        {
-            writefln("  0x%08x: %s", instr, MipsInstr.COP0);
-        }
-    }
-    
-    void disasmCOP2(uint instr)
-    {
-        ubyte op = cast(ubyte)((instr >> 21) & 0x1f);
-        
-        if (op == MipsCop2.MTC2 || op == MipsCop2.MFC2 ||
-            op == MipsCop2.CTC2 || op == MipsCop2.CFC2)
-        {
-            ubyte rt = cast(ubyte)((instr >> 16) & 0x1f);
-            ubyte rd = cast(ubyte)((instr >> 11) & 0x1f);
-            
-            writefln("  0x%08x: %s $%s, $%s", instr, cast(MipsCop2)op, rt, rd);
-        }
-        else
-        {
-            writefln("  0x%08x: %s", instr, MipsInstr.COP2);
-        }
-    }
-}
-*/
-
-module disasm;
- 
 import std.stdio;
 import std.format : format;
 import mips;
- 
+import bios;
+
 class MipsDisassembler
 {
     public:
@@ -204,7 +74,9 @@ class MipsDisassembler
     
     void printInstruction(uint pc, uint instr)
     {
-        writefln("  %08x: %08x  %s", pc, instr, disasmInstruction(pc, instr));
+        size_t idx = (pc - baseAddr) / 4;
+        writefln("  %08x: %08x  %s%s", pc, instr, disasmInstruction(pc, instr),
+                 biosAnnotation(idx));
     }
     
     void printData(size_t start, size_t end)
@@ -333,7 +205,8 @@ class MipsDisassembler
                 {
                     work ~= branchTarget(addr, instr);
                     hasDelaySlot = true;
-                    stop = (op == 4 && rs == rt); // BEQ $x, $x: unconditional
+                    // BEQ $x, $x and BGEZ $0 are unconditional
+                    stop = (op == 4 && rs == rt) || (op == 1 && rs == 0 && rt == 1);
                 }
                 
                 if (hasDelaySlot)
@@ -378,6 +251,9 @@ class MipsDisassembler
         if (funct == MipsRType.JR)
             return format("%s $%s", cast(MipsRType)funct, rs);
         
+        if (funct == MipsRType.JALR)
+            return format("%s $%s, $%s", cast(MipsRType)funct, rd, rs);
+        
         if (funct == MipsRType.SLL && rs == 0 && rt == 0 && rd == 0 && shift == 0)
             return "NOP";
         
@@ -394,11 +270,152 @@ class MipsDisassembler
         if (opcode == MipsInstr.LUI)
             return format("%s $%s, 0x%04x", cast(MipsInstr)opcode, rt, imm);
         
-        if (isBranchOpcode(opcode))
-            return format("%s $%s, $%s, 0x%08x", cast(MipsInstr)opcode, rt, rs,
+        if (opcode == MipsInstr.BXX)
+            return disasmRegimm(pc, instr);
+        
+        if (opcode == MipsInstr.BEQ || opcode == MipsInstr.BNE)
+            return format("%s $%s, $%s, 0x%08x", cast(MipsInstr)opcode, rs, rt,
+                          branchTarget(pc, instr));
+        
+        if (opcode == MipsInstr.BLEZ || opcode == MipsInstr.BGTZ)
+            return format("%s $%s, 0x%08x", cast(MipsInstr)opcode, rs,
                           branchTarget(pc, instr));
         
         return format("%s $%s, $%s, 0x%04x", cast(MipsInstr)opcode, rt, rs, imm);
+    }
+    
+    // REGIMM (opcode 1): the rt field selects the branch type
+    string disasmRegimm(uint pc, uint instr)
+    {
+        ubyte rs  = cast(ubyte)((instr >> 21) & 0x1f);
+        ubyte sub = cast(ubyte)((instr >> 16) & 0x1f);
+        uint target = branchTarget(pc, instr);
+        
+        if (sub == MipsRegimm.BLTZ   || sub == MipsRegimm.BGEZ ||
+            sub == MipsRegimm.BLTZAL || sub == MipsRegimm.BGEZAL)
+            return format("%s $%s, 0x%08x", cast(MipsRegimm)sub, rs, target);
+        
+        return format("BXX $%s, 0x%02x, 0x%08x", rs, sub, target);
+    }
+    
+    // ---------------------------------------------------------------
+    // BIOS call annotation: "li $t2, 0xA0 / li $t1, N / jalr $t2"
+    // ---------------------------------------------------------------
+    
+    string biosAnnotation(size_t idx)
+    {
+        uint instr = text[idx];
+        if ((instr >> 26) != 0)
+            return "";
+        
+        ubyte funct = cast(ubyte)(instr & 0x3f);
+        ubyte rs    = cast(ubyte)((instr >> 21) & 0x1f);
+        
+        // JR / JALR through $t2 ($10)
+        if ((funct != 0x08 && funct != 0x09) || rs != 10)
+            return "";
+        
+        uint table;
+        if (!findConst(idx, 10, false, table))
+            return "";
+        if (table != 0xa0 && table != 0xb0 && table != 0xc0)
+            return "";
+        
+        // $t1 ($9) may be set in the delay slot
+        uint func;
+        int f = findConst(idx, 9, true, func) ? cast(int)func : -1;
+        return "  ; " ~ biosCall(table, f);
+    }
+    
+    // Find the constant most recently loaded into `reg` before text[idx]
+    // (or in its delay slot), within the same basic block.
+    bool findConst(size_t idx, ubyte reg, bool checkDelaySlot, out uint value)
+    {
+        if (checkDelaySlot && idx + 1 < text.length)
+        {
+            int r = constWrite(text[idx + 1], reg, value);
+            if (r == 1) return true;
+            if (r == 2) return false;
+        }
+        
+        for (size_t k = 1; k <= 16 && k <= idx; k++)
+        {
+            size_t j = idx - k;
+            if (isCode.length > 0 && !isCode[j])
+                return false;
+            
+            uint ins = text[j];
+            if (isControlFlow(ins))
+                return false;
+            
+            int r = constWrite(ins, reg, value);
+            if (r == 1) return true;
+            if (r == 2) return false;
+        }
+        return false;
+    }
+    
+    // 0: doesn't touch reg, 1: loads a constant into reg, 2: overwrites reg otherwise
+    static int constWrite(uint ins, ubyte reg, ref uint value)
+    {
+        ubyte op = cast(ubyte)(ins >> 26);
+        ubyte rs = cast(ubyte)((ins >> 21) & 0x1f);
+        ubyte rt = cast(ubyte)((ins >> 16) & 0x1f);
+        
+        if (op == 8 || op == 9 || op == 13) // ADDI, ADDIU, ORI
+        {
+            if (rt != reg)
+                return 0;
+            if (rs != 0)
+                return 2;
+            value = (op == 13) ? (ins & 0xffff)
+                               : cast(uint)cast(int)cast(short)(ins & 0xffff);
+            return 1;
+        }
+        
+        return writesReg(ins, reg) ? 2 : 0;
+    }
+    
+    static bool writesReg(uint ins, ubyte reg)
+    {
+        ubyte op    = cast(ubyte)(ins >> 26);
+        ubyte rs    = cast(ubyte)((ins >> 21) & 0x1f);
+        ubyte rt    = cast(ubyte)((ins >> 16) & 0x1f);
+        ubyte rd    = cast(ubyte)((ins >> 11) & 0x1f);
+        ubyte funct = cast(ubyte)(ins & 0x3f);
+        
+        if (op == 0)
+        {
+            switch (funct)
+            {
+                case 0x08: case 0x0c: case 0x0d:             // JR, SYSCALL, BREAK
+                case 0x11: case 0x13:                        // MTHI, MTLO
+                case 0x18: case 0x19: case 0x1a: case 0x1b:  // MULT/DIV
+                    return false;
+                default:
+                    return rd == reg;
+            }
+        }
+        if (op == 3)                        // JAL
+            return reg == 31;
+        if (op >= 8 && op <= 15)            // ALU immediate
+            return rt == reg;
+        if (op == 0x10 || op == 0x12)       // MFC0/CFC0-style moves into rt
+            return (rs == 0 || rs == 2) && rt == reg;
+        if (op >= 0x20 && op <= 0x26)       // loads
+            return rt == reg;
+        return false;
+    }
+    
+    static bool isControlFlow(uint ins)
+    {
+        ubyte op = cast(ubyte)(ins >> 26);
+        if (op == 0)
+        {
+            ubyte funct = cast(ubyte)(ins & 0x3f);
+            return funct == 0x08 || funct == 0x09;
+        }
+        return op == 2 || op == 3 || isBranchOpcode(op);
     }
     
     string disasmJump(uint pc, uint instr)
