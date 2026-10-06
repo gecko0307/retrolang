@@ -82,7 +82,7 @@ struct PSMData
 
 /**
  * Right-shift for Z values.
- * Used to compress depth to fit the OT capability.
+ * Used to compress polygon depth to fit the OT.
  * Larger values -> larger clip distance, but less precision.
  * Smaller values -> smaller clip distance, but more precision.
  */
@@ -124,8 +124,8 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
             continue;
         otz = (z1 + z2 + z3) / 3 >> Z_SHIFT;
-        if (otz >= OT_SIZE - 1)
-            continue; // Beyond far range, drop it
+        if (otz >= OT_SIZE - 1 || otz < 0)
+            continue; // Beyond the depth range, drop it
         int* p = gpuAllocZ(7, otz);
         if (p == 0) break;
         
@@ -153,13 +153,45 @@ struct GpuSettings gpu;
 
 char* textures @("assets/character.tim");
 char* mesh @("assets/character.psm");
+char* sin4096 @("sin_table/sin4096.bin");
+
+#define QPI 0x200
+#define HPI 0x400
+#define PI  0x800
+#define PI2 0x1000
+
+short sin12(uint angle)
+{
+    short* sinTable = (short*)sin4096;
+    return sinTable[angle & 0xfff];
+}
+
+short cos12(uint angle)
+{
+    short* sinTable = (short*)sin4096;
+    return sinTable[(angle + HPI) & 0xfff];
+}
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 #define HALF_SCR_WIDTH 160
 #define HALF_SCR_HEIGHT 120
 
-#define SCALE 0x2000
+#define SCALE 2
+
+void trSetRotationIdentity(struct RTPSTransform* tr)
+{
+    tr->r[0] = F_ONE;  tr->r[1] = 0x0000; tr->r[2] = 0x0000;
+    tr->r[3] = 0x0000; tr->r[4] = F_ONE;  tr->r[5] = 0x0000;
+    tr->r[6] = 0x0000; tr->r[7] = 0x0000; tr->r[8] = F_ONE;
+}
+
+void trSetRotationY(struct RTPSTransform* tr, uint a, short scale)
+{
+    tr->r[0] = cos12(a) * scale;  tr->r[1] = 0x0000;        tr->r[2] = -sin12(a) * scale;
+    tr->r[3] = 0x0000;            tr->r[4] = F_ONE * scale; tr->r[5] = 0x0000;
+    tr->r[6] = sin12(a) * scale;  tr->r[7] = 0x0000;        tr->r[8] = cos12(a) * scale;
+}
 
 void main()
 {
@@ -194,9 +226,7 @@ void main()
     tr.tx = 0;
     tr.ty = 256;
     tr.tz = 700;
-    tr.r[0] = SCALE;  tr.r[1] = 0x0000; tr.r[2] = 0x0000;
-    tr.r[3] = 0x0000; tr.r[4] = SCALE;  tr.r[5] = 0x0000;
-    tr.r[6] = 0x0000; tr.r[7] = 0x0000; tr.r[8] = SCALE;
+    trSetRotationIdentity(&tr);
     tr.h = 0x100;
     tr.ofx = 0x10000 * HALF_SCR_WIDTH;
     tr.ofy = 0x10000 * HALF_SCR_HEIGHT;
@@ -211,7 +241,7 @@ void main()
     data.uvs = (uchar*)(meshStart + psm->uvOffset);
     data.indices = (ushort*)(meshStart + psm->idxOffset);
     data.texture = &tex;
-    data.color = 0x808080;
+    data.color = COLOR_NEUTRAL;
     
     bios_a(0x3f, "psm->numVerts = %d\n", psm->numVerts);
     bios_a(0x3f, "psm->numTris = %d\n", psm->numTris);
@@ -222,6 +252,8 @@ void main()
     
     int speed = 10;
     
+    uint rotationY = 0;
+    
     while(1)
     {
         padWaitSync();
@@ -230,6 +262,11 @@ void main()
         else if (pad1 & PAD_DOWN)  tr.tz += speed;
              if (pad1 & PAD_LEFT)  tr.tx += speed;
         else if (pad1 & PAD_RIGHT) tr.tx -= speed;
+        
+        trSetRotationY(&tr, rotationY, SCALE);
+        rotationY += 10;
+        if (rotationY >= PI2)
+            rotationY = 0;
         
         gpuSortClear(0x808080);
         drawPSM(psm, &data, &tr);
