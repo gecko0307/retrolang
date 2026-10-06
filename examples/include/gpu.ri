@@ -2,6 +2,9 @@
  * GPU driver.
  */
 
+#define GPU_PORT_GP0  0x1f801810
+#define GPU_PORT_GP1  0x1f801814
+
 #define GP0_MEM2VRAM  0xa0000000
 
 #define GP0_CLIP_POS  0xe3000000
@@ -205,8 +208,8 @@ struct GpuTexture
 };
 
 // GPU I/O ports
-int* gp0 = 0x1f801810;
-int* gp1 = 0x1f801814;
+int* gp0 = GPU_PORT_GP0;
+int* gp1 = GPU_PORT_GP1;
 
 // DMA ports
 int* dmaDpcr  = 0x1f8010f0; // DMA control (channel enables / priorities)

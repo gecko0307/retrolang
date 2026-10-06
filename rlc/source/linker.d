@@ -59,7 +59,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             case Op.MTLO: ins.code = [opMtlo(ins.operand1.reg)]; break;
             case Op.MTHI: ins.code = [opMthi(ins.operand1.reg)]; break;
             
-            case Op.LI: ins.code = opLi(ins.operand1.reg, ins.operand2.imm); break;
+            case Op.LI: ins.code = opLi(ins.operand1.reg, ins.operand2.imm); break; // li can expand to more than one word!
             case Op.MOVE: ins.code = [opMove(ins.operand1.reg, ins.operand2.reg)]; break;
             case Op.CLEAR: ins.code = [opClear(ins.operand1.reg)]; break;
             case Op.NEG: ins.code = [opNeg(ins.operand1.reg, ins.operand2.reg)]; break;
@@ -236,37 +236,6 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             }
             code ~= enc(opJal(cast(uint)ins.operand1.imm));
         }
-        /*
-        else if (ins.op == Op.BEQ || ins.op == Op.BNE)
-        {
-            if (ins.operand3.type == AsmOperandType.Label)
-            {
-                if (ins.operand3.label in dataLabelAddrs)
-                {
-                    uint targetAddr = dataLabelAddrs[ins.operand3.label];
-                    uint currentPC = relocate(ins.offset);
-                    int offsetInWords = (cast(int)targetAddr - (cast(int)currentPC + 4)) / 4;
-                    ins.operand3.imm = cast(short)offsetInWords;
-                    ins.operand3.type = AsmOperandType.Imm;
-                    if (ins.op == Op.BEQ)
-                        ins.code = [opBeq(ins.operand1.reg, ins.operand2.reg, cast(short)offsetInWords)];
-                    else
-                        ins.code = [opBne(ins.operand1.reg, ins.operand2.reg, cast(short)offsetInWords)];
-                }
-                else
-                {
-                    writefln("Error: undefined label \"%s\"", ins.operand3.label);
-                    return false;
-                }
-            }
-            code ~= enc(ins.code);
-        }
-        // TODO: linking for other opcodes
-        else
-        {
-            code ~= enc(ins.code);
-        }
-        */
         else if (ins.op == Op.BEQ || ins.op == Op.BNE)
         {
             if (ins.operand3.type == AsmOperandType.Label)
