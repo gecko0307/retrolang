@@ -8,6 +8,7 @@
 
 #define F_ONE 0x1000
 
+// Model-space vertex
 struct Vertex
 {
     short x;
@@ -24,7 +25,10 @@ struct SVertex
     ushort _padding;
 };
 
-// Rotate/translate/perspective transform
+/**
+ * Parameters for GTE RTPS
+ * (rotate/translate/perspective transform for a single vertex)
+ */
 struct RTPSTransform
 {
     // Translation
@@ -35,10 +39,12 @@ struct RTPSTransform
     // 3x3 rotation matrix of Q3.12 elements
     short r[9];
     
-    // Projection
+    // Projection settings
     short h;
     int ofx;
     int ofy;
+    
+    // Depth queing settings
     short dqa;
     short dqb;
 };
@@ -60,6 +66,85 @@ struct PSMHeader
     // at idxOffset: indices (numTris * 3 * 2 bytes): ushort (array padded to 4 bytes)
 };
 
+struct PSMData
+{
+    struct Vertex* vertices;
+    uchar* uvs;
+    ushort* indices;
+    struct GpuTexture* texture;
+    int color;
+};
+
+/**
+ * Near clip distance.
+ */
+#define Z_NEAR 100
+
+/**
+ * Right-shift for Z values.
+ * Used to compress depth to fit the OT capability.
+ * Larger values -> larger clip distance, but less precision.
+ * Smaller values -> smaller clip distance, but more precision.
+ */
+#define Z_SHIFT 2
+
+void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* tr)
+{
+    // GTE transformation result
+    struct SVertex vout1;
+    struct SVertex vout2;
+    struct SVertex vout3;
+    
+    uint px = data->texture->px;
+    uint py = data->texture->py;
+    
+    ushort vi1, vi2, vi3;
+    int z1, z2, z3, otz;
+    uint u, v;
+    
+    for (int i = 0; i < psm->numTris; i++)
+    {
+        vi1 = data->indices[i * 3];
+        vi2 = data->indices[i * 3 + 1];
+        vi3 = data->indices[i * 3 + 2];
+        struct Vertex* v1 = &data->vertices[vi1];
+        struct Vertex* v2 = &data->vertices[vi2];
+        struct Vertex* v3 = &data->vertices[vi3];
+        
+        // TODO: use RTPT
+        gteRTPS(tr, v1, &vout1);
+        gteRTPS(tr, v2, &vout2);
+        gteRTPS(tr, v3, &vout3);
+        
+        z1 = vout1.z;
+        z2 = vout2.z;
+        z3 = vout3.z;
+        
+        // Near-plane rejection
+        if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
+            continue;
+        otz = (z1 + z2 + z3) / 3 >> Z_SHIFT;
+        if (otz >= OT_SIZE - 1)
+            continue; // Beyond far range, drop it
+        int* p = gpuAllocZ_raw(7, otz);
+        if (p == 0) break;
+        
+        p[0] = GP0_TRI3 | data->color;
+        p[1] = (vout1.y << 16) | (vout1.x & 0xffff);
+        u = px + data->uvs[vi1 * 2];
+        v = py + data->uvs[vi1 * 2 + 1];
+        p[2] = ((uint)data->texture->clutId << 16) | (v << 8) | (u & 0xff);
+        p[3] = (vout2.y << 16) | (vout2.x & 0xffff);
+        u = px + data->uvs[vi2 * 2];
+        v = py + data->uvs[vi2 * 2 + 1];
+        p[4] = ((uint)data->texture->tpage << 16)  | (v << 8) | (u & 0xff);
+        p[5] = (vout3.y << 16) | (vout3.x & 0xffff);
+        u = px + data->uvs[vi3 * 2];
+        v = py + data->uvs[vi3 * 2 + 1];
+        p[6] = (v << 8) | (u & 0xff);
+    }
+}
+
 #define CUBE_NUM_VERTS 8
 #define CUBE_NUM_TRIS 4
 
@@ -75,9 +160,6 @@ char* mesh @("assets/character.psm");
 #define HALF_SCR_HEIGHT 120
 
 #define SCALE 0x2000
-
-#define Z_NEAR 100
-#define Z_SHIFT 0
 
 void main()
 {
@@ -122,51 +204,21 @@ void main()
     tr.dqb = 0x000;
     
     //
-    char* p = mesh;
-    
     struct PSMHeader* psm = (struct PSMHeader*)mesh;
-    char* verts = p + 16;
-    char* uvs = p + psm->uvOffset;
-    char* indices = p + psm->idxOffset;
-    
-    uint uvOffset = ((16 + psm->numVerts * 8) + 3) & ~3;
-    uint idxOffset = ((uvOffset + psm->numVerts * 2) + 3) & ~3;
+    struct PSMData data;
+    char* p = mesh;
+    data.vertices = (struct Vertex*)(p + 16);
+    data.uvs = (uchar*)(p + psm->uvOffset);
+    data.indices = (ushort*)(p + psm->idxOffset);
+    data.texture = &tex;
+    data.color = 0x808080;
     
     bios_a(0x3f, "psm->numVerts = %d\n", psm->numVerts);
     bios_a(0x3f, "psm->numTris = %d\n", psm->numTris);
     bios_a(0x3f, "psm->texWidth = %d\n", psm->texWidth);
     bios_a(0x3f, "psm->texHeight = %d\n", psm->texHeight);
     bios_a(0x3f, "psm->uvOffset = %d\n", psm->uvOffset);
-    bios_a(0x3f, "uvOffset calculated = %d\n", uvOffset);
     bios_a(0x3f, "psm->idxOffset = %d\n", psm->idxOffset);
-    bios_a(0x3f, "idxOffset calculated = %d\n", idxOffset);
-    
-    ushort vi1, vi2, vi3;
-    
-    struct Vertex* vertices = (struct Vertex*)verts;
-    uchar* uvCoords = (uchar*)uvs;
-    ushort* vIndices = (ushort*)indices;
-
-    // A textured triangle
-    struct GpuTriangle3 tri;
-    tri.texture = &tex;
-    tri.x1 = 0;
-    tri.y1 = 0;
-    tri.u1 = 0;
-    tri.v1 = 0;
-    tri.x2 = 0;
-    tri.y2 = 0;
-    tri.u2 = 0;
-    tri.v2 = 0;
-    tri.x3 = 0;
-    tri.y3 = 0;
-    tri.u3 = 0;
-    tri.v3 = 0;
-    tri.color = 0x808080;
-    
-    struct SVertex vout1;
-    struct SVertex vout2;
-    struct SVertex vout3;
     
     int speed = 10;
     
@@ -180,45 +232,7 @@ void main()
         else if (pad1 & PAD_RIGHT) tr.tx -= speed;
         
         gpuQueueClear(0x808080);
-        
-        for(int i = 0; i < psm->numTris; i++)
-        {
-            vi1 = vIndices[i * 3];
-            vi2 = vIndices[i * 3 + 1];
-            vi3 = vIndices[i * 3 + 2];
-            
-            struct Vertex* v1 = &vertices[vi1];
-            struct Vertex* v2 = &vertices[vi2];
-            struct Vertex* v3 = &vertices[vi3];
-            gteRTPS(&tr, v1, &vout1);
-            gteRTPS(&tr, v2, &vout2);
-            gteRTPS(&tr, v3, &vout3);
-            
-            tri.x1 = vout1.x;
-            tri.y1 = vout1.y;
-            tri.u1 = uvCoords[vi1 * 2];
-            tri.v1 = uvCoords[vi1 * 2 + 1];
-            tri.x2 = vout2.x;
-            tri.y2 = vout2.y;
-            tri.u2 = uvCoords[vi2 * 2];
-            tri.v2 = uvCoords[vi2 * 2 + 1];
-            tri.x3 = vout3.x;
-            tri.y3 = vout3.y;
-            tri.u3 = uvCoords[vi3 * 2];
-            tri.v3 = uvCoords[vi3 * 2 + 1];
-            
-            int z1 = vout1.z;
-            int z2 = vout2.z;
-            int z3 = vout3.z;
-            // Near-plane rejection
-            if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
-                continue;
-            int otz = (z1 + z2 + z3) / 3 >> Z_SHIFT;
-            if (otz >= OT_SIZE - 1)
-                continue; // Beyond far range, drop it
-            gpuQueueDrawTriangle3(&tri, otz);
-        }
-        
+        drawPSM(psm, &data, &tr);
         gpuEndFrame();
     }
 }
