@@ -94,7 +94,7 @@ struct PSMData
  */
 #define Z_SHIFT 2
 
-void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* tr)
+void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* tr, int zOffset)
 {
     // GTE transformation input and output
     struct Vertex triVertices[3];
@@ -143,7 +143,7 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         // Near-plane rejection
         if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
             continue;
-        otz = (z1 + z2 + z3) / 3 >> Z_SHIFT;
+        otz = (z1 + z2 + z3) / 3 >> Z_SHIFT + zOffset;
         if (otz >= OT_SIZE - 1 || otz < 0)
             continue; // Beyond the depth range
         int* p = gpuAllocZ(7, otz);
@@ -340,7 +340,7 @@ void main()
     int pitch = 0;
     
     int speed = 10;
-    int yawSpeed = 20;
+    int yawSpeed = 25;
     
     while(1)
     {
@@ -388,8 +388,8 @@ void main()
         trSetCameraY(&tr, &cam, SCALE);
         
         gpuSortClear(0x808080);
-        drawPSM(psmCharacter, &dataCharacter, &tr);
-        drawPSM(psmFloor, &dataFloor, &tr);
+        drawPSM(psmCharacter, &dataCharacter, &tr, 1);
+        drawPSM(psmFloor, &dataFloor, &tr, 0);
         gpuEndFrame();
     }
 }
