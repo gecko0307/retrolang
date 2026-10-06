@@ -89,6 +89,8 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             case Op.SRA: ins.code = [opSra(ins.operand1.reg, ins.operand2.reg, cast(ubyte)ins.operand3.imm)]; break;
             case Op.SRAV: ins.code = [opSrav(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
             
+            case Op.LUI: ins.code = [opLui(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
+            
             case Op.LW: ins.code = [opLw(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
             case Op.LH: ins.code = [opLh(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
             case Op.LHU: ins.code = [opLhu(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
