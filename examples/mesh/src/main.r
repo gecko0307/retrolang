@@ -75,6 +75,11 @@ struct PSMData
     int color;
 };
 
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
+#define HALF_SCR_WIDTH 160
+#define HALF_SCR_HEIGHT 120
+
 /**
  * Near clip distance.
  */
@@ -101,20 +106,35 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     ushort vi1, vi2, vi3;
     int z1, z2, z3, otz;
     uint u, v;
+    ushort* indices = data->indices;
+    uchar* uvs = data->uvs;
+    struct Vertex* vertices = data->vertices;
+    
+    uint clutId = (uint)data->texture->clutId << 16;
+    uint tpage = (uint)data->texture->tpage << 16;
     
     for (int i = 0; i < psm->numTris; i++)
     {
-        vi1 = data->indices[i * 3];
-        vi2 = data->indices[i * 3 + 1];
-        vi3 = data->indices[i * 3 + 2];
-        struct Vertex* v1 = &data->vertices[vi1];
-        struct Vertex* v2 = &data->vertices[vi2];
-        struct Vertex* v3 = &data->vertices[vi3];
+        vi1 = indices[i * 3];
+        vi2 = indices[i * 3 + 1];
+        vi3 = indices[i * 3 + 2];
+        struct Vertex* v1 = &vertices[vi1];
+        struct Vertex* v2 = &vertices[vi2];
+        struct Vertex* v3 = &vertices[vi3];
         
         // TODO: use RTPT
         gteRTPS(tr, v1, &vout1);
         gteRTPS(tr, v2, &vout2);
         gteRTPS(tr, v3, &vout3);
+        
+        if (vout1.x < 0 && vout2.x < 0 && vout3.x < 0)
+            continue;
+        if (vout1.x >= SCREEN_WIDTH && vout2.x >= SCREEN_WIDTH && vout3.x >= SCREEN_WIDTH)
+            continue;
+        if (vout1.y < 0 && vout2.y < 0 && vout3.y < 0)
+            continue;
+        if (vout1.y >= SCREEN_HEIGHT && vout2.y >= SCREEN_HEIGHT && vout3.y >= SCREEN_HEIGHT)
+            continue;
         
         z1 = vout1.z;
         z2 = vout2.z;
@@ -125,22 +145,22 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
             continue;
         otz = (z1 + z2 + z3) / 3 >> Z_SHIFT;
         if (otz >= OT_SIZE - 1 || otz < 0)
-            continue; // Beyond the depth range, drop it
+            continue; // Beyond the depth range
         int* p = gpuAllocZ(7, otz);
         if (p == 0) break;
         
         p[0] = GP0_TRI3 | data->color;
         p[1] = (vout1.y << 16) | (vout1.x & 0xffff);
-        u = px + data->uvs[vi1 * 2];
-        v = py + data->uvs[vi1 * 2 + 1];
-        p[2] = ((uint)data->texture->clutId << 16) | (v << 8) | (u & 0xff);
+        u = px + uvs[vi1 * 2];
+        v = py + uvs[vi1 * 2 + 1];
+        p[2] = clutId | (v << 8) | (u & 0xff);
         p[3] = (vout2.y << 16) | (vout2.x & 0xffff);
-        u = px + data->uvs[vi2 * 2];
-        v = py + data->uvs[vi2 * 2 + 1];
-        p[4] = ((uint)data->texture->tpage << 16)  | (v << 8) | (u & 0xff);
+        u = px + uvs[vi2 * 2];
+        v = py + uvs[vi2 * 2 + 1];
+        p[4] = tpage  | (v << 8) | (u & 0xff);
         p[5] = (vout3.y << 16) | (vout3.x & 0xffff);
-        u = px + data->uvs[vi3 * 2];
-        v = py + data->uvs[vi3 * 2 + 1];
+        u = px + uvs[vi3 * 2];
+        v = py + uvs[vi3 * 2 + 1];
         p[6] = (v << 8) | (u & 0xff);
     }
 }
@@ -243,11 +263,6 @@ void trSetCameraY(
     tr->ty = -y;
     tr->tz = -((s * x + c * z) >> 12);
 }
-
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 240
-#define HALF_SCR_WIDTH 160
-#define HALF_SCR_HEIGHT 120
 
 #define SCALE 2
 
