@@ -1,0 +1,9 @@
+{
+    "name": "psxdisasm",
+    "description": "MIPS R3000 disassembler",
+    "authors": [
+        "Timur Gafarov"
+    ],
+    "copyright": "Copyright © 2025, Timur Gafarov",
+    "license": "BSL-1.0"
+}
