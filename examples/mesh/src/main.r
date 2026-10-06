@@ -49,6 +49,7 @@ struct RTPSTransform
 
 void gteInit() @("gteInit.s");
 void gteRTPS(struct RTPSTransform* rtpsTransform, struct Vertex* inVertex, struct SVertex* outVertex) @("gteRTPS.s");
+void gteRTPT(struct RTPSTransform* rtpsTransform, struct Vertex* inVertices, struct SVertex* outVertices) @("gteRTPT.s");
 
 // PSM file header
 struct PSMHeader
@@ -95,10 +96,9 @@ struct PSMData
 
 void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* tr)
 {
-    // GTE transformation result
-    struct SVertex vout1;
-    struct SVertex vout2;
-    struct SVertex vout3;
+    // GTE transformation input and output
+    struct Vertex triVertices[3];
+    struct SVertex projected[3];
     
     uint px = data->texture->px + data->tilex;
     uint py = data->texture->py + data->tiley;
@@ -122,23 +122,23 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         struct Vertex* v2 = &vertices[vi2];
         struct Vertex* v3 = &vertices[vi3];
         
-        // TODO: use RTPT
-        gteRTPS(tr, v1, &vout1);
-        gteRTPS(tr, v2, &vout2);
-        gteRTPS(tr, v3, &vout3);
+        triVertices[0] = *v1;
+        triVertices[1] = *v2;
+        triVertices[2] = *v3;
+        gteRTPT(tr, triVertices, projected);
         
-        if (vout1.x < 0 && vout2.x < 0 && vout3.x < 0)
+        if (projected[0].x < 0 && projected[1].x < 0 && projected[2].x < 0)
             continue;
-        if (vout1.x >= SCREEN_WIDTH && vout2.x >= SCREEN_WIDTH && vout3.x >= SCREEN_WIDTH)
+        if (projected[0].x >= SCREEN_WIDTH && projected[1].x >= SCREEN_WIDTH && projected[2].x >= SCREEN_WIDTH)
             continue;
-        if (vout1.y < 0 && vout2.y < 0 && vout3.y < 0)
+        if (projected[0].y < 0 && projected[1].y < 0 && projected[2].y < 0)
             continue;
-        if (vout1.y >= SCREEN_HEIGHT && vout2.y >= SCREEN_HEIGHT && vout3.y >= SCREEN_HEIGHT)
+        if (projected[0].y >= SCREEN_HEIGHT && projected[1].y >= SCREEN_HEIGHT && projected[2].y >= SCREEN_HEIGHT)
             continue;
         
-        z1 = vout1.z;
-        z2 = vout2.z;
-        z3 = vout3.z;
+        z1 = projected[0].z;
+        z2 = projected[1].z;
+        z3 = projected[2].z;
         
         // Near-plane rejection
         if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
@@ -150,15 +150,15 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         if (p == 0) break;
         
         p[0] = GP0_TRI3 | data->color;
-        p[1] = (vout1.y << 16) | (vout1.x & 0xffff);
+        p[1] = (projected[0].y << 16) | (projected[0].x & 0xffff);
         u = px + uvs[vi1 * 2];
         v = py + uvs[vi1 * 2 + 1];
         p[2] = clutId | (v << 8) | (u & 0xff);
-        p[3] = (vout2.y << 16) | (vout2.x & 0xffff);
+        p[3] = (projected[1].y << 16) | (projected[1].x & 0xffff);
         u = px + uvs[vi2 * 2];
         v = py + uvs[vi2 * 2 + 1];
         p[4] = tpage  | (v << 8) | (u & 0xff);
-        p[5] = (vout3.y << 16) | (vout3.x & 0xffff);
+        p[5] = (projected[2].y << 16) | (projected[2].x & 0xffff);
         u = px + uvs[vi3 * 2];
         v = py + uvs[vi3 * 2 + 1];
         p[6] = (v << 8) | (u & 0xff);
@@ -330,7 +330,7 @@ void main()
     dataCharacter.tiley = 0;
     dataCharacter.color = COLOR_NEUTRAL;
     
-    //
+    // Camera
     struct Camera cam;
     cam.x = 0;
     cam.y = -290;

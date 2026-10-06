@@ -29,6 +29,7 @@ void padInit()
 
 int padRead1()
 {
+    //_pad_data = _pad_buf;
     return (~_pad_data) & 0xFFFF;
 }
 
