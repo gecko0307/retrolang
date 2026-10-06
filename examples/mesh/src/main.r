@@ -126,7 +126,7 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         otz = (z1 + z2 + z3) / 3 >> Z_SHIFT;
         if (otz >= OT_SIZE - 1)
             continue; // Beyond far range, drop it
-        int* p = gpuAllocZ_raw(7, otz);
+        int* p = gpuAllocZ(7, otz);
         if (p == 0) break;
         
         p[0] = GP0_TRI3 | data->color;
@@ -203,13 +203,13 @@ void main()
     tr.dqa = F_ONE;
     tr.dqb = 0x000;
     
-    //
+    // Mesh data
     struct PSMHeader* psm = (struct PSMHeader*)mesh;
     struct PSMData data;
-    char* p = mesh;
-    data.vertices = (struct Vertex*)(p + 16);
-    data.uvs = (uchar*)(p + psm->uvOffset);
-    data.indices = (ushort*)(p + psm->idxOffset);
+    char* meshStart = mesh;
+    data.vertices = (struct Vertex*)(meshStart + 16);
+    data.uvs = (uchar*)(meshStart + psm->uvOffset);
+    data.indices = (ushort*)(meshStart + psm->idxOffset);
     data.texture = &tex;
     data.color = 0x808080;
     
@@ -231,7 +231,7 @@ void main()
              if (pad1 & PAD_LEFT)  tr.tx += speed;
         else if (pad1 & PAD_RIGHT) tr.tx -= speed;
         
-        gpuQueueClear(0x808080);
+        gpuSortClear(0x808080);
         drawPSM(psm, &data, &tr);
         gpuEndFrame();
     }

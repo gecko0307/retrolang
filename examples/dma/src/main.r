@@ -58,8 +58,8 @@ void main()
         tri.x3 = x + 80;
         tri.y3 = y + 140;
         
-        gpuQueueClear(0x808080);
-        gpuQueueDrawTriangle2(&tri, 0);
+        gpuSortClear(0x808080);
+        gpuSortTriangle2(&tri, 0);
         gpuEndFrame();
     }
 }

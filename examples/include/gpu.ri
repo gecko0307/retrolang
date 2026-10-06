@@ -208,24 +208,25 @@ struct GpuTexture
 int* gp0 = 0x1f801810;
 int* gp1 = 0x1f801814;
 
+// DMA ports
+int* dmaDpcr  = 0x1f8010f0; // DMA control (channel enables / priorities)
+int* dma2Madr = 0x1f8010a0; // channel 2: base address
+int* dma2Bcr  = 0x1f8010a4; // channel 2: block control
+int* dma2Chcr = 0x1f8010a8; // channel 2: channel control
+
 // Video mode parameters
 struct GpuSettings* __gpuSettings;
 int screenX = 0;
 int screenY = 0;
 int cyclesPerPixel = 0;
 
-// DMA registers
-int* dmaDpcr  = 0x1f8010f0; // DMA control (channel enables / priorities)
-int* dma2Madr = 0x1f8010a0; // channel 2: base address
-int* dma2Bcr  = 0x1f8010a4; // channel 2: block control
-int* dma2Chcr = 0x1f8010a8; // channel 2: channel control
-
 int bufferOffset = 0;
 
-#define OT_SIZE  1024
-#define GPU_OT0  0x80188000   // OT_SIZE words each; make sure nothing overlaps
-#define GPU_OT1  0x80189000
+#define OT_SIZE 1024
+#define GPU_OT0 0x80188000
+#define GPU_OT1 0x80189000
 
+/// Pointer to the current ordering table.
 int* gpuOt = GPU_OT0;
 
 /**
@@ -352,54 +353,31 @@ void gpuOtClear()
         gpuOt[i] = (uint)(gpuOt + i - 1) & GPU_LIST_END;
 }
 
-/// Reserves n words in the primitive buffer and links the packet into bucket z.
-int* gpuAllocZ_raw(int n, int z)
+/**
+ * Reserves a packet of n command words in the current command buffer and returns a
+ * pointer to the first of them, linking the packet into OT bucket z.
+ * If the buffer is full, what has been queued so far is sent and the buffer is reused.
+ */
+int* gpuAllocZ(int n, int z)
 {
     if (gpuBufferPos + n + 1 > GPU_BUF_WORDS)
-        return 0; // out of primitive memory, caller must drop the primitive
+        gpuFlush();
+    //    return 0; // out of primitive memory, caller must drop the primitive
 
     int* hdr = gpuCurrentBuffer + gpuBufferPos;
     gpuBufferPos += n + 1;
 
-    // header: size | address of whatever the bucket pointed to before
+    // Header: size | address of whatever the bucket pointed to before
     *hdr = (n << 24) | (gpuOt[z] & GPU_LIST_END);
     gpuOt[z] = (uint)hdr & GPU_LIST_END;
     return hdr + 1;
 }
 
-/// Regular primitives: z is clamped; bucket N-1 is reserved for env/clear.
-int* gpuAllocZ(int n, int z)
-{
-    if (z < 0) z = 0;
-    if (z > OT_SIZE - 2) z = OT_SIZE - 2;
-    return gpuAllocZ_raw(n, z);
-}
-
 /// Env/clear packets: always the farthest bucket, so they run first.
 int* gpuAlloc(int n)
 {
-    return gpuAllocZ_raw(n, OT_SIZE - 1);
+    return gpuAllocZ(n, OT_SIZE - 1);
 }
-
-/**
- * Reserves a packet of n command words in the current buffer and returns a
- * pointer to the first of them. If the buffer is full, what has been queued so
- * far is sent and the buffer is reused.
- */
-/*
-int* gpuAlloc(int n)
-{
-    if (gpuBufferPos + n + 1 >= GPU_BUF_WORDS)
-        gpuFlush();
-
-    int* hdr = gpuCurrentBuffer + gpuBufferPos;
-    gpuBufferPos += n + 1;
-    // size in the top byte, the next packet follows directly after this one
-    *hdr = (n << 24) | ((uint)(gpuCurrentBuffer + gpuBufferPos) & GPU_LIST_END);
-    gpuLast = hdr;
-    return hdr + 1;
-}
-*/
 
 /// Terminates the list in the current buffer and starts the DMA transfer.
 void gpuKick()
@@ -407,28 +385,14 @@ void gpuKick()
     if (gpuBufferPos == 0)
         return;
 
-    gpuWaitDma();
+    // the previous transfer must be finished before the channel is reprogrammed
+    //gpuWaitDma();
+    while ((*dma2Chcr & DMA_BUSY) != 0) {}
 
     *dma2Madr = (uint)(gpuOt + OT_SIZE - 1) & 0xffffff;
     *dma2Bcr = 0;
     *dma2Chcr = DMA2_LIST_START;
 }
-
-/*
-void gpuKick()
-{
-    if (gpuBufferPos == 0)
-        return;
-
-    // the previous transfer must be finished before the channel is reprogrammed
-    gpuWaitDma();
-
-    *gpuLast = *gpuLast | GPU_LIST_END;
-    *dma2Madr = (uint)gpuCurrentBuffer & 0xffffff;
-    *dma2Bcr = 0;
-    *dma2Chcr = DMA2_LIST_START;
-}
-*/
 
 /**
  * Sends the queued commands, waits until the GPU has executed all of them and
@@ -437,15 +401,20 @@ void gpuKick()
 void gpuFlush()
 {
     gpuKick();
-    gpuWaitDma();
-    gpuWaitIdle();
+    
+    //gpuWaitDma();
+    while ((*dma2Chcr & DMA_BUSY) != 0) {}
+    
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     gpuBufferPos = 0;
 }
 
 ///
 void gpuQueueEnv()
 {
-    int* p = gpuAlloc(3);
+    int* p = gpuAllocZ(3, OT_SIZE - 1);
     p[0] = GP0_DRAW_OFFS | (bufferOffset << 11);
     p[1] = GP0_CLIP_POS |
         ((bufferOffset + __gpuSettings->clip.y) << 10 | __gpuSettings->clip.x);
@@ -461,16 +430,22 @@ void gpuQueueEnv()
 void gpuEndFrame()
 {
     gpuKick();
-    gpuWaitDma();
-    gpuWaitCmd();
-    gpuWaitIdle();
+    
+    //gpuWaitDma();
+    while ((*dma2Chcr & DMA_BUSY) != 0) {}
+    
+    //gpuWaitCmd();
+    while ((*gp1 & (1 << 26)) == 0) {}
+    
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
 
-    // show the buffer that was just drawn
+    // Show the buffer that was just drawn
     *gp1 = GP1_DISP_OFFS |
         ((bufferOffset + __gpuSettings->display.y) << 10) |
         (__gpuSettings->display.x & 0xffff);
 
-    // switch to the other command buffer and OT
+    // Switch to the other command buffer and OT
     if (gpuCurrentBuffer == GPU_BUF0)
     {
         gpuCurrentBuffer = GPU_BUF1;
@@ -482,14 +457,13 @@ void gpuEndFrame()
         gpuOt = GPU_OT0;
     }
     
-    // switch tothe other framebuffer
+    // Switch to the other framebuffer
     if (bufferOffset == 0)
         bufferOffset = __gpuSettings->display.height;
     else
         bufferOffset = 0;
     
     gpuBufferPos = 0;
-    //gpuLast = 0;
     gpuOtClear();
     gpuQueueEnv();
 }
@@ -551,7 +525,8 @@ void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
     uint* pp = (uint*)timData;
     uint sizeInWords = (sizeInBytes >> 2) - 3;
 
-    gpuWaitIdle();
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
 
     *gp0 = GP0_MEM2VRAM;
     *gp0 = pp[1]; // x, y
@@ -600,14 +575,17 @@ void gpuTextureUpload(struct GpuTexture* tex)
         gpuMemToVram(tex->clut, tex->clut->size);
 }
 
-// ---------------------------------------------------------------------------
-// Direct drawing
-// ---------------------------------------------------------------------------
+/*
+ * Direct drawing.
+ * These functions draw directly via GP0 port.
+ */
 
 /// Clears the screen with the given color.
 void gpuClear(int color)
 {
-    gpuWaitIdle();
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_FAST_RECT | color;
     *gp0 = ((bufferOffset + __gpuSettings->display.y) << 16) | __gpuSettings->display.x;
     *gp0 = (__gpuSettings->display.height << 16) | __gpuSettings->display.width;
@@ -620,7 +598,9 @@ void gpuClear(int color)
  */
 void gpuFillRectFast(struct GpuRect* rect, int color)
 {
-    gpuWaitIdle();
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_FAST_RECT | color;
     *gp0 = (rect->y << 16) | rect->x;
     *gp0 = (rect->height << 16) | rect->width;
@@ -629,7 +609,9 @@ void gpuFillRectFast(struct GpuRect* rect, int color)
 /// Draws a solid-colored line.
 void gpuDrawLine1(struct GpuLine1* line, int color)
 {
-    gpuWaitIdle();
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_LINE1 | color;
     *gp0 = (line->y1 << 16) | line->x1;
     *gp0 = (line->y2 << 16) | line->x2;
@@ -638,7 +620,9 @@ void gpuDrawLine1(struct GpuLine1* line, int color)
 /// Draws a Gouraud-shaded line.
 void gpuDrawLine2(struct GpuLine2* line)
 {
-    gpuWaitIdle();
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_LINE2 | line->color1;
     *gp0 = (line->y1 << 16) | line->x1;
     *gp0 = line->color2;
@@ -648,7 +632,9 @@ void gpuDrawLine2(struct GpuLine2* line)
 /// Draws a solid-colored sprite.
 void gpuDrawSprite1(struct GpuSprite1* sprite, int color)
 {
-    gpuWaitIdle();
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_SPRITE1 | color;
     *gp0 = (sprite->y << 16) | sprite->x;
     *gp0 = (sprite->height << 16) | sprite->width;
@@ -659,7 +645,10 @@ void gpuDrawSprite2(struct GpuSprite2* sprite)
 {
     uint u = sprite->texture->px + sprite->u;
     uint v = sprite->texture->py + sprite->v;
-    gpuWaitIdle();
+    
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_SPRITE2 | sprite->texture->tpage;
     *gp0 = GP0_SPRITE_TEX2 | sprite->color;
     *gp0 = (sprite->y << 16) | sprite->x;
@@ -670,7 +659,9 @@ void gpuDrawSprite2(struct GpuSprite2* sprite)
 /// Draws a solid-colored triangle.
 void gpuDrawTriangle1(struct GpuTriangle1* tri, int color)
 {
-    gpuWaitIdle();
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_TRI1 | color;
     *gp0 = (tri->y1 << 16) | tri->x1;
     *gp0 = (tri->y2 << 16) | tri->x2;
@@ -680,7 +671,9 @@ void gpuDrawTriangle1(struct GpuTriangle1* tri, int color)
 /// Draws a Gouraud-shaded triangle.
 void gpuDrawTriangle2(struct GpuTriangle2* tri)
 {
-    gpuWaitIdle();
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_TRI2 | tri->color1;
     *gp0 = (tri->y1 << 16) | tri->x1;
     *gp0 = tri->color2;
@@ -695,7 +688,10 @@ void gpuDrawTriangle3(struct GpuTriangle3* tri)
     uint px, py, u, v;
     px = tri->texture->px;
     py = tri->texture->py;
-    gpuWaitIdle();
+    
+    //gpuWaitIdle();
+    while ((*gp1 & (1 << 28)) == 0) {}
+    
     *gp0 = GP0_TRI3 | tri->color;
     *gp0 = (tri->y1 << 16) | tri->x1;
     u = px + tri->u1;
@@ -711,15 +707,17 @@ void gpuDrawTriangle3(struct GpuTriangle3* tri)
     *gp0 = (v << 8) | u;
 }
 
-// ---------------------------------------------------------------------------
-// Queued drawing
-// ---------------------------------------------------------------------------
+/**
+ * Queued drawing.
+ * These functions are inserted into the current command buffer
+ * and linked to OT at the specified Z.
+ */
 
 /// Clears the screen with the given color.
-void gpuQueueClear(int color)
+void gpuSortClear(int color)
 {
     // Allocate the farthest bucket
-    int* p = gpuAllocZ_raw(3, OT_SIZE - 1);
+    int* p = gpuAllocZ(3, OT_SIZE - 1);
     if (p == 0) return;
     
     p[0] = GP0_FAST_RECT | color;
@@ -728,13 +726,13 @@ void gpuQueueClear(int color)
 }
 
 /// Draws a solid-colored line.
-void gpuQueueDrawLine1(struct GpuLine1* line, int z, int color)
+void gpuSortLine1(struct GpuLine1* line, int z, int color)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
     if (zz > OT_SIZE - 2)
         zz = OT_SIZE - 2;
-    int* p = gpuAllocZ_raw(3, zz);
+    int* p = gpuAllocZ(3, zz);
     if (p == 0) return;
     
     p[0] = GP0_LINE1 | color;
@@ -743,13 +741,13 @@ void gpuQueueDrawLine1(struct GpuLine1* line, int z, int color)
 }
 
 /// Draws a Gouraud-shaded line.
-void gpuQueueDrawLine2(struct GpuLine2* line, int z)
+void gpuSortLine2(struct GpuLine2* line, int z)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
     if (zz > OT_SIZE - 2)
         zz = OT_SIZE - 2;
-    int* p = gpuAllocZ_raw(4, zz);
+    int* p = gpuAllocZ(4, zz);
     if (p == 0) return;
     
     p[0] = GP0_LINE2 | line->color1;
@@ -759,13 +757,13 @@ void gpuQueueDrawLine2(struct GpuLine2* line, int z)
 }
 
 /// Draws a solid-colored sprite.
-void gpuQueueDrawSprite1(struct GpuSprite1* sprite, int z, int color)
+void gpuSortSprite1(struct GpuSprite1* sprite, int z, int color)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
     if (zz > OT_SIZE - 2)
         zz = OT_SIZE - 2;
-    int* p = gpuAllocZ_raw(3, zz);
+    int* p = gpuAllocZ(3, zz);
     if (p == 0) return;
     
     p[0] = GP0_SPRITE1 | color;
@@ -774,13 +772,13 @@ void gpuQueueDrawSprite1(struct GpuSprite1* sprite, int z, int color)
 }
 
 /// Draws a textured sprite.
-void gpuQueueDrawSprite2(struct GpuSprite2* sprite, int z)
+void gpuSortSprite2(struct GpuSprite2* sprite, int z)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
     if (zz > OT_SIZE - 2)
         zz = OT_SIZE - 2;
-    int* p = gpuAllocZ_raw(5, zz);
+    int* p = gpuAllocZ(5, zz);
     if (p == 0) return;
     
     uint u = sprite->texture->px + sprite->u;
@@ -793,13 +791,13 @@ void gpuQueueDrawSprite2(struct GpuSprite2* sprite, int z)
 }
 
 /// Draws a solid-colored triangle.
-void gpuQueueDrawTriangle1(struct GpuTriangle1* tri, int z, int color)
+void gpuSortTriangle1(struct GpuTriangle1* tri, int z, int color)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
     if (zz > OT_SIZE - 2)
         zz = OT_SIZE - 2;
-    int* p = gpuAllocZ_raw(4, zz);
+    int* p = gpuAllocZ(4, zz);
     if (p == 0) return;
     
     p[0] = GP0_TRI1 | color;
@@ -809,13 +807,13 @@ void gpuQueueDrawTriangle1(struct GpuTriangle1* tri, int z, int color)
 }
 
 /// Draws a Gouraud-shaded triangle.
-void gpuQueueDrawTriangle2(struct GpuTriangle2* tri, int z)
+void gpuSortTriangle2(struct GpuTriangle2* tri, int z)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
     if (zz > OT_SIZE - 2)
         zz = OT_SIZE - 2;
-    int* p = gpuAllocZ_raw(6, zz);
+    int* p = gpuAllocZ(6, zz);
     if (p == 0) return;
     
     p[0] = GP0_TRI2 | tri->color1;
@@ -827,13 +825,13 @@ void gpuQueueDrawTriangle2(struct GpuTriangle2* tri, int z)
 }
 
 /// Draws a textured triangle.
-void gpuQueueDrawTriangle3(struct GpuTriangle3* tri, int z)
+void gpuSortTriangle3(struct GpuTriangle3* tri, int z)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
     if (zz > OT_SIZE - 2)
         zz = OT_SIZE - 2;
-    int* p = gpuAllocZ_raw(7, zz);
+    int* p = gpuAllocZ(7, zz);
     if (p == 0) return;
     
     uint px, py, u, v;
