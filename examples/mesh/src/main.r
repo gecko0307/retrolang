@@ -6,8 +6,6 @@
 #include "../../include/pad.ri"
 #include "../../include/gpu.ri"
 
-#define F_ONE 0x1000
-
 // Model-space vertex
 struct Vertex
 {
@@ -72,6 +70,8 @@ struct PSMData
     uchar* uvs;
     ushort* indices;
     struct GpuTexture* texture;
+    int tilex;
+    int tiley;
     int color;
 };
 
@@ -95,8 +95,8 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     struct SVertex vout2;
     struct SVertex vout3;
     
-    uint px = data->texture->px;
-    uint py = data->texture->py;
+    uint px = data->texture->px + data->tilex;
+    uint py = data->texture->py + data->tiley;
     
     ushort vi1, vi2, vi3;
     int z1, z2, z3, otz;
@@ -151,33 +151,29 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
 // Global GPU config
 struct GpuSettings gpu;
 
-char* textures @("assets/character.tim");
-char* mesh @("assets/character.psm");
+char* textures @("assets/texture.tim");
+char* character @("assets/character.psm");
+char* floor @("assets/floor.psm");
 char* sin4096 @("sin_table/sin4096.bin");
+
+#define F_ONE 0x1000
 
 #define QPI 0x200
 #define HPI 0x400
 #define PI  0x800
 #define PI2 0x1000
 
-short sin12(uint angle)
+short sin(uint angle)
 {
     short* sinTable = (short*)sin4096;
     return sinTable[angle & 0xfff];
 }
 
-short cos12(uint angle)
+short cos(uint angle)
 {
     short* sinTable = (short*)sin4096;
     return sinTable[(angle + HPI) & 0xfff];
 }
-
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 240
-#define HALF_SCR_WIDTH 160
-#define HALF_SCR_HEIGHT 120
-
-#define SCALE 2
 
 void trSetRotationIdentity(struct RTPSTransform* tr)
 {
@@ -186,12 +182,74 @@ void trSetRotationIdentity(struct RTPSTransform* tr)
     tr->r[6] = 0x0000; tr->r[7] = 0x0000; tr->r[8] = F_ONE;
 }
 
+void trSetRotationX(struct RTPSTransform* tr, uint a, short scale)
+{
+    short s = sin(a);
+    short c = cos(a);
+    short scOne = F_ONE * scale;
+    tr->r[0] = scOne; tr->r[1] = 0; tr->r[2] =  0;
+    tr->r[3] = 0;     tr->r[4] = c; tr->r[5] = -s;
+    tr->r[6] = 0;     tr->r[7] = s; tr->r[8] =  c;
+}
+
 void trSetRotationY(struct RTPSTransform* tr, uint a, short scale)
 {
-    tr->r[0] = cos12(a) * scale;  tr->r[1] = 0x0000;        tr->r[2] = -sin12(a) * scale;
-    tr->r[3] = 0x0000;            tr->r[4] = F_ONE * scale; tr->r[5] = 0x0000;
-    tr->r[6] = sin12(a) * scale;  tr->r[7] = 0x0000;        tr->r[8] = cos12(a) * scale;
+    short s = sin(a) * scale;
+    short c = cos(a) * scale;
+    short scOne = F_ONE * scale;
+    tr->r[0] = c;  tr->r[1] = 0;     tr->r[2] = s;
+    tr->r[3] = 0;  tr->r[4] = scOne; tr->r[5] = 0;
+    tr->r[6] = -s; tr->r[7] = 0;     tr->r[8] = c;
 }
+
+void trSetRotationZ(struct RTPSTransform* tr, uint a, short scale)
+{
+    short s = sin(a);
+    short c = cos(a);
+    short scOne = F_ONE * scale;
+    tr->r[0] = c;  tr->r[1] = -s;  tr->r[2] = 0;
+    tr->r[3] = s;  tr->r[4] =  c;  tr->r[5] = 0;
+    tr->r[6] = 0;  tr->r[7] =  0;  tr->r[8] = scOne;
+}
+
+struct Camera
+{
+    int x;
+    int y;
+    int z;
+    int rotY;
+};
+
+void trSetCameraY(
+    struct RTPSTransform* tr,
+    struct Camera* cam,
+    short scale)
+{
+    short s = sin(cam->rotY) * scale;
+    short c = cos(cam->rotY) * scale;
+    short scOne = F_ONE * scale;
+    
+    int x = cam->x;
+    int y = cam->y;
+    int z = cam->z;
+
+    // R_view = transpose(R_camera)
+    tr->r[0] = c;  tr->r[1] = 0;     tr->r[2] = -s;
+    tr->r[3] = 0;  tr->r[4] = scOne; tr->r[5] = 0;
+    tr->r[6] = s;  tr->r[7] = 0;     tr->r[8] = c;
+
+    // T_view = -R_view * C
+    tr->tx = -((c * x - s * z) >> 12);
+    tr->ty = -y;
+    tr->tz = -((s * x + c * z) >> 12);
+}
+
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
+#define HALF_SCR_WIDTH 160
+#define HALF_SCR_HEIGHT 120
+
+#define SCALE 2
 
 void main()
 {
@@ -224,8 +282,8 @@ void main()
     
     struct RTPSTransform tr;
     tr.tx = 0;
-    tr.ty = 256;
-    tr.tz = 700;
+    tr.ty = 0;
+    tr.tz = 0;
     trSetRotationIdentity(&tr);
     tr.h = 0x100;
     tr.ofx = 0x10000 * HALF_SCR_WIDTH;
@@ -233,43 +291,90 @@ void main()
     tr.dqa = F_ONE;
     tr.dqb = 0x000;
     
-    // Mesh data
-    struct PSMHeader* psm = (struct PSMHeader*)mesh;
-    struct PSMData data;
-    char* meshStart = mesh;
-    data.vertices = (struct Vertex*)(meshStart + 16);
-    data.uvs = (uchar*)(meshStart + psm->uvOffset);
-    data.indices = (ushort*)(meshStart + psm->idxOffset);
-    data.texture = &tex;
-    data.color = COLOR_NEUTRAL;
+    // Floor mesh data
+    struct PSMHeader* psmFloor = (struct PSMHeader*)floor;
+    struct PSMData dataFloor;
+    char* meshStart = floor;
+    dataFloor.vertices = (struct Vertex*)(meshStart + 16);
+    dataFloor.uvs = (uchar*)(meshStart + psmFloor->uvOffset);
+    dataFloor.indices = (ushort*)(meshStart + psmFloor->idxOffset);
+    dataFloor.texture = &tex;
+    dataFloor.tilex = 64;
+    dataFloor.tiley = 0;
+    dataFloor.color = COLOR_NEUTRAL;
     
-    bios_a(0x3f, "psm->numVerts = %d\n", psm->numVerts);
-    bios_a(0x3f, "psm->numTris = %d\n", psm->numTris);
-    bios_a(0x3f, "psm->texWidth = %d\n", psm->texWidth);
-    bios_a(0x3f, "psm->texHeight = %d\n", psm->texHeight);
-    bios_a(0x3f, "psm->uvOffset = %d\n", psm->uvOffset);
-    bios_a(0x3f, "psm->idxOffset = %d\n", psm->idxOffset);
+    // Character mesh data
+    struct PSMHeader* psmCharacter = (struct PSMHeader*)character;
+    struct PSMData dataCharacter;
+    meshStart = character;
+    dataCharacter.vertices = (struct Vertex*)(meshStart + 16);
+    dataCharacter.uvs = (uchar*)(meshStart + psmCharacter->uvOffset);
+    dataCharacter.indices = (ushort*)(meshStart + psmCharacter->idxOffset);
+    dataCharacter.texture = &tex;
+    dataCharacter.tilex = 0;
+    dataCharacter.tiley = 0;
+    dataCharacter.color = COLOR_NEUTRAL;
+    
+    //
+    struct Camera cam;
+    cam.x = 0;
+    cam.y = -290;
+    cam.z = -700;
+    cam.rotY = 0;
+    
+    int pitch = 0;
     
     int speed = 10;
-    
-    uint rotationY = 0;
+    int yawSpeed = 20;
     
     while(1)
     {
         padWaitSync();
         int pad1 = padRead1();
-             if (pad1 & PAD_UP)    tr.tz -= speed;
-        else if (pad1 & PAD_DOWN)  tr.tz += speed;
-             if (pad1 & PAD_LEFT)  tr.tx += speed;
-        else if (pad1 & PAD_RIGHT) tr.tx -= speed;
         
-        trSetRotationY(&tr, rotationY, SCALE);
-        rotationY += 10;
-        if (rotationY >= PI2)
-            rotationY = 0;
+        if (pad1 & PAD_LEFT)
+        {
+            cam.rotY -= yawSpeed;
+        }
+        else if (pad1 & PAD_RIGHT)
+        {
+            cam.rotY += yawSpeed;
+        }
+        
+        short sy = sin(cam.rotY);
+        short cy = cos(cam.rotY);
+        short sp = sin(pitch);
+        short cp = cos(pitch);
+
+        int fx = (sy * cp) >> 12;
+        int fz = (cy * cp) >> 12;
+        
+        if (pad1 & PAD_UP)
+        {
+            cam.x += (fx * speed) >> 12;
+            cam.z += (fz * speed) >> 12;
+        }
+        else if (pad1 & PAD_DOWN)
+        {
+            cam.x -= (fx * speed) >> 12;
+            cam.z -= (fz * speed) >> 12;
+        }
+        if (pad1 & PAD_L1)
+        {
+            cam.x -= (cy * speed) >> 12;
+            cam.z += (sy * speed) >> 12;
+        }
+        else if (pad1 & PAD_R1)
+        {
+            cam.x += (cy * speed) >> 12;
+            cam.z -= (sy * speed) >> 12;
+        }
+        
+        trSetCameraY(&tr, &cam, SCALE);
         
         gpuSortClear(0x808080);
-        drawPSM(psm, &data, &tr);
+        drawPSM(psmCharacter, &dataCharacter, &tr);
+        drawPSM(psmFloor, &dataFloor, &tr);
         gpuEndFrame();
     }
 }

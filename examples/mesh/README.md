@@ -1,6 +1,6 @@
 # Mesh Rendering Example
 
-Renders a character mesh. Use the D-pad to move the camera left/right/forward/backward.
+Renders a character mesh using a first person camera. Use the D-pad to rotate and move the camera, L1/R1 to strafe.
 
 Use `build.bat` to compile `iso/PSX.EXE`.
 

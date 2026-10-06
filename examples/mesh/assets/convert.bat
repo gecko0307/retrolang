@@ -1,1 +1,1 @@
-img2tim.exe -org 320 0 -plt 320 256 -bpp 8 -usealpha -o character.tim character.png
+img2tim.exe -org 320 0 -plt 320 256 -bpp 8 -usealpha -o texture.tim texture.png
