@@ -1,0 +1,24 @@
+# Entry point passed to rlc
+source = "src/main.r"
+
+# Compiler output, also the file mkpsxiso packs (must match iso.xml)
+executable = "iso/PSX.EXE"
+
+# mkpsxiso project description
+iso_xml = "iso.xml"
+
+# CUE sheet produced by mkpsxiso (must match iso.xml)
+cue = "game.cue"
+
+# Extra arguments forwarded to rlc
+rlc_args = []
+
+[tools]
+# Explicit tool paths (highest priority in discovery)
+# rlc = "C:/retrolang/rlc/rlc.exe"
+# mkpsxiso = "/opt/mkpsxiso/mkpsxiso"
+
+[hooks]
+# Optional commands run before/after stages
+# pre_compile = []
+# post_iso    = []
