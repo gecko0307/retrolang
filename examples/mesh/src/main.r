@@ -128,11 +128,22 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         
         if (projected[0].x < 0 && projected[1].x < 0 && projected[2].x < 0)
             continue;
-        if (projected[0].x >= SCREEN_WIDTH && projected[1].x >= SCREEN_WIDTH && projected[2].x >= SCREEN_WIDTH)
+        if (projected[0].x >= SCREEN_WIDTH && 
+            projected[1].x >= SCREEN_WIDTH &&
+            projected[2].x >= SCREEN_WIDTH)
             continue;
         if (projected[0].y < 0 && projected[1].y < 0 && projected[2].y < 0)
             continue;
-        if (projected[0].y >= SCREEN_HEIGHT && projected[1].y >= SCREEN_HEIGHT && projected[2].y >= SCREEN_HEIGHT)
+        if (projected[0].y >= SCREEN_HEIGHT &&
+            projected[1].y >= SCREEN_HEIGHT &&
+            projected[2].y >= SCREEN_HEIGHT)
+            continue;
+        
+        // Backface culling
+        int area =
+            (projected[1].x - projected[0].x) * (projected[2].y - projected[0].y) - 
+            (projected[2].x - projected[0].x) * (projected[1].y - projected[0].y);
+        if (area > 0)
             continue;
         
         z1 = projected[0].z;
@@ -142,7 +153,8 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         // Near-plane rejection
         if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
             continue;
-        otz = (z1 + z2 + z3) / 3 >> Z_SHIFT + zOffset;
+        //otz = (((z1 + z2 + z3) / 3) >> Z_SHIFT) + zOffset;
+        otz = (((z1 + z2 + z3) * (0x555 >> Z_SHIFT)) >> 12) + zOffset;
         if (otz >= OT_SIZE - 1 || otz < 0)
             continue; // Beyond the depth range
         int* p = gpuAllocZ(7, otz);
@@ -389,8 +401,8 @@ void main()
         trSetCameraY(&tr, &cam, SCALE);
         
         gpuSortClear(0x808080);
-        drawPSM(psmCharacter, &dataCharacter, &tr, 1);
-        drawPSM(psmFloor, &dataFloor, &tr, 0);
+        drawPSM(psmCharacter, &dataCharacter, &tr, 0);
+        drawPSM(psmFloor, &dataFloor, &tr, 100);
         gpuEndFrame();
     }
 }
