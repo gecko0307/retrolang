@@ -1,0 +1,12 @@
+{
+    "name": "retrobuild",
+    "description": "Retrolang build automation tool",
+    "authors": [
+        "Timur Gafarov"
+    ],
+    "copyright": "Copyright © 2026, Timur Gafarov",
+    "license": "BSL-1.0",
+    "dependencies": {
+        "toml": "~>2.0.1"
+    }
+}
