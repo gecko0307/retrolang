@@ -39,7 +39,7 @@ RLC translates your program verbatim, without optimizations and unexpected chang
 
 ## PSXDISASM
 
-Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files.
+Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files. Based on [LNK disassembler](https://github.com/gecko0307/psxlib/tree/main/tools/psxdisasm) from PSXLib.
 
 ## The Language
 
@@ -106,7 +106,7 @@ The same in Retrolang assembly:
 
 ## Standard Library
 
-Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs. It is partly a port of [psxlib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
+Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs. It is partly a port of [PSXLib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
 
 * `core.ri` - core definitions
 * `gpu.ri` - GPU driver / graphics API
