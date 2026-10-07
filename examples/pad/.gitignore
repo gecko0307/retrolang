@@ -4,5 +4,6 @@ licenses/*
 *.exe
 *.dll
 *.bin
-*.que
+*.cue
+*.cu2
 run.bat

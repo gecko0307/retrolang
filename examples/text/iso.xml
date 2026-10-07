@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<iso_project image_name="build/game.bin" cue_sheet="build/game.cue">
+<iso_project image_name="game.bin" cue_sheet="game.cue">
 	<track type="data">
 		<identifiers
 			system ="PLAYSTATION"
