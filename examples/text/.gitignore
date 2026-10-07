@@ -1,6 +1,4 @@
-build/*
 iso/*
-licenses/*
 *.exe
 *.dll
 *.bin

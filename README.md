@@ -75,25 +75,7 @@ Constant initialization is supported only for global arrays.
 - Local variables live in `$s0`-`$s7` (callee-saved) unless their address is taken, in which case (or when registers run out) they live in the stack frame.
 - Expression temporaries use `$t0`-`$t9` as a register stack. Live temporaries are saved around calls.
 
-## Standard Library
-
-Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs. It is partly a port of [psxlib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
-
-* `core.ri` - core definitions
-* `gpu.ri` - GPU driver / graphics API
-* `pad.ri` - gamepad driver.
-
-Usage (assuming you've copied the [include](/examples/include) folder to your project's source directory):
-
-```c
-#include "include/core.ri"
-#include "include/pad.ri"
-#include "include/gpu.ri"
-```
-
-## Examples
-
-"Hello, World" program:
+**Example program:**
 
 ```c
 void main()
@@ -119,6 +101,43 @@ The same in Retrolang assembly:
   .msg:
     "Hello, World!\n\0"
 ```
+
+## Standard Library
+
+Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs. It is partly a port of [psxlib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
+
+* `core.ri` - core definitions
+* `gpu.ri` - GPU driver / graphics API
+* `pad.ri` - gamepad driver.
+
+Usage (assuming you've copied the [include](/examples/include) folder to your project's source directory):
+
+```c
+#include "include/core.ri"
+#include "include/pad.ri"
+#include "include/gpu.ri"
+```
+
+## Examples Collecions
+
+`examples` directory contains a number of basic demos showcasing possibilities of RLC.
+
+- [asm](/examples/asm) - "Hello, World" program implemented in assembly
+- [external_asm](/examples/external_asm) - external assembly function example (printing an argument to TTY and returning a value)
+- [pad](/examples/pad) - gamepad test, logs pressed buttons to TTY
+- [triangle](/examples/triangle) - classic colored triangle demo (direct rendering via GP0)
+- [dma](/examples/dma) - classic colored triangle demo (queued rendering via command buffer)
+- [sprite](/examples/sprite) - TIM texture loading and sprite rendering (direct rendering via GP0)
+- [text](/examples/text) - bitmap font loading and text rendering (queued rendering via command buffer)
+- [mesh](/examples/mesh) - walkable 3D scene with a first person camera.
+
+To build an example, run `build.bat`.
+
+RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository.
+
+Optionally, to build a CD-ROM image, mkpsxiso must be available system-wide or locally as `/mkpsxiso/mkpsxiso.exe` in the repository.
+
+Optionally, to gererate a *.cu2 file (for PSIO), Python must be installed.
 
 ## Recommended Tools
 
