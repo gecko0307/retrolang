@@ -9,7 +9,7 @@ void main()
     ubyte[] data;
     data.length = COUNT * 2;
 
-    foreach (i; 0 .. COUNT)
+    foreach (i; 0..COUNT)
     {
         double angle = 2.0 * PI * i / COUNT;
         short value = cast(short)round(sin(angle) * SCALE);

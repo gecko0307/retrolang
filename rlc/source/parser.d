@@ -190,14 +190,14 @@ class Parser
     void expectSym(string s)
     {
         if (!acceptSym(s))
-            throw err(peek().file, peek().line, format("expected '%s' but found '%s'", s, peek().text));
+            throw err(peek().file, peek().line, format("expected \"%s\" but found \"%s\"", s, peek().text));
     }
 
     string expectIdent()
     {
         Token t = next();
         if (t.kind != TK.Ident || isReserved(t.text))
-            throw err(t.file, t.line, format("expected an identifier but found '%s'", t.text));
+            throw err(t.file, t.line, format("expected an identifier but found \"%s\"", t.text));
         return t.text;
     }
 
@@ -247,7 +247,7 @@ class Parser
                     ty.base = Base.Char;
                 }
                 break;
-            default: throw err(t.file, t.line, format("expected a type but found '%s'", t.text));
+            default: throw err(t.file, t.line, format("expected a type but found \"%s\"", t.text));
         }
         return ty;
     }
@@ -266,7 +266,7 @@ class Parser
     void checkComplete(CType ty, string file, int line)
     {
         if (isStructVal(ty) && !structDefs[ty.sname].complete)
-            throw err(file, line, format("incomplete type 'struct %s'", ty.sname));
+            throw err(file, line, format("incomplete type \"struct %s\"", ty.sname));
     }
 
     long parseConstExpr()
@@ -477,7 +477,7 @@ class Parser
             structDefs[name] = sd;
         }
         if (sd.complete)
-            throw err(file, line, "redefinition of struct '" ~ name ~ "'");
+            throw err(file, line, "redefinition of struct \"" ~ name ~ "\"");
 
         expectSym("{");
         int off = 0;
@@ -495,7 +495,7 @@ class Parser
                 int fline = peek().line;
                 string ffile = peek().file;
                 if (ty.ptr == 0 && ty.base == Base.Void)
-                    throw err(ffile, fline, "struct member cannot have type void");
+                    throw err(ffile, fline, "struct member cannot have type \"void\"");
                 checkComplete(ty, ffile, fline);
 
                 Field fd;
@@ -504,7 +504,7 @@ class Parser
                 foreach (other; sd.fields)
                 {
                     if (other.name == fd.name)
-                        throw err(ffile, fline, "duplicate member '" ~ fd.name ~ "'");
+                        throw err(ffile, fline, "duplicate member \"" ~ fd.name ~ "\"");
                 }
                 if (acceptSym("["))
                 {
@@ -581,7 +581,7 @@ class Parser
         while (!isSym("}"))
         {
             if (peek().kind == TK.Eof)
-                throw err(peek().file, peek().line, "unexpected end of file, missing '}'");
+                throw err(peek().file, peek().line, "unexpected end of file, missing \"}\"");
             blk.stmts ~= parseStmt();
         }
         expectSym("}");
@@ -631,7 +631,7 @@ class Parser
             auto s = new Stmt(SK.DoWhile, t.file, t.line);
             s.thenS = parseStmt();
             if (!isKw("while"))
-                throw err(peek().file, peek().line, "expected 'while' after do-body");
+                throw err(peek().file, peek().line, "expected \"while\" after do-body");
             next();
             expectSym("(");
             s.e = parseExpr();
@@ -881,6 +881,6 @@ class Parser
             expectSym(")");
             return e;
         }
-        throw err(t.file, t.line, format("unexpected '%s'", t.text));
+        throw err(t.file, t.line, format("unexpected \"%s\"", t.text));
     }
 }

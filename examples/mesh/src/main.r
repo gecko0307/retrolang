@@ -48,7 +48,6 @@ struct RTPSTransform
 };
 
 void gteInit() @("gteInit.s");
-void gteRTPS(struct RTPSTransform* rtpsTransform, struct Vertex* inVertex, struct SVertex* outVertex) @("gteRTPS.s");
 void gteRTPT(struct RTPSTransform* rtpsTransform, struct Vertex* inVertices, struct SVertex* outVertices) @("gteRTPT.s");
 
 // PSM file header
@@ -306,10 +305,12 @@ void main()
     tr.dqa = F_ONE;
     tr.dqb = 0x000;
     
+    char* meshStart;
+    
     // Floor mesh data
     struct PSMHeader* psmFloor = (struct PSMHeader*)floor;
     struct PSMData dataFloor;
-    char* meshStart = floor;
+    meshStart = floor;
     dataFloor.vertices = (struct Vertex*)(meshStart + 16);
     dataFloor.uvs = (uchar*)(meshStart + psmFloor->uvOffset);
     dataFloor.indices = (ushort*)(meshStart + psmFloor->idxOffset);

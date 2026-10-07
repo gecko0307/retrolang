@@ -42,33 +42,40 @@ import ir;
 import assembler;
 import psxexe: STACK_ADDR;
 
-// ---------------------------------------------------------------------------
-// Register pools
-// ---------------------------------------------------------------------------
-
+/*
+ * Register pools
+ */
 enum int NTEMPS = 10;
-immutable Reg[10] tempRegs = [T0, T1, T2, T3, T4, T5, T6, T7, T8, T9];
-immutable Reg[8]  sRegs    = [S0, S1, S2, S3, S4, S5, S6, S7];
-immutable Reg[4]  argRegs  = [A0, A1, A2, A3];
+immutable(Reg)[10] tempRegs = [T0, T1, T2, T3, T4, T5, T6, T7, T8, T9];
+immutable(Reg)[8] sRegs = [S0, S1, S2, S3, S4, S5, S6, S7];
+immutable(Reg)[4] argRegs = [A0, A1, A2, A3];
 
-// Stack frame layout (offsets from $sp):
-//   0 .. 39                 spill area for $t0-$t9 (saved around calls)
-//   40 .. localsTop         locals that live in memory (arrays, address-taken, overflow)
-//   savedBase ..            saved $s registers
-//   raOff                   saved $ra
+/*
+ * Stack frame layout (offsets from $sp):
+ *  0..39         - spill area for $t0-$t9 (saved around calls)
+ *  40..localsTop - locals that live in memory (arrays, address-taken, overflow)
+ *  savedBase ..  - saved $s registers
+ *  raOff         - saved $ra
+ */
+
 enum int TEMP_SAVE_AREA = 40;
 
-// ---------------------------------------------------------------------------
-// Code generator
-// ---------------------------------------------------------------------------
+/*
+ * Code generator
+ */
 
 struct Val
 {
     Reg r;
-    bool isTemp;    // true if r is an expression temporary owned by the caller
+    bool isTemp; // true if r is an expression temporary owned by the caller
 }
 
-enum Storage { InReg, InStack, InGlobal }
+enum Storage
+{
+    InReg,
+    InStack,
+    InGlobal
+}
 
 class Var
 {
@@ -82,7 +89,11 @@ class Var
     int arrLen;
 }
 
-enum LK { RegVar, Mem }
+enum LK
+{
+    RegVar,
+    Mem
+}
 
 struct LValue
 {
@@ -134,14 +145,14 @@ bool isPow2(long v)
 ubyte[] toBytes(long v, int size)
 {
     ubyte[] b;
-    foreach (i; 0 .. size)
+    foreach (i; 0..size)
         b ~= cast(ubyte)((v >> (8 * i)) & 0xFF);
     return b;
 }
 
 string invertCmp(string op)
 {
-    switch (op)
+    switch(op)
     {
         case "==": return "!=";
         case "!=": return "==";
@@ -196,9 +207,9 @@ class CodeGen
         this.parentDirectory = dirName(path);
     }
 
-    // ------------------------------------------------------------------
-    // Emission helpers
-    // ------------------------------------------------------------------
+    /*
+     * Emission helpers
+     */
 
     void emit(Op op, AsmOperand a, AsmOperand b, AsmOperand c)
     {
@@ -277,7 +288,7 @@ class CodeGen
         mem(sz == 4 ? Op.SW : (sz == 2 ? Op.SH : Op.SB), rt, off, base);
     }
 
-    // Sign-extend a register holding a char / short variable.
+    /// Sign-extends a register holding a char / short variable.
     void narrowReg(Reg r, CType ty)
     {
         if (ty.isPtr)
@@ -318,9 +329,9 @@ class CodeGen
         curLbls ~= Lbl(name, cur.length);
     }
 
-    // ------------------------------------------------------------------
-    // Temporaries
-    // ------------------------------------------------------------------
+    /*
+     * Temporaries
+     */
 
     Reg allocTemp()
     {
@@ -335,7 +346,7 @@ class CodeGen
             td--;
     }
 
-    // Destination for a fresh result: the requested register, or a new temporary.
+    /// Destination for a fresh result: the requested register, or a new temporary.
     Val dest0(int want)
     {
         if (want >= 0)
@@ -343,8 +354,10 @@ class CodeGen
         return Val(allocTemp(), true);
     }
 
-    // Release operands (LIFO), then pick a destination. A released temporary is
-    // naturally reused as the destination.
+    /**
+     * Release operands (LIFO), then pick a destination.
+     * A released temporary is naturally reused as the destination.
+     */
     Val dest1(int want, Val a)
     {
         release(a);
@@ -358,9 +371,9 @@ class CodeGen
         return dest0(want);
     }
 
-    // ------------------------------------------------------------------
-    // Symbols
-    // ------------------------------------------------------------------
+    /*
+     * Symbols
+     */
 
     void pushScope()
     {
@@ -371,9 +384,9 @@ class CodeGen
 
     void popScope()
     {
-        scopes = scopes[0 .. $ - 1];
+        scopes = scopes[0..$-1];
         nextS = savedS[$ - 1];
-        savedS = savedS[0 .. $ - 1];
+        savedS = savedS[0..$-1];
     }
 
     Var lookup(string name, string file, int line)
@@ -385,7 +398,7 @@ class CodeGen
         }
         if (auto p = name in globals)
             return *p;
-        throw err(file, line, "undefined variable '" ~ name ~ "'");
+        throw err(file, line, "undefined variable \"" ~ name ~ "\"");
     }
 
     int allocStack(int bytes)
@@ -400,9 +413,9 @@ class CodeGen
     Var declareLocal(string name, CType ty, int arrLen, string file, int line)
     {
         if (name in scopes[$ - 1])
-            throw err(file, line, "redeclaration of '" ~ name ~ "'");
+            throw err(file, line, "redeclaration of \"" ~ name ~ "\"");
         if (ty.base == Base.Void && ty.ptr == 0)
-            throw err(file, line, "variable '" ~ name ~ "' cannot have type void");
+            throw err(file, line, "variable \"" ~ name ~ "\" cannot have type \"void\"");
 
         auto v = new Var();
         v.name = name;
@@ -445,9 +458,9 @@ class CodeGen
         return label;
     }
 
-    // ------------------------------------------------------------------
-    // Types of expressions
-    // ------------------------------------------------------------------
+    /*
+     * Types of expressions
+     */
 
     CType typeOf(Expr e)
     {
@@ -521,7 +534,7 @@ class CodeGen
                     return CType(Base.Int, 0);
                 if (auto p = e.name in funcs)
                     return p.ret;
-                throw err(e.file, e.line, "call to undefined function '" ~ e.name ~ "'");
+                throw err(e.file, e.line, "call to undefined function \"" ~ e.name ~ "\"");
             }
 
             case EK.Index:
@@ -549,23 +562,23 @@ class CodeGen
         }
     }
 
-    // ------------------------------------------------------------------
-    // Expressions
-    // ------------------------------------------------------------------
+    /*
+     * Expressions
+     */
 
-    // Resolve the field named by a Member expression.
+    /// Resolves the field named by a Member expression.
     Field memberField(Expr e)
     {
         CType bt = typeOf(e.a);
         if (e.arrow)
         {
             if (!(bt.ptr == 1 && bt.base == Base.Struct))
-                throw err(e.file, e.line, "'->' needs a pointer to a struct");
+                throw err(e.file, e.line, "\"->\" needs a pointer to a struct");
         }
         else
         {
             if (!isStructVal(bt))
-                throw err(e.file, e.line, "'.' needs a struct value (use '->' on pointers)");
+                throw err(e.file, e.line, "\".\" needs a struct value (use \"->\" on pointers)");
         }
         StructDef sd = structDefs[bt.sname];
         foreach (f; sd.fields)
@@ -573,11 +586,13 @@ class CodeGen
             if (f.name == e.name)
                 return f;
         }
-        throw err(e.file, e.line, format("struct %s has no member '%s'", bt.sname, e.name));
+        throw err(e.file, e.line, format("struct \"%s\" has no member \"%s\"", bt.sname, e.name));
     }
 
-    // `want` is a hint: the result may be placed in that register. Callers must
-    // check Val.r.
+    /**
+     * `want` is a hint: the result may be placed in that register.
+     * Callers must check Val.r.
+     */
     Val genExpr(Expr e, int want = -1)
     {
         curFile = e.file;
@@ -659,7 +674,9 @@ class CodeGen
         return loadLV(lv, want, false);
     }
 
-    // ---- lvalues ----
+    /*
+     * lvalues
+     */
 
     LValue genLValue(Expr e)
     {
@@ -671,7 +688,7 @@ class CodeGen
             {
                 Var v = lookup(e.name, e.file, e.line);
                 if (v.isArray)
-                    throw err(e.file, e.line, "cannot assign to array '" ~ v.name ~ "'");
+                    throw err(e.file, e.line, "cannot assign to array \"" ~ v.name ~ "\"");
                 if (v.st == Storage.InReg)
                     return LValue(LK.RegVar, v.reg, 0, v.ty, false);
                 if (v.st == Storage.InStack)
@@ -752,8 +769,10 @@ class CodeGen
         }
     }
 
-    // Load the value of an lvalue. With keepAddr the address temporary (if any)
-    // stays allocated and a fresh temporary receives the value.
+    /**
+     * Load the value of an lvalue. With keepAddr the address temporary (if any)
+     * stays allocated and a fresh temporary receives the value.
+     */
     Val loadLV(LValue lv, int want, bool keepAddr)
     {
         if (isStructVal(lv.ty))
@@ -782,9 +801,11 @@ class CodeGen
         }
     }
 
-    // After a store to a memory lvalue: free temporaries and produce the
-    // expression's value (v is on top of the temporary stack, the lvalue's
-    // address temporary, if any, is just below it).
+    /**
+     * After a store to a memory lvalue: free temporaries and produce the
+     * expression's value (v is on top of the temporary stack, the lvalue's
+     * address temporary, if any, is just below it).
+     */
     Val finishStore(LValue lv, Val v, bool discard)
     {
         if (discard)
@@ -808,7 +829,7 @@ class CodeGen
         return v;
     }
 
-    // v << log2(size), reusing v's temporary when possible.
+    /// v << log2(size), reusing v's temporary when possible.
     Val scaleVal(Val v, int size)
     {
         if (size <= 1)
@@ -822,14 +843,16 @@ class CodeGen
         // Non power of two (e.g. a 12-byte struct): multiply by a constant.
         Reg k = allocTemp();
         li(k, size);
-        td--;                           // k is free again, but its register stays intact
+        td--; // k is free again, but its register stays intact
         Val dm = dest1(-1, v);
         emit(Op.MULT, makeReg(v.r), makeReg(k), makeNone());
         emit(Op.MFLO, makeReg(dm.r), makeNone(), makeNone());
         return dm;
     }
 
-    // ---- assignment, ++/-- ----
+    /*
+     * Assignment, ++/--
+     */
 
     Val genAssign(Expr e, int want, bool discard)
     {
@@ -925,7 +948,7 @@ class CodeGen
         return finishStore(lv, curv, false);
     }
 
-    // dst = <struct lvalue expression>: unrolled word / halfword / byte copy.
+    /// dst = <struct lvalue expression>: unrolled word / halfword / byte copy.
     void genStructCopy(LValue dst, Expr srcExpr, string file, int line)
     {
         CType st = typeOf(srcExpr);
@@ -948,15 +971,17 @@ class CodeGen
             emitLoad(ct, t, src.off + i * chunk, src.reg);
             emitStore(ct, t, dst.off + i * chunk, dst.reg);
         }
-        td--;                       // t
+        td--; // t
         if (src.tempAddr)
             td--;
         if (dst.tempAddr)
             td--;
     }
 
-    // ---- unary / cast / address-of ----
-
+    /*
+     * Unary / cast / address-of
+     */
+    
     Val genUnary(Expr e, int want)
     {
         if (e.op == "*")
@@ -1033,7 +1058,9 @@ class CodeGen
         return v;
     }
 
-    // ---- binary operators ----
+    /*
+     * Binary operators
+     */
 
     Val genBinary(Expr e, int want)
     {
@@ -1083,8 +1110,10 @@ class CodeGen
         return res;
     }
 
-    // Evaluate `l op rhs` where l is already evaluated. rscale scales the
-    // right operand (pointer arithmetic).
+    /**
+     * Evaluate `l op rhs` where l is already evaluated.
+     * rscale scales the right operand (pointer arithmetic).
+     */
     Val binopRhs(string op, Val l, Expr rhs, long rscale, int want, bool uns)
     {
         long c;
@@ -1199,7 +1228,7 @@ class CodeGen
         return d;
     }
 
-    // && / || used as a value: materialize 0 or 1.
+    /// && / || used as a value: materialize 0 or 1.
     Val genLogicalValue(Expr e, int want)
     {
         string lFalse = newLabel();
@@ -1214,10 +1243,14 @@ class CodeGen
         return d;
     }
 
-    // ---- conditions ----
+    /*
+     * Conditions
+     */
 
-    // Jump to `target` if e is true (jumpIfTrue) or false (!jumpIfTrue);
-    // otherwise fall through.
+    /**
+     * Jump to `target` if e is true (jumpIfTrue) or false (!jumpIfTrue);
+     * otherwise fall through.
+     */
     void genBranch(Expr e, string target, bool jumpIfTrue)
     {
         curFile = e.file;
@@ -1285,7 +1318,7 @@ class CodeGen
         release(v);
     }
 
-    // Jump to target if `a op b` holds.
+    /// Jump to target if `a op b` holds.
     void genCmpBranch(string op, Expr a, Expr b, string target, bool uns)
     {
         long c;
@@ -1350,7 +1383,9 @@ class CodeGen
         release(t);
     }
 
-    // ---- calls ----
+    /*
+     * Calls
+     */
 
     Val genCall(Expr e, int want, bool discard)
     {
@@ -1369,11 +1404,11 @@ class CodeGen
         {
             auto pf = name in funcs;
             if (pf is null)
-                throw err(e.file, e.line, "call to undefined function '" ~ name ~ "'");
+                throw err(e.file, e.line, "call to undefined function \"" ~ name ~ "\"");
             if (!pf.defined)
-                throw err(e.file, e.line, "function '" ~ name ~ "' is declared but never defined");
+                throw err(e.file, e.line, "function \"" ~ name ~ "\" is declared but never defined");
             if (args.length != pf.params.length)
-                throw err(e.file, e.line, format("'%s' expects %s argument(s) but %s given",
+                throw err(e.file, e.line, format("\"%s\" expects %s argument(s) but %s given",
                                          name, pf.params.length, args.length));
         }
         if (args.length > 4)
@@ -1423,9 +1458,9 @@ class CodeGen
         return d;
     }
 
-    // ------------------------------------------------------------------
-    // Statements
-    // ------------------------------------------------------------------
+    /*
+     * Statements
+     */
 
     void genExprStmt(Expr e)
     {
@@ -1570,13 +1605,13 @@ class CodeGen
 
             case SK.Break:
                 if (breakStack.length == 0)
-                    throw err(s.file, s.line, "'break' outside of a loop");
+                    throw err(s.file, s.line, "\"break\" outside of a loop");
                 jump(breakStack[$ - 1]);
                 break;
 
             case SK.Continue:
                 if (contStack.length == 0)
-                    throw err(s.file, s.line, "'continue' outside of a loop");
+                    throw err(s.file, s.line, "\"continue\" outside of a loop");
                 jump(contStack[$ - 1]);
                 break;
 
@@ -1602,11 +1637,11 @@ class CodeGen
         }
     }
 
-    // ------------------------------------------------------------------
-    // Functions and program
-    // ------------------------------------------------------------------
+    /*
+     * Functions and program
+     */
 
-    // Find variables whose address is taken (they must live in memory).
+    /// Finds variables whose address is taken (they must live in memory).
     void scanExpr(Expr e)
     {
         if (e is null)
@@ -1846,7 +1881,7 @@ class CodeGen
         flush();
     }
 
-    // Append the current buffer to the program and register its labels.
+    /// Append the current buffer to the program and register its labels.
     void flush()
     {
         foreach (l; curLbls)
@@ -1856,7 +1891,7 @@ class CodeGen
         curLbls = null;
     }
 
-    // Entry stub: set up $sp, call main, spin forever if it returns.
+    /// Entry stub: set up $sp, call main, spin forever if it returns.
     void genStartup()
     {
         cur = null;
@@ -1875,9 +1910,9 @@ class CodeGen
     void declareGlobal(GlobalDecl g)
     {
         if (g.name in globals)
-            throw err(g.file, g.line, "redefinition of global '" ~ g.name ~ "'");
+            throw err(g.file, g.line, "redefinition of global \"" ~ g.name ~ "\"");
         if (g.ty.ptr == 0 && g.ty.base == Base.Void)
-            throw err(g.file, g.line, "variable '" ~ g.name ~ "' cannot have type void");
+            throw err(g.file, g.line, "variable \"" ~ g.name ~ "\" cannot have type \"void\"");
 
         if (isStructVal(g.ty) && g.hasInit)
             throw err(g.file, g.line, "struct initializers are not supported");
@@ -1965,7 +2000,7 @@ class CodeGen
         if (auto q = f.name in funcs)
             alreadyDefined = q.defined;
         if (alreadyDefined && f.body_ !is null)
-            throw err(f.file, f.line, "redefinition of function '" ~ f.name ~ "'");
+            throw err(f.file, f.line, "redefinition of function \"" ~ f.name ~ "\"");
 
         FuncInfo fi;
         fi.ret = f.ret;
