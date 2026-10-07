@@ -90,13 +90,14 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
     foreach(i, line; code.splitLines)
     {
         line = line.strip;
+        uint lineNum = cast(uint)(i + 1);
         if (line.empty || line.startsWith(";")) continue;
 
         if (line.endsWith(":"))
         {
             auto label = labelPrefix ~ line[0..$-1].strip;
             if (currentSection != dataSection)
-                throw err(filename, cast(uint)i, "illegal label \"" ~ label ~ "\" in section \"" ~ currentSection ~ "\"");
+                throw err(filename, lineNum, "illegal label \"" ~ label ~ "\" in section \"" ~ currentSection ~ "\"");
             dataLabels[label] = instrIndex;
             currentDataLabel = label;
             continue;
@@ -115,12 +116,12 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
             if (currentDataLabel.length)
                 dataEntries ~= AsmDataEntry(currentDataLabel, parseEscapes(str));
             else
-                throw err(filename, cast(uint)i, "unlabeled ASCII data: \"" ~ str ~ "\"");
+                throw err(filename, lineNum, "unlabeled ASCII data: \"" ~ str ~ "\"");
             continue;
         }
         
         if (currentSection != textSection)
-            throw err(filename, cast(uint)i, "program code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
+            throw err(filename, lineNum, "program code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
 
         string[] parts = line.splitter(regex(r"[\s,()]+")).filter!(s => !s.empty).array;
 
@@ -326,7 +327,7 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         // TODO: other GTE instruction opcodes
         
         else
-            throw err(filename, cast(uint)i, "unknown instruction \"" ~ op ~ "\"");
+            throw err(filename, lineNum, "unknown instruction \"" ~ op ~ "\"");
         
         instrIndex++;
     }

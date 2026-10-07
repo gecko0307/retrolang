@@ -125,7 +125,15 @@ int main(string[] args)
     else if (ext == ".s")
     {
         printInfo("Assembling \"%s\"...", filename);
-        ass = assemble(sourceCode, filename, "", 0);
+        try
+        {
+            ass = assemble(sourceCode, filename, "", 0);
+        }
+        catch (Exception e)
+        {
+            printError(e);
+            return 1;
+        }
     }
     else
     {
