@@ -131,7 +131,7 @@ Usage (assuming you've copied the [include](/examples/include) folder to your pr
 - [text](/examples/text) - bitmap font loading and text rendering (queued rendering via command buffer)
 - [mesh](/examples/mesh) - walkable 3D scene with a first person camera.
 
-To build an example, run `build.bat`.
+To build an example, run `build.bat` under Windows, or `build.sh` under Linux.
 
 RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository.
 
