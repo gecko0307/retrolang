@@ -1,5 +1,5 @@
 # Entry point passed to rlc
-source = "src/main.r"
+source = "src/main.s"
 
 # Compiler output, also the file mkpsxiso packs (must match iso.xml)
 executable = "iso/PSX.EXE"

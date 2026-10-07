@@ -122,7 +122,7 @@ pre_compile = [
 
 `cwd` is relative to the manifest directory and defaults to it. A program path containing a directory separator is resolved relative to the hook's `cwd` on all platforms; bare names use the normal PATH lookup. Within one hook list, use either all arrays or all tables (TOML 0.5 forbids mixed-type arrays).
 
-## Tool discovery
+## Tool discovery (not implemented yet)
 
 For each external tool (`rlc`, `mkpsxiso`), Retrobuild resolves the executable in this order and uses the first match:
 
@@ -150,7 +150,7 @@ Behavior:
 - The existing `cue2cu2.py` is the reference implementation for the output format. Retrobuild's output should be byte-identical to it for the same input; this is the acceptance test.
 - Implemented as an independent module with no dependency on the rest of the tool, so it can be reused or tested alone.
 
-## Scaffolding (`init`)
+## Scaffolding (not implemented yet)
 
 `retrobuild init <name>` creates:
 
@@ -161,6 +161,6 @@ Behavior:
 
 It refuses to write into a non-empty directory unless `--force` is given.
 
-## Clean
+## Clean (not implemented yet)
 
 `retrobuild clean` removes `executable`, the BIN referenced by the CUE sheet, the CUE file, and the CU2 file. It deletes only files it knows it produces and never recurses into directories.
