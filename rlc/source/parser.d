@@ -40,7 +40,7 @@ long wrap32(long v)
     return cast(int) v;
 }
 
-// Is a constant expression unsigned (C rules, 32-bit)?
+/// Is a constant expression unsigned (C rules, 32-bit)?
 bool constUns(Expr e)
 {
     if (e.kind == EK.Num)
@@ -124,10 +124,6 @@ bool constEval(Expr e, out long v)
 
     return false;
 }
-
-// ---------------------------------------------------------------------------
-// Parser
-// ---------------------------------------------------------------------------
 
 immutable string[][] binLevels = [
     ["||"], ["&&"], ["|"], ["^"], ["&"],
@@ -261,8 +257,10 @@ class Parser
         return ty;
     }
 
-    // A struct may only be used by value once it is fully defined
-    // (pointers to incomplete structs are fine).
+    /**
+     * A struct may only be used by value once it is fully defined
+     * (pointers to incomplete structs are fine).
+     */
     void checkComplete(CType ty, string file, int line)
     {
         if (isStructVal(ty) && !structDefs[ty.sname].complete)
@@ -279,8 +277,6 @@ class Parser
             throw err(file, line, "constant expression expected");
         return v;
     }
-
-    // ---- Declarations ----
 
     Program parseProgram()
     {
@@ -457,9 +453,11 @@ class Parser
         expectSym(";");
     }
 
-    // struct Name { fields }; (top level only).
-    // Layout follows C: each field is aligned to its own alignment,
-    // the struct size is rounded up to its alignment.
+    /**
+     * struct Name { fields }; (top level only).
+     * Layout follows C: each field is aligned to its own alignment,
+     * the struct size is rounded up to its alignment.
+     */
     void parseStructDef()
     {
         next(); // 'struct'
@@ -571,8 +569,6 @@ class Parser
         expectSym(";");
         return blk;
     }
-
-    // ---- Statements ----
 
     Stmt parseBlock()
     {
@@ -702,8 +698,6 @@ class Parser
         expectSym(";");
         return es;
     }
-
-    // ---- Expressions ----
 
     Expr parseExpr()
     {

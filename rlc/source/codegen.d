@@ -189,8 +189,8 @@ class CodeGen
     Lbl[] curLbls;
     Var[string][] scopes;
     int[] savedS;
-    int td;                     // number of temporaries in use
-    int nextS, maxS;            // $s register allocation
+    int td; // number of temporaries in use
+    int nextS, maxS; // $s register allocation
     int localsTop;
     bool hasCall;
     CType curRet;

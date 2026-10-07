@@ -29,8 +29,23 @@ module ast;
 
 import types;
 
-enum EK { Num, Str, Var, Unary, Binary, Assign, IncDec, Call, Index, Cast, Member }
+/// Expression kind.
+enum EK
+{
+    Num,
+    Str,
+    Var,
+    Unary,
+    Binary,
+    Assign,
+    IncDec,
+    Call,
+    Index,
+    Cast,
+    Member
+}
 
+/// Expression node.
 class Expr
 {
     EK kind;
@@ -61,8 +76,23 @@ Expr numExpr(long v, string file, int line)
     return e;
 }
 
-enum SK { Block, Decl, ExprS, If, While, DoWhile, For, Return, Break, Continue, Empty }
+/// Statement kind.
+enum SK
+{
+    Block,
+    Decl,
+    ExprS,
+    If,
+    While,
+    DoWhile,
+    For,
+    Return,
+    Break,
+    Continue,
+    Empty
+}
 
+/// Statement node.
 class Stmt
 {
     SK kind;
@@ -87,12 +117,14 @@ class Stmt
     }
 }
 
+/// Function parameter.
 struct Param
 {
     CType ty;
     string name;
 }
 
+/// Function.
 class Func
 {
     CType ret;
@@ -105,6 +137,7 @@ class Func
     string attrFilename;
 }
 
+/// Global declaration.
 class GlobalDecl
 {
     CType ty; // element type for arrays
@@ -120,6 +153,7 @@ class GlobalDecl
     string attrFilename;
 }
 
+/// Program context.
 class Program
 {
     Func[] funcs;

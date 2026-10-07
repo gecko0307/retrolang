@@ -38,8 +38,10 @@ import std.array: appender;
 private bool isIdentStart(char c) { return c == '_' || isAlpha(c); }
 private bool isIdentChar(char c)  { return c == '_' || isAlphaNum(c); }
 
-// Expands macros in one line, skipping strings, char literals and // comments.
-// `active` holds the macros currently being expanded, to stop infinite recursion.
+/**
+ * Expands macros in one line, skipping strings, char literals and comments.
+ * `active` holds the macros currently being expanded, to stop infinite recursion.
+ */
 private string expandMacros(string line, string[string] macros, ref bool[string] active)
 {
     auto res = appender!string;
@@ -49,25 +51,25 @@ private string expandMacros(string line, string[string] macros, ref bool[string]
     {
         char c = line[i];
 
-        if (c == '"' || c == '\'')                    // string / char literal
+        if (c == '"' || c == '\'') // string / char literal
         {
             size_t start = i++;
             while (i < line.length && line[i] != c)
             {
                 if (line[i] == '\\' && i + 1 < line.length)
-                    i++;                              // skip escaped char
+                    i++; // skip escaped char
                 i++;
             }
             if (i < line.length)
-                i++;                                  // closing quote
-            res ~= line[start .. i];
+                i++; // closing quote
+            res ~= line[start..i];
         }
         else if (c == '/' && i + 1 < line.length && line[i + 1] == '/')
         {
-            res ~= line[i .. $];                      // rest is a comment
+            res ~= line[i..$]; // rest is a comment
             break;
         }
-        else if (isIdentStart(c))                     // whole identifier
+        else if (isIdentStart(c)) // whole identifier
         {
             size_t start = i;
             while (i < line.length && isIdentChar(line[i]))
@@ -78,13 +80,13 @@ private string expandMacros(string line, string[string] macros, ref bool[string]
             if (value !is null && word !in active)
             {
                 active[word] = true;
-                res ~= expandMacros(*value, macros, active);  // nested macros
+                res ~= expandMacros(*value, macros, active); // nested macros
                 active.remove(word);
             }
             else
                 res ~= word;
         }
-        else if (isDigit(c))                          // number: 123, 0xFF, 1e5, 10u
+        else if (isDigit(c)) // number: 123, 0xFF, 1e5, 10u
         {
             size_t start = i;
             while (i < line.length && isIdentChar(line[i]))
@@ -117,25 +119,24 @@ private string preprocessImpl(string src, string currentFilePath, ref string[str
 
         if (trimmed.indexOf("#define") == 0)
         {
-            auto rest = trimmed["#define".length .. $].strip();
+            auto rest = trimmed["#define".length..$].strip();
             size_t n = 0;
             while (n < rest.length && isIdentChar(rest[n]))
                 n++;
             if (n > 0)
-                macros[rest[0 .. n]] = rest[n .. $].strip();   // value may be empty or multi-word
+                macros[rest[0..n]] = rest[n..$].strip(); // value may be empty or multi-word
             continue;
         }
 
         if (trimmed.indexOf("#undef") == 0)
         {
-            macros.remove(trimmed["#undef".length .. $].strip());
+            macros.remove(trimmed["#undef".length..$].strip());
             continue;
         }
 
         if (trimmed.indexOf("#include") == 0)
         {
-            // ... unchanged; the included text is already expanded,
-            // so don't expand it again ...
+            // the included text is already expanded, so don't expand it again
             continue;
         }
 
@@ -143,5 +144,5 @@ private string preprocessImpl(string src, string currentFilePath, ref string[str
         cleanLines ~= expandMacros(line, macros, active);
     }
 
-    return cleanLines.join("\n");   // no global replace loop at the end
+    return cleanLines.join("\n"); // no global replace loop at the end
 }

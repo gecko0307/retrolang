@@ -33,8 +33,8 @@ struct CType
 {
     Base base = Base.Int;
     int ptr = 0;
-    bool uns = false;   // unsigned (describes the base type; for pointers: the pointee)
-    string sname;       // Base.Struct: struct tag name
+    bool uns = false; // Unsigned (describes the base type; for pointers: the pointee)
+    string sname; // Base.Struct: struct tag name
 
     bool isPtr() const { return ptr > 0; }
 
@@ -44,10 +44,14 @@ struct CType
             return 4;
         switch (base)
         {
-            case Base.Short:  return 2;
-            case Base.Int:    return 4;
-            case Base.Struct: return structDefs[sname].size;
-            default:          return 1; // char, void (for void* arithmetic)
+            case Base.Short:
+                return 2;
+            case Base.Int:
+                return 4;
+            case Base.Struct:
+                return structDefs[sname].size;
+            default:
+                return 1; // char, void (for void* arithmetic)
         }
     }
 
@@ -71,12 +75,10 @@ int elemSize(CType t)
     return t.deref().size();
 }
 
-// ---- struct definitions (filled in by the parser, layout is computed on definition) ----
-
 struct Field
 {
     string name;
-    CType ty;           // element type for array fields
+    CType ty; // element type for array fields
     int offset;
     bool isArray;
     int arrLen;
@@ -88,7 +90,7 @@ class StructDef
     Field[] fields;
     int size;
     int align_ = 1;
-    bool complete;      // false while being defined / when only forward-referenced
+    bool complete; // false while being defined / when only forward-referenced
 }
 
 StructDef[string] structDefs;
@@ -107,19 +109,19 @@ int alignOf(CType t)
     return t.size();
 }
 
-// 32-bit unsigned integer (the only integer type that is unsigned after promotion)
+/// 32-bit unsigned integer (the only integer type that is unsigned after promotion).
 bool isUint(CType t)
 {
     return t.ptr == 0 && t.base == Base.Int && t.uns;
 }
 
-// Values compared as unsigned: uint and pointers
+/// Values compared as unsigned: uint and pointers.
 bool isUnsCmp(CType t)
 {
     return t.ptr > 0 || isUint(t);
 }
 
-// Is operator `op` applied to operands of these types an unsigned operation?
+/// Is operator `op` applied to operands of these types an unsigned operation?
 bool opUnsigned(string op, CType lt, CType rt)
 {
     switch (op)
