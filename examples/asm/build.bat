@@ -1,3 +1,6 @@
+@echo off
+setlocal enabledelayedexpansion
+
 :: ==========================================
 :: RETROLANG BUILD SCRIPT
 :: Compiles RetroLang source code into a PlayStation 1 executable (PSX.EXE),
@@ -5,11 +8,8 @@
 :: and generates a binary sector index table (CU2) for PSIO hardware.
 :: ==========================================
 
-@echo off
-setlocal enabledelayedexpansion
-
 :: ==========================================
-:: CONFIGURATION
+:: CONFIGURATION (Set paths and filenames here)
 :: ==========================================
 set "RLC_LOCAL=../../rlc/rlc.exe"
 set "MKPSXISO_LOCAL=../../mkpsxiso/mkpsxiso.exe"
@@ -55,17 +55,16 @@ if %ERRORLEVEL% neq 0 (
 set "MKPSXISO_CMD="
 where mkpsxiso >nul 2>nul
 if %ERRORLEVEL% equ 0 (
-    echo [INFO] Using mkpsxiso from PATH
     set "MKPSXISO_CMD=mkpsxiso"
 ) else (
     if exist "%MKPSXISO_LOCAL%" (
-        echo [INFO] Using %MKPSXISO_LOCAL%
         set "MKPSXISO_CMD=%MKPSXISO_LOCAL%"
     )
 )
+
 if not defined MKPSXISO_CMD (
-    echo [ERROR] mkpsxiso.exe not found in PATH or in %MKPSXISO_LOCAL%
-    exit /b 1
+    echo [WARNING] mkpsxiso not found, omitting CD-ROM image generation
+    exit /b 0
 )
 
 :: ==========================================

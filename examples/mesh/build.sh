@@ -8,7 +8,7 @@
 # ==========================================
 
 # ==========================================
-# CONFIGURATION
+# CONFIGURATION (Set paths and filenames here)
 # ==========================================
 RLC_LOCAL="../../rlc/rlc"
 MKPSXISO_LOCAL="../../mkpsxiso/mkpsxiso"
@@ -53,16 +53,14 @@ fi
 MKPSXISO_CMD=""
 
 if command -v mkpsxiso >/dev/null 2>&1; then
-    echo "[INFO] Using mkpsxiso from PATH"
     MKPSXISO_CMD="mkpsxiso"
 elif [ -f "$MKPSXISO_LOCAL" ]; then
-    echo "[INFO] Using $MKPSXISO_LOCAL"
     MKPSXISO_CMD="$MKPSXISO_LOCAL"
 fi
 
 if [ -z "$MKPSXISO_CMD" ]; then
-    echo "[ERROR] mkpsxiso not found in PATH or in $MKPSXISO_LOCAL"
-    exit 1
+    echo "[WARNING] mkpsxiso not found, omitting CD-ROM image generation"
+    exit 0
 fi
 
 # ==========================================
@@ -78,8 +76,6 @@ fi
 # ==========================================
 # 5. CHECK PYTHON AVAILABILITY
 # ==========================================
-# В современных дистрибутивах Linux команда 'python' часто отсутствует, 
-# уступая место явному указанию 'python3'. Проверяем оба варианта.
 PYTHON_CMD=""
 if command -v python3 >/dev/null 2>&1; then
     PYTHON_CMD="python3"
