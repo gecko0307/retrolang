@@ -41,6 +41,10 @@ RLC translates your program verbatim, without optimizations and unexpected chang
 
 Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files. Based on [LNK disassembler](https://github.com/gecko0307/psxlib/tree/main/tools/psxdisasm) from PSXLib.
 
+## Rerobuild
+
+Build automation system. Compiles a Retrolang project into a PlayStation 1 executable, packs it into a CD-ROM image (CUE+BIN), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe a project.
+
 ## The Language
 
 Retrolang is a very basic curly-bracket procedural language inspired by C, but designed to run in extremely memory-constrained environments.
@@ -152,7 +156,7 @@ Provided examples rely the following third-party tools:
 For running examples on the PC, we recommend [DuckStation](https://www.duckstation.org/), a fast and feature-rich PlayStation emulator for Windows, Linux and Mac. To run an image (or directly `PSX.EXE` if you don't build an image), use the following command:
 
 ```
-duckstation -fastboot -- %~dp0/build/game.bin
+duckstation -fastboot -- %~dp0/game.bin
 ```
 
 or
