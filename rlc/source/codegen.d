@@ -1786,6 +1786,7 @@ class CodeGen
         }
     }
 
+    /// Coprocessor intrinsics.
     void genIntrinsic(Expr e)
     {
         string name = e.name;
@@ -1799,11 +1800,11 @@ class CodeGen
             {
                 Reg t0 = allocTemp();
                 Reg t1 = allocTemp();
-                emit(Op.MFC0, makeReg(t0), makeRegCop0(12), makeNone);
+                emit(Op.MFC0, makeReg(t0), makeRegCop0(SR), makeNone);
                 nop();
                 emit(Op.LUI,  makeReg(t1), makeImm(0x4000), makeNone);
                 emit(Op.OR,   makeReg(t0), makeReg(t0),     makeReg(t1));
-                emit(Op.MTC0, makeReg(t0), makeRegCop0(12), makeNone);
+                emit(Op.MTC0, makeReg(t0), makeRegCop0(SR), makeNone);
                 nop();
                 nop();
                 release(Val(t1, true));
@@ -1817,7 +1818,6 @@ class CodeGen
                 Val v = genExpr(e.args[0]);
                 Reg t0 = allocTemp();
                 Reg t1 = allocTemp();
-
                 mem(Op.LW, t0, 0, v.r);
                 mem(Op.LW, t1, 4, v.r);
                 gte_ctc2(t0, 0);
@@ -1828,7 +1828,6 @@ class CodeGen
                 mem(Op.LH, t0, 16, v.r);
                 gte_ctc2(t1, 3);
                 gte_ctc2(t0, 4);
-
                 td -= 2;
                 release(v);
                 break;
