@@ -43,7 +43,7 @@ Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE fi
 
 ## Retrobuild
 
-Build automation system. Compiles a Retrolang project into a PlayStation 1 executable, packs it into a CD-ROM image (CUE+BIN), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe a project.
+Build automation system. With Retrobuild, you don't have to call the compiler directly or write platform-specific scripts. It compiles a project, packs it into a CD-ROM image (CUE+BIN) using [mkpsxiso](https://github.com/lameguy64/mkpsxiso), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe projects.
 
 ## The Language
 
