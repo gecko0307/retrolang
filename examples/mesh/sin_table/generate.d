@@ -1,3 +1,8 @@
+/*
+ * 16-bit sine table generator.
+ * Run with rdmd: `rdmd generate.d`
+ */
+
 import std.math: sin, PI, round;
 import std.file: write;
 

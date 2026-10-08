@@ -252,12 +252,14 @@ char* sin4096 @("sin_table/sin4096.bin");
 #define PI  0x800
 #define PI2 0x1000
 
+// Fast fixed-point sine
 short sin(uint angle)
 {
     short* sinTable = (short*)sin4096;
     return sinTable[angle & 0xfff];
 }
 
+// Fast fixed-point cosine
 short cos(uint angle)
 {
     short* sinTable = (short*)sin4096;
