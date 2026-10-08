@@ -2,9 +2,9 @@
 
 Basic commands:
 
-- `gte_ctc2(ubyte rd, T expr)` - evaluates an expression, copying value to the control register
+- `gte_ctc2(ubyte rd, T expr)` - evaluates an expression, copying the value to the GTE control register
 - `gte_cfc2(ubyte rd, T expr)` - 
-- `gte_mtc2(ubyte rd, T expr)` - evaluates an expression, copying value to the data register
+- `gte_mtc2(ubyte rd, T expr)` - evaluates an expression, copying the value to the GTE data register
 - `gte_mfc2(ubyte rd, T expr)` -
 - `gte_swc2(ubyte rd, T* ref)` -
 - `gte_lwc2(ubyte rd, T* ref)` -
