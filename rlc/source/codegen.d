@@ -1742,6 +1742,7 @@ class CodeGen
         td = 0;
     }
     
+    // TODO: COP0 intrinsics
     string[] intrinsics = [
         "nop",
         "gte_enable",
@@ -1790,17 +1791,19 @@ class CodeGen
         string name = e.name;
         switch(name)
         {
-            case "nop":       nop(); break;
+            case "nop":
+                nop();
+                break;
             
             case "gte_enable":
             {
                 Reg t0 = allocTemp();
                 Reg t1 = allocTemp();
-                emit(Op.MFC0, makeReg(t0), makeRegCop0(12), makeNone);    // t0 = Status
+                emit(Op.MFC0, makeReg(t0), makeRegCop0(12), makeNone);
                 nop();
-                emit(Op.LUI,  makeReg(t1), makeImm(0x4000), makeNone);    // t1 = 1 << 30
+                emit(Op.LUI,  makeReg(t1), makeImm(0x4000), makeNone);
                 emit(Op.OR,   makeReg(t0), makeReg(t0),     makeReg(t1));
-                emit(Op.MTC0, makeReg(t0), makeRegCop0(12), makeNone);    // Status = t0
+                emit(Op.MTC0, makeReg(t0), makeRegCop0(12), makeNone);
                 nop();
                 nop();
                 release(Val(t1, true));
@@ -1810,29 +1813,23 @@ class CodeGen
             
             case "gte_set_matrix":
             {
-                checkArgs(e, 1);                 // short* m: 9 shorts, row-major, 4-byte aligned
+                checkArgs(e, 1);
                 Val v = genExpr(e.args[0]);
                 Reg t0 = allocTemp();
                 Reg t1 = allocTemp();
 
-                // control registers: 0 = R11R12, 1 = R13R21, 2 = R22R23, 3 = R31R32, 4 = R33
-                //lw(t0,  0, v.r);
-                //lw(t1,  4, v.r);
                 mem(Op.LW, t0, 0, v.r);
                 mem(Op.LW, t1, 4, v.r);
                 gte_ctc2(t0, 0);
-                //lw(t0,  8, v.r);
                 mem(Op.LW, t0, 8, v.r);
                 gte_ctc2(t1, 1);
-                //lw(t1, 12, v.r);
                 mem(Op.LW, t1, 12, v.r);
                 gte_ctc2(t0, 2);
-                //lh(t0, 16, v.r);                 // R33 alone, sign-extended
                 mem(Op.LH, t0, 16, v.r);
                 gte_ctc2(t1, 3);
                 gte_ctc2(t0, 4);
 
-                td -= 2;                         // release t1, t0 (same discipline as your other intrinsics)
+                td -= 2;
                 release(v);
                 break;
             }
