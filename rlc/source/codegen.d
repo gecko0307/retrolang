@@ -768,6 +768,30 @@ class CodeGen
             {
                 if (e.op != "*")
                     throw err(e.file, e.line, "expression is not assignable");
+                
+                // *(T*)&x  and  *&x: reinterpret the location, no address computation
+                {
+                    Expr inner = e.a;
+                    CType castTy;
+                    bool hasCast = false;
+                    if (inner.kind == EK.Cast && inner.ty.isPtr)
+                    {
+                        castTy = inner.ty;
+                        hasCast = true;
+                        inner = inner.a;
+                    }
+                    if (inner.kind == EK.Unary && inner.op == "&" && inner.a.kind != EK.Var)
+                    {
+                        LValue lv = genLValue(inner.a);
+                        if (lv.kind != LK.Mem)
+                            throw err(e.file, e.line, "cannot take the address of this expression");
+                        CType t = hasCast ? castTy.deref() : lv.ty;
+                        if (t.ptr == 0 && t.base == Base.Void)
+                            throw err(e.file, e.line, "cannot dereference void*");
+                        return LValue(LK.Mem, lv.reg, lv.off, t, lv.tempAddr);
+                    }
+                }
+                
                 CType pt = typeOf(e.a);
                 if (!pt.isPtr)
                     throw err(e.file, e.line, "cannot dereference a non-pointer");
@@ -778,6 +802,7 @@ class CodeGen
                 return LValue(LK.Mem, pv.r, 0, et, pv.isTemp);
             }
 
+            /*
             case EK.Index:
             {
                 CType bt = typeOf(e.a);
@@ -800,6 +825,54 @@ class CodeGen
                     }
                     Val bv = genExpr(e.a);
                     return LValue(LK.Mem, bv.r, off, et, bv.isTemp);
+                }
+
+                Val basev = genExpr(e.a);
+                Val idx = scaleVal(genExpr(e.b), esz);
+                Val sum = dest2(-1, basev, idx);
+                rrr(Op.ADDU, sum.r, basev.r, idx.r);
+                return LValue(LK.Mem, sum.r, 0, et, true);
+            }
+            */
+            
+            case EK.Index:
+            {
+                CType bt = typeOf(e.a);
+                if (!bt.isPtr)
+                    throw err(e.file, e.line, "subscripted value is neither array nor pointer");
+                CType et = bt.deref();
+                if (et.ptr == 0 && et.base == Base.Void)
+                    throw err(e.file, e.line, "cannot index void*");
+                int esz = et.size();
+
+                LValue base;
+                bool haveBase = arrayLValue(e.a, base);
+
+                // constant index
+                long ci;
+                if (constEval(e.b, ci) && fits16(ci * esz))
+                {
+                    long off = ci * esz;
+                    if (haveBase && fits16(base.off + off))
+                        return LValue(LK.Mem, base.reg, base.off + off, et, base.tempAddr);
+                    if (haveBase)        // offset too large: materialize the address
+                    {
+                        Val bv2 = dest1(-1, Val(base.reg, base.tempAddr));
+                        rri(Op.ADDIU, bv2.r, base.reg, base.off);   // may need li+addu for huge offsets
+                        return LValue(LK.Mem, bv2.r, off, et, bv2.isTemp);
+                    }
+                    Val bv = genExpr(e.a);
+                    return LValue(LK.Mem, bv.r, off, et, bv.isTemp);
+                }
+
+                // variable index: base + (idx << log2 esz), the array's own offset stays in the immediate
+                if (haveBase && fits16(base.off))
+                {
+                    Val basev = Val(base.reg, base.tempAddr);
+                    Val idx = scaleVal(genExpr(e.b), esz);
+                    Val sum = dest2(-1, basev, idx);
+                    rrr(Op.ADDU, sum.r, base.reg, idx.r);
+                    return LValue(LK.Mem, sum.r, base.off, et, true);
                 }
 
                 Val basev = genExpr(e.a);
@@ -833,6 +906,42 @@ class CodeGen
             default:
                 throw err(e.file, e.line, "expression is not assignable");
         }
+    }
+    
+    // If e names an array object in memory (local/global array, or an array-typed
+    // struct member), returns its location without materializing a pointer.
+    bool arrayLValue(Expr e, out LValue lv)
+    {
+        if (e.kind == EK.Var)
+        {
+            Var v = lookup(e.name, e.file, e.line);
+            if (!v.isArray)
+                return false;
+            if (v.st == Storage.InStack)
+            {
+                lv = LValue(LK.Mem, SP, v.offset, v.ty, false);
+                return true;
+            }
+            Reg a = allocTemp();
+            liLabel(a, v.label);
+            lv = LValue(LK.Mem, a, 0, v.ty, true);
+            return true;
+        }
+
+        // Struct member whose type is an array: ask your member code for the
+        // member's location (base reg + offset), exactly what it computes today
+        // before it decays the array to an address.
+        //if (isMember(e) && memberIsArray(e)) { lv = genMemberLocation(e); return true; }
+        if (e.kind == EK.Member && memberField(e).isArray)
+        {
+            LValue m = genLValue(e); // base reg + (struct offset + member offset)
+            if (m.kind != LK.Mem)
+                return false;
+            lv = m;
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -1636,6 +1745,7 @@ class CodeGen
     string[] intrinsics = [
         "nop",
         "gte_enable",
+        "gte_set_matrix",
         "gte_set_vertex", "gte_get_vertex",
         "gte_mtc2", "gte_ctc2",
         "gte_swc2", "gte_lwc2",
@@ -1694,6 +1804,35 @@ class CodeGen
                 nop();
                 release(Val(t1, true));
                 release(Val(t0, true));
+                break;
+            }
+            
+            case "gte_set_matrix":
+            {
+                checkArgs(e, 1);                 // short* m: 9 shorts, row-major, 4-byte aligned
+                Val v = genExpr(e.args[0]);
+                Reg t0 = allocTemp();
+                Reg t1 = allocTemp();
+
+                // control registers: 0 = R11R12, 1 = R13R21, 2 = R22R23, 3 = R31R32, 4 = R33
+                //lw(t0,  0, v.r);
+                //lw(t1,  4, v.r);
+                mem(Op.LW, t0, 0, v.r);
+                mem(Op.LW, t1, 4, v.r);
+                gte_ctc2(t0, 0);
+                //lw(t0,  8, v.r);
+                mem(Op.LW, t0, 8, v.r);
+                gte_ctc2(t1, 1);
+                //lw(t1, 12, v.r);
+                mem(Op.LW, t1, 12, v.r);
+                gte_ctc2(t0, 2);
+                //lh(t0, 16, v.r);                 // R33 alone, sign-extended
+                mem(Op.LH, t0, 16, v.r);
+                gte_ctc2(t1, 3);
+                gte_ctc2(t0, 4);
+
+                td -= 2;                         // release t1, t0 (same discipline as your other intrinsics)
+                release(v);
                 break;
             }
             

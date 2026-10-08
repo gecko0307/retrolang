@@ -157,11 +157,7 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     gte_ctc2(GTE_TRZ, tr->tz);
     
     // Upload rotation matrix to GTE
-    gte_ctc2(GTE_R11R12, *(int*)&tr->r[0]);
-    gte_ctc2(GTE_R13R21, *(int*)&tr->r[2]);
-    gte_ctc2(GTE_R22R23, *(int*)&tr->r[4]);
-    gte_ctc2(GTE_R31R32, *(int*)&tr->r[6]);
-    gte_ctc2(GTE_R33,    tr->r[8]);
+    gte_set_matrix(tr->r);
     
     // Upload projection params to GTE
     gte_ctc2(GTE_H,   tr->h);
