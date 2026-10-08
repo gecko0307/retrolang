@@ -174,7 +174,6 @@ What is not implemented yet in the language:
 
 In the library:
 
-- GTE
 - Matrix math
 - CD-ROM I/O
 - Heap allocator

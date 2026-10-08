@@ -27,6 +27,7 @@ DEALINGS IN THE SOFTWARE.
 */
 module codegen;
 
+import std.algorithm: canFind;
 import std.format: format;
 import std.file: read, readText, exists;
 import std.path;
@@ -328,6 +329,66 @@ class CodeGen
     {
         curLbls ~= Lbl(name, cur.length);
     }
+    
+    /*
+     * GTE Intrinsic Emission Helpers
+     */
+
+    void gte_mtc2(Reg cpuReg, Reg gteDataReg)
+    {
+        emit(Op.MTC2, makeReg(cpuReg), makeRegGteData(gteDataReg), makeNone());
+    }
+
+    void gte_mfc2(Reg cpuReg, Reg gteDataReg)
+    {
+        emit(Op.MFC2, makeReg(cpuReg), makeRegGteData(gteDataReg), makeNone());
+        nop();
+    }
+    
+    void gte_ctc2(Reg cpuReg, Reg gteCtrlReg)
+    {
+        emit(Op.CTC2, makeReg(cpuReg), makeRegGteControl(gteCtrlReg), makeNone());
+    }
+
+    void gte_cfc2(Reg cpuReg, Reg gteCtrlReg)
+    {
+        emit(Op.CFC2, makeReg(cpuReg), makeRegGteControl(gteCtrlReg), makeNone());
+        nop();
+    }
+
+    void gte_swc2(Reg gteDataReg, long off, Reg base)
+    {
+        emit(Op.SWC2, makeRegGteData(gteDataReg), makeImm(off), makeReg(base));
+    }
+    
+    void gte_lwc2(Reg gteDataReg, long off, Reg base)
+    {
+        emit(Op.LWC2, makeRegGteData(gteDataReg), makeImm(off), makeReg(base));
+        nop();
+    }
+
+    void gte_rtps()  { emit(Op.RTPS,  makeNone(), makeNone(), makeNone()); }
+    void gte_rtpt()  { emit(Op.RTPT,  makeNone(), makeNone(), makeNone()); }
+    void gte_mvmva() { emit(Op.MVMVA, makeNone(), makeNone(), makeNone()); }
+    void gte_dcpl()  { emit(Op.DCPL, makeNone(), makeNone(), makeNone()); }
+    void gte_dpcs()  { emit(Op.DPCS, makeNone(), makeNone(), makeNone()); }
+    void gte_dpct()  { emit(Op.DPCT, makeNone(), makeNone(), makeNone()); }
+    void gte_intpl() { emit(Op.INTPL, makeNone(), makeNone(), makeNone()); }
+    void gte_sqr()   { emit(Op.SQR, makeNone(), makeNone(), makeNone()); }
+    void gte_ncs()   { emit(Op.NCS, makeNone(), makeNone(), makeNone()); }
+    void gte_nct()   { emit(Op.NCT, makeNone(), makeNone(), makeNone()); }
+    void gte_ncds()  { emit(Op.NCDS, makeNone(), makeNone(), makeNone()); }
+    void gte_ncdt()  { emit(Op.NCDT, makeNone(), makeNone(), makeNone()); }
+    void gte_nccs()  { emit(Op.NCCS, makeNone(), makeNone(), makeNone()); }
+    void gte_ncct()  { emit(Op.NCCT, makeNone(), makeNone(), makeNone()); }
+    void gte_cdp()   { emit(Op.CDP, makeNone(), makeNone(), makeNone()); }
+    void gte_cc()    { emit(Op.CC, makeNone(), makeNone(), makeNone()); }
+    void gte_nclip() { emit(Op.NCLIP, makeNone(), makeNone(), makeNone()); }
+    void gte_avsz3() { emit(Op.AVSZ3, makeNone(), makeNone(), makeNone()); }
+    void gte_avsz4() { emit(Op.AVSZ4, makeNone(), makeNone(), makeNone()); }
+    void gte_op()    { emit(Op.OP, makeNone(), makeNone(), makeNone()); }
+    void gte_gpf()   { emit(Op.GPF, makeNone(), makeNone(), makeNone()); }
+    void gte_gpl()   { emit(Op.GPL, makeNone(), makeNone(), makeNone()); }
 
     /*
      * Temporaries
@@ -532,6 +593,8 @@ class CodeGen
             {
                 if (e.name == "bios_a" || e.name == "bios_b" || e.name == "bios_c")
                     return CType(Base.Int, 0);
+                if (isIntrinsic(e.name))
+                    return CType(Base.Int, 0);
                 if (auto p = e.name in funcs)
                     return p.ret;
                 throw err(e.file, e.line, "call to undefined function \"" ~ e.name ~ "\"");
@@ -619,7 +682,10 @@ class CodeGen
             case EK.Binary: return genBinary(e, want);
             case EK.Assign: return genAssign(e, want, false);
             case EK.IncDec: return genIncDec(e, want, false);
-            case EK.Call:   return genCall(e, want, false);
+            case EK.Call:
+                if (isIntrinsic(e.name))
+                    return genIntrinsicValue(e, want);
+                return genCall(e, want, false);
             case EK.Cast:   return genCast(e, want);
 
             case EK.Member:
@@ -1382,6 +1448,89 @@ class CodeGen
         }
         release(t);
     }
+    
+    /*
+     * GTE intrinsics
+     */
+    
+    void genGteLoadV3(Expr v0Expr, Expr v1Expr, Expr v2Expr)
+    {
+        Val v0 = genExpr(v0Expr);
+        Val v1 = genExpr(v1Expr);
+        Val v2 = genExpr(v2Expr);
+
+        Reg t0 = allocTemp();
+        Reg t1 = allocTemp();
+
+        // Vertex0 -> GTE VXY0 ($0), VZ0 ($1)
+        mem(Op.LW, t0, 0, v0.r);
+        mem(Op.LW, t1, 4, v0.r);
+        nop();
+        gte_mtc2(t0, 0); // VXY0
+        gte_mtc2(t1, 1); // VZ0
+
+        // Vertex1 -> GTE VXY1 ($2), VZ1 ($3)
+        mem(Op.LW, t0, 0, v1.r);
+        mem(Op.LW, t1, 4, v1.r);
+        nop();
+        gte_mtc2(t0, 2); // VXY1
+        gte_mtc2(t1, 3); // VZ1
+
+        // Vertex2 -> GTE VXY2 ($4), VZ2 ($5)
+        mem(Op.LW, t0, 0, v2.r);
+        mem(Op.LW, t1, 4, v2.r);
+        nop();
+        gte_mtc2(t0, 4); // VXY2
+        gte_mtc2(t1, 5); // VZ2
+
+        release(Val(t1, true));
+        release(Val(t0, true));
+        release(v2);
+        release(v1);
+        release(v0);
+    }
+    
+    Val genGteGetMAC0(int want = -1)
+    {
+        Val d = dest0(want);
+        gte_mfc2(d.r, 24); // MAC0 register, stores NCLIP result
+        return d;
+    }
+
+    Val genGteGetOTZ(int want = -1)
+    {
+        Val d = dest0(want);
+        gte_mfc2(d.r, 25); // OTZ register, stores AVSZ3 result
+        return d;
+    }
+
+    Val genGteGetFlags(int want = -1)
+    {
+        Val d = dest0(want);
+        gte_cfc2(d.r, 63); // FLAG
+        return d;
+    }
+    
+    void genGteStoreSXY0(Expr packetBaseExpr, long offset)
+    {
+        Val base = genExpr(packetBaseExpr);
+        gte_swc2(12, offset, base.r);
+        release(base);
+    }
+
+    void genGteStoreSXY1(Expr packetBaseExpr, long offset)
+    {
+        Val base = genExpr(packetBaseExpr);
+        gte_swc2(13, offset, base.r);
+        release(base);
+    }
+
+    void genGteStoreSXY2(Expr packetBaseExpr, long offset)
+    {
+        Val base = genExpr(packetBaseExpr);
+        gte_swc2(14, offset, base.r);
+        release(base);
+    }
 
     /*
      * Calls
@@ -1472,11 +1621,141 @@ class CodeGen
         else if (e.kind == EK.IncDec)
             v = genIncDec(e, -1, true);
         else if (e.kind == EK.Call)
-            v = genCall(e, -1, true);
+        {
+            if (isIntrinsic(e.name))
+                v = genIntrinsicValue(e, -1);
+            else
+                v = genCall(e, -1, true);
+        }
         else
             v = genExpr(e);
         release(v);
         td = 0;
+    }
+    
+    string[] intrinsics = [
+        "nop",
+        "gte_enable",
+        "gte_mtc2", "gte_ctc2",
+        "gte_swc2", "gte_lwc2",
+        "gte_rtps", "gte_rtpt", "gte_mvmva",
+        "gte_dcpl", "gte_dpcs", "gte_dpct",
+        "gte_intpl", "gte_sqr", "gte_ncs",
+        "gte_nct", "gte_ncds", "gte_ncdt",
+        "gte_nccs", "gte_ncct", "gte_cdp",
+        "gte_cc", "gte_nclip", "gte_avsz3",
+        "gte_avsz4", "gte_op", "gte_gpf",
+        "gte_gpl"
+    ];
+
+    bool isIntrinsic(string name)
+    {
+        return intrinsics.canFind(name);
+    }
+    
+    Val genIntrinsicValue(Expr e, int want)
+    {
+        switch (e.name)
+        {
+            case "gte_mfc2":
+            case "gte_cfc2":
+            {
+                checkArgs(e, 1);
+                Reg g = gteRegArg(e.args[0], e.name);
+                Val d = dest0(want);
+                if (e.name == "gte_mfc2") gte_mfc2(d.r, g);
+                else                      gte_cfc2(d.r, g);
+                return d;
+            }
+            default:
+                genIntrinsic(e);          // commands, stores: no value
+                return Val(R0, false);
+        }
+    }
+
+    void genIntrinsic(Expr e)
+    {
+        string name = e.name;
+        switch(name)
+        {
+            case "nop":       nop(); break;
+            
+            case "gte_enable":
+                Reg t0 = allocTemp();
+                Reg t1 = allocTemp();
+                emit(Op.MFC0, makeReg(t0), makeRegCop0(12), makeNone);    // t0 = Status
+                nop();
+                emit(Op.LUI,  makeReg(t1), makeImm(0x4000), makeNone);    // t1 = 1 << 30
+                emit(Op.OR,   makeReg(t0), makeReg(t0),     makeReg(t1));
+                emit(Op.MTC0, makeReg(t0), makeRegCop0(12), makeNone);    // Status = t0
+                nop();
+                nop();
+                release(Val(t1, true));
+                release(Val(t0, true));
+                break;
+            
+            case "gte_mtc2":    // gte_mtc2(reg, value)
+            case "gte_ctc2":    // gte_ctc2(reg, value)
+            {
+                checkArgs(e, 2);
+                Reg g = gteRegArg(e.args[0], name);
+                Val v = genExpr(e.args[1]);
+                if (name == "gte_mtc2") gte_mtc2(v.r, g);
+                else                    gte_ctc2(v.r, cast(uint)g);
+                release(v);
+                break;
+            }
+            case "gte_swc2":    // gte_swc2(reg, ptr): store a GTE data register to memory
+            case "gte_lwc2":    // gte_lwc2(reg, ptr): load a GTE data register from memory
+            {
+                checkArgs(e, 2);
+                Reg g = gteRegArg(e.args[0], name);
+                Val p = genExpr(e.args[1]);
+                if (name == "gte_swc2") gte_swc2(g, 0, p.r);
+                else                    gte_lwc2(g, 0, p.r);
+                release(p);
+                break;
+            }
+            
+            case "gte_rtps":  gte_rtps(); break;
+            case "gte_rtpt":  gte_rtpt(); break;
+            case "gte_mvmva": gte_mvmva(); break;
+            case "gte_dcpl":  gte_dcpl(); break;
+            case "gte_dpcs":  gte_dpcs(); break;
+            case "gte_dpct":  gte_dpct(); break;
+            case "gte_intpl": gte_intpl(); break;
+            case "gte_sqr":   gte_sqr(); break;
+            case "gte_ncs":   gte_ncs(); break;
+            case "gte_nct":   gte_nct(); break;
+            case "gte_ncds":  gte_ncds(); break;
+            case "gte_ncdt":  gte_ncdt(); break;
+            case "gte_nccs":  gte_nccs(); break;
+            case "gte_ncct":  gte_ncct(); break;
+            case "gte_cdp":   gte_cdp(); break;
+            case "gte_cc":    gte_cc(); break;
+            case "gte_nclip": gte_nclip(); break;
+            case "gte_avsz3": gte_avsz3(); break;
+            case "gte_avsz4": gte_avsz4(); break;
+            case "gte_op":    gte_op(); break;
+            case "gte_gpf":   gte_gpf(); break;
+            case "gte_gpl":   gte_gpl(); break;
+            default: break;
+        }
+    }
+    
+    Reg gteRegArg(Expr arg, string fname)
+    {
+        long n;
+        if (!constEval(arg, n) || n < 0 || n > 31)
+            throw err(curFile, arg.line, fname ~ ": register number must be a constant from 0 to 31");
+        return cast(Reg)n;
+    }
+
+    void checkArgs(Expr e, size_t n)
+    {
+        if (e.args.length != n)
+            throw err(curFile, e.line,
+                format("%s expects %s argument(s) but %s given", e.name, n, e.args.length));
     }
 
     void genStmt(Stmt s)

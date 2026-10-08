@@ -41,6 +41,7 @@ DEALINGS IN THE SOFTWARE.
  */
 module ir;
 
+import std.format;
 import std.algorithm;
 import std.string;
 import std.conv: to;
@@ -51,6 +52,7 @@ enum AsmOperandType
 {
     None,
     Reg,
+    RegCop0,
     RegGteData,
     RegGteControl,
     Imm,
@@ -70,8 +72,14 @@ string regToString(Reg r)
 
     if (r < regNames.length)
         return regNames[r];
-        
-    return "unk(" ~ r.to!string ~ ")";
+    
+    return format("$%s", r);
+}
+
+string regCop0ToString(Reg r)
+{
+    // TODO: symbolic names
+    return format("$%s", r);
 }
 
 string gteDataRegToString(Reg r)
@@ -87,8 +95,8 @@ string gteDataRegToString(Reg r)
 
     if (r < regNames.length)
         return regNames[r];
-        
-    return "unk(" ~ r.to!string ~ ")";
+    
+    return format("$%s", r);
 }
 
 string gteControlRegToString(Reg r)
@@ -107,7 +115,7 @@ string gteControlRegToString(Reg r)
     if (r < regNames.length)
         return regNames[r];
     
-    return "unk(" ~ r.to!string ~ ")";
+    return format("$%s", r);
 }
 
 struct AsmOperand
@@ -122,6 +130,8 @@ struct AsmOperand
     {
         if (type == AsmOperandType.Reg)
             return regToString(reg);
+        else if (type == AsmOperandType.RegCop0)
+            return regCop0ToString(reg);
         else if (type == AsmOperandType.RegGteData)
             return gteDataRegToString(reg);
         else if (type == AsmOperandType.RegGteControl)
@@ -158,11 +168,43 @@ AsmOperand makeReg(string s)
     return operand;
 }
 
+AsmOperand makeRegCop0(ubyte reg)
+{
+    AsmOperand operand;
+    operand.reg = reg;
+    operand.type = AsmOperandType.RegCop0;
+    return operand;
+}
+
+AsmOperand makeRegCop0(string s)
+{
+    AsmOperand operand;
+    operand.reg = parseReg(s);
+    operand.type = AsmOperandType.RegCop0;
+    return operand;
+}
+
+AsmOperand makeRegGteData(ubyte reg)
+{
+    AsmOperand operand;
+    operand.reg = reg;
+    operand.type = AsmOperandType.RegGteData;
+    return operand;
+}
+
 AsmOperand makeRegGteData(string s)
 {
     AsmOperand operand;
     operand.reg = parseRegGteData(s);
     operand.type = AsmOperandType.RegGteData;
+    return operand;
+}
+
+AsmOperand makeRegGteControl(ubyte reg)
+{
+    AsmOperand operand;
+    operand.reg = reg;
+    operand.type = AsmOperandType.RegGteControl;
     return operand;
 }
 

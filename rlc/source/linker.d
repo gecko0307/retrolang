@@ -36,97 +36,119 @@ import utils;
 
 bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
 {
-    // Generate machine words for each instruction
+    // Generate machine words for each instruction, calculate total code size
     size_t codeSize = 0;
     foreach(pos, ref ins; ass.instructions)
     {
         switch(ins.op)
         {
-            case Op.NOP: ins.code = [opNop]; break;
+            case Op.NOP:     ins.code = [opNop]; break;
+            case Op.WORD:    break; // Should be already encoded
             
-            case Op.ADD: ins.code = [opAdd(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.ADDU: ins.code = [opAddu(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.ADDI: ins.code = [opAddi(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
-            case Op.ADDIU: ins.code = [opAddiu(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
-            case Op.SUB: ins.code = [opSub(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.SUBU: ins.code = [opSubu(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.MULT: ins.code = [opMult(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.MULTU: ins.code = [opMultu(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.DIV: ins.code = [opDiv(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.DIVU: ins.code = [opDivu(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.MFLO: ins.code = [opMflo(ins.operand1.reg)]; break;
-            case Op.MFHI: ins.code = [opMfhi(ins.operand1.reg)]; break;
-            case Op.MTLO: ins.code = [opMtlo(ins.operand1.reg)]; break;
-            case Op.MTHI: ins.code = [opMthi(ins.operand1.reg)]; break;
+            case Op.ADD:     ins.code = [opAdd(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.ADDU:    ins.code = [opAddu(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.ADDI:    ins.code = [opAddi(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.ADDIU:   ins.code = [opAddiu(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.SUB:     ins.code = [opSub(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.SUBU:    ins.code = [opSubu(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.MULT:    ins.code = [opMult(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.MULTU:   ins.code = [opMultu(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.DIV:     ins.code = [opDiv(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.DIVU:    ins.code = [opDivu(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.MFLO:    ins.code = [opMflo(ins.operand1.reg)]; break;
+            case Op.MFHI:    ins.code = [opMfhi(ins.operand1.reg)]; break;
+            case Op.MTLO:    ins.code = [opMtlo(ins.operand1.reg)]; break;
+            case Op.MTHI:    ins.code = [opMthi(ins.operand1.reg)]; break;
             
-            case Op.LI: ins.code = opLi(ins.operand1.reg, ins.operand2.imm); break; // li can expand to more than one word!
-            case Op.MOVE: ins.code = [opMove(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.CLEAR: ins.code = [opClear(ins.operand1.reg)]; break;
-            case Op.NEG: ins.code = [opNeg(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.NOT: ins.code = [opNot(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.LI:      ins.code = opLi(ins.operand1.reg, ins.operand2.imm); break; // li can expand to more than one word!
+            case Op.MOVE:    ins.code = [opMove(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.CLEAR:   ins.code = [opClear(ins.operand1.reg)]; break;
+            case Op.NEG:     ins.code = [opNeg(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.NOT:     ins.code = [opNot(ins.operand1.reg, ins.operand2.reg)]; break;
             
-            case Op.J: ins.code = [opJ(cast(uint)ins.operand1.imm)]; break;
-            case Op.JR: ins.code = [opJr(ins.operand1.reg)]; break;
-            case Op.JAL: ins.code = [opJal(cast(uint)ins.operand1.imm)]; break;
-            case Op.JALR: ins.code = [opJalr(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.J:       ins.code = [opJ(cast(uint)ins.operand1.imm)]; break;
+            case Op.JR:      ins.code = [opJr(ins.operand1.reg)]; break;
+            case Op.JAL:     ins.code = [opJal(cast(uint)ins.operand1.imm)]; break;
+            case Op.JALR:    ins.code = [opJalr(ins.operand1.reg, ins.operand2.reg)]; break;
             
-            case Op.SLT: ins.code = [opSlt(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.SLTI: ins.code = [opSlti(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
-            case Op.SLTU: ins.code = [opSltu(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.SLTIU: ins.code = [opSltiu(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.SLT:     ins.code = [opSlt(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.SLTI:    ins.code = [opSlti(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.SLTU:    ins.code = [opSltu(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.SLTIU:   ins.code = [opSltiu(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
             
-            case Op.AND: ins.code = [opAnd(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.ANDI: ins.code = [opAndi(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
-            case Op.OR: ins.code = [opOr(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.ORI: ins.code = [opOri(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
-            case Op.XOR: ins.code = [opXor(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.XORI: ins.code = [opXori(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
-            case Op.NOR: ins.code = [opNor(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.SLL: ins.code = [opSll(ins.operand1.reg, ins.operand2.reg, cast(ubyte)ins.operand3.imm)]; break;
-            case Op.SLLV: ins.code = [opSllv(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.SRL: ins.code = [opSrl(ins.operand1.reg, ins.operand2.reg, cast(ubyte)ins.operand3.imm)]; break;
-            case Op.SRLV: ins.code = [opSrlv(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
-            case Op.SRA: ins.code = [opSra(ins.operand1.reg, ins.operand2.reg, cast(ubyte)ins.operand3.imm)]; break;
-            case Op.SRAV: ins.code = [opSrav(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.AND:     ins.code = [opAnd(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.ANDI:    ins.code = [opAndi(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.OR:      ins.code = [opOr(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.ORI:     ins.code = [opOri(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.XOR:     ins.code = [opXor(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.XORI:    ins.code = [opXori(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.NOR:     ins.code = [opNor(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.SLL:     ins.code = [opSll(ins.operand1.reg, ins.operand2.reg, cast(ubyte)ins.operand3.imm)]; break;
+            case Op.SLLV:    ins.code = [opSllv(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.SRL:     ins.code = [opSrl(ins.operand1.reg, ins.operand2.reg, cast(ubyte)ins.operand3.imm)]; break;
+            case Op.SRLV:    ins.code = [opSrlv(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
+            case Op.SRA:     ins.code = [opSra(ins.operand1.reg, ins.operand2.reg, cast(ubyte)ins.operand3.imm)]; break;
+            case Op.SRAV:    ins.code = [opSrav(ins.operand1.reg, ins.operand2.reg, ins.operand3.reg)]; break;
             
-            case Op.LUI: ins.code = [opLui(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
+            case Op.LUI:     ins.code = [opLui(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
             
-            case Op.LW: ins.code = [opLw(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.LH: ins.code = [opLh(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.LHU: ins.code = [opLhu(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.LB: ins.code = [opLb(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.LBU: ins.code = [opLbu(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.LWL: ins.code = [opLwl(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.LWR: ins.code = [opLwr(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.SW: ins.code = [opSw(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.SH: ins.code = [opSh(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
-            case Op.SB: ins.code = [opSb(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.LW:      ins.code = [opLw(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.LH:      ins.code = [opLh(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.LHU:     ins.code = [opLhu(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.LB:      ins.code = [opLb(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.LBU:     ins.code = [opLbu(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.LWL:     ins.code = [opLwl(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.LWR:     ins.code = [opLwr(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.SW:      ins.code = [opSw(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.SH:      ins.code = [opSh(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.SB:      ins.code = [opSb(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
             
-            case Op.BEQ: ins.code = [opBeq(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
-            case Op.BNE: ins.code = [opBne(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
-            case Op.BLEZ: ins.code = [opBlez(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
-            case Op.BGTZ: ins.code = [opBgtz(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
-            case Op.BGEZ: ins.code = [opBgez(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
-            case Op.BLTZ: ins.code = [opBltz(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
-            case Op.BGEZAL: ins.code = [opBgezal(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
-            case Op.BLTZAL: ins.code = [opBltzal(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
+            case Op.BEQ:     ins.code = [opBeq(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.BNE:     ins.code = [opBne(ins.operand1.reg, ins.operand2.reg, cast(short)ins.operand3.imm)]; break;
+            case Op.BLEZ:    ins.code = [opBlez(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
+            case Op.BGTZ:    ins.code = [opBgtz(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
+            case Op.BGEZ:    ins.code = [opBgez(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
+            case Op.BLTZ:    ins.code = [opBltz(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
+            case Op.BGEZAL:  ins.code = [opBgezal(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
+            case Op.BLTZAL:  ins.code = [opBltzal(ins.operand1.reg, cast(short)ins.operand2.imm)]; break;
             
             case Op.SYSCALL: ins.code = [opSyscall(cast(uint)ins.operand1.imm)]; break;
-            case Op.BREAK: ins.code = [opBreak(cast(uint)ins.operand1.imm)]; break;
+            case Op.BREAK:   ins.code = [opBreak(cast(uint)ins.operand1.imm)]; break;
             
-            case Op.MTC0: ins.code = [opMtc0(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.MFC0: ins.code = [opMfc0(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.MTC0:    ins.code = [opMtc0(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.MFC0:    ins.code = [opMfc0(ins.operand1.reg, ins.operand2.reg)]; break;
             
-            case Op.MTC2: ins.code = [opMtc2(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.MFC2: ins.code = [opMfc2(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.CTC2: ins.code = [opCtc2(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.CFC2: ins.code = [opCfc2(ins.operand1.reg, ins.operand2.reg)]; break;
-            case Op.COP2: ins.code = [opCop2(cast(uint)ins.operand1.imm)]; break;
+            case Op.MTC2:    ins.code = [opMtc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.MFC2:    ins.code = [opMfc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.CTC2:    ins.code = [opCtc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.CFC2:    ins.code = [opCfc2(ins.operand1.reg, ins.operand2.reg)]; break;
+            case Op.LWC2:    ins.code = [opLwc2(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
+            case Op.SWC2:    ins.code = [opSwc2(ins.operand1.reg, cast(short)ins.operand2.imm, ins.operand3.reg)]; break;
             
-            case Op.RTPS: ins.code = [opRtps()]; break;
-            case Op.RTPT: ins.code = [opRtpt()]; break;
+            case Op.COP2:    ins.code = [opCop2(cast(uint)ins.operand1.imm)]; break;
             
-            // TODO: other GTE instructions
+            case Op.RTPS:    ins.code = [opRtps()]; break;
+            case Op.RTPT:    ins.code = [opRtpt()]; break;
+            case Op.MVMVA:   ins.code = [opMvmva()]; break;
+            case Op.DCPL:    ins.code = [opDcpl()]; break;
+            case Op.DPCS:    ins.code = [opDpcs()]; break;
+            case Op.DPCT:    ins.code = [opDpct()]; break;
+            case Op.INTPL:   ins.code = [opIntpl()]; break;
+            case Op.SQR:     ins.code = [opSqr()]; break;
+            case Op.NCS:     ins.code = [opNcs()]; break;
+            case Op.NCT:     ins.code = [opNct()]; break;
+            case Op.NCDS:    ins.code = [opNcds()]; break;
+            case Op.NCDT:    ins.code = [opNcdt()]; break;
+            case Op.NCCS:    ins.code = [opNccs()]; break;
+            case Op.NCCT:    ins.code = [opNcct()]; break;
+            case Op.CDP:     ins.code = [opCdp()]; break;
+            case Op.CC:      ins.code = [opCc()]; break;
+            case Op.NCLIP:   ins.code = [opNclip()]; break;
+            case Op.AVSZ3:   ins.code = [opAvsz3()]; break;
+            case Op.AVSZ4:   ins.code = [opAvsz4()]; break;
+            case Op.OP:      ins.code = [opOp()]; break;
+            case Op.GPF:     ins.code = [opGpf()]; break;
+            case Op.GPL:     ins.code = [opGpl()]; break;
             
             default: break;
         }
@@ -299,8 +321,10 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
     return true;
 }
 
-// Resolves a branch label to a word offset relative to the delay slot.
-// On success the operand is rewritten as an immediate.
+/**
+ * Resolves a branch label to a word offset relative to the delay slot.
+ * On success the operand is rewritten as an immediate.
+ */
 bool resolveBranch(uint[string] dataLabelAddrs, ref AsmInstr ins, ref AsmOperand target, out short off)
 {
     auto p = target.label in dataLabelAddrs;

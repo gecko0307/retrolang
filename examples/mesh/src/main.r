@@ -73,7 +73,7 @@ struct RTPSTransform
     short dqb;
 };
 
-void gteInit() @("gteInit.s");
+//void gteInit() @("gteInit.s");
 void gteRTPTSetParams(struct RTPSTransform* rtpsTransform) @("gteRTPTSetParams.s");
 void gteRTPTRun(struct Vertex* inVertices, struct SVertex* outVertices) @("gteRTPTRun.s");
 
@@ -338,7 +338,9 @@ void main()
     
     padInit();
     gpuInit(&gpu);
-    gteInit();
+    
+    gte_enable();
+    gte_ctc2(GTE_ZSF3, 0x555); // For AVSZ3
     
     // Read TIM data
     struct GpuTexture tex;

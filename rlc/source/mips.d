@@ -39,7 +39,8 @@ alias Reg = ubyte;
 enum Op
 {
     // CPU opcode enums
-    NOP, SLL, SRL, SRA, SLLV, SRLV, SRAV,
+    NOP, WORD,
+    SLL, SRL, SRA, SLLV, SRLV, SRAV,
     J, JAL, JR, JALR,
     SYSCALL, BREAK,
     MFHI, MTHI, MFLO, MTLO,
@@ -53,16 +54,18 @@ enum Op
     LUI, LB, LH, LWL, LW, LBU, LHU, LWR,
     SB, SH, SWL, SW, SWR,
     LI, MOVE, CLEAR, NEG, NOT,
+    BEQ, BNE, BLEZ, BGTZ, BGEZ, BLTZ, BGEZAL, BLTZAL,
     LWC0, LWC1, LWC2, LWC3,
     SWC0, SWC1, SWC2, SWC3,
-    BEQ, BNE, BLEZ, BGTZ, BGEZ, BLTZ, BGEZAL, BLTZAL,
     MTC0, MFC0, RFE,
     MTC2, MFC2, CTC2, CFC2,
     COP2,
     
     // GTE opcode enums
-    RTPS, RTPT
-    // TODO: other GTE opcodes
+    RTPS, RTPT, MVMVA, DCPL, DPCS, DPCT,
+    INTPL, SQR, NCS, NCT, NCDS, NCDT,
+    NCCS, NCCT, CDP, CC, NCLIP,
+    AVSZ3, AVSZ4, OP, GPF, GPL
 }
 
 // CPU registers
@@ -315,8 +318,30 @@ Word opCfc2(Reg rt, Reg rd) { return opR(0x12, 0x02, rt, rd, 0, 0); }
 Word opMtc2(Reg rt, Reg rd) { return opR(0x12, 0x04, rt, rd, 0, 0); }
 Word opCtc2(Reg rt, Reg rd) { return opR(0x12, 0x06, rt, rd, 0, 0); }
 
-Word opCop2(uint command) { return 0x4A000000 | (command & 0x01ffffff); }
-Word opRtps() { return opCop2(0x00180001); }
-Word opRtpt() { return opCop2(0x00280030); }
+Word opLwc2(Reg gteRt, short off, Reg base) { return opI(0x32, base, gteRt, off); }
+Word opSwc2(Reg gteRt, short off, Reg base) { return opI(0x3A, base, gteRt, off); }
 
-// TODO: other GTE instructions
+Word opCop2(uint command) { return 0x4A000000 | (command & 0x01ffffff); }
+
+Word opRtps()  { return opCop2(0x00180001); } // Rotate, Translate, Perpective Transformation of 1 point
+Word opRtpt()  { return opCop2(0x00280030); } // Rotate, Translate, Perpective Transformation of 3 points
+Word opMvmva() { return opCop2(0x00400012); } // Matrix-Vector Multiplication and Addition
+Word opDcpl()  { return opCop2(0x00680029); } // Depth Cue Light Color
+Word opDpcs()  { return opCop2(0x00780010); } // Depth Cue Single
+Word opDpct()  { return opCop2(0x00f8002a); } // Depth Cue Triple
+Word opIntpl() { return opCop2(0x00980011); } // Interpolation
+Word opSqr()   { return opCop2(0x00a00428); } // Square
+Word opNcs()   { return opCop2(0x00c8041e); } // Normal Color
+Word opNct()   { return opCop2(0x00d80420); } // 
+Word opNcds()  { return opCop2(0x00e80413); } // Normal Color Depth Cue
+Word opNcdt()  { return opCop2(0x00f80416); } // Normal Color Depth Cue
+Word opNccs()  { return opCop2(0x0108041b); } // Same as NCS, but the base color of the plane or point is taken into account
+Word opNcct()  { return opCop2(0x0118043f); } // Same as NCT, but the base color of the plane or point is taken into account
+Word opCdp()   { return opCop2(0x01280414); } // A color is calculated from a light vector (base color is assumed to be white) and depth cueing is performed (like DPCS)
+Word opCc()    { return opCop2(0x0138041c); } // A color is calculated from a light vector and a base color
+Word opNclip() { return opCop2(0x01400006); } // Normal Clipping
+Word opAvsz3() { return opCop2(0x0158002d); } // Z-Averaging. Adds 3 Z values together and multplies them by a fixed point value
+Word opAvsz4() { return opCop2(0x0168002e); } // Z-Averaging. Adds 4 Z values together and multplies them by a fixed point value
+Word opOp()    { return opCop2(0x0170000c); } // The outer product of two vectors
+Word opGpf()   { return opCop2(0x0190003d); } // Multiplies two vectors
+Word opGpl()   { return opCop2(0x01a0003e); } // Multiplies a vector with a scalar and adds the result to another vector

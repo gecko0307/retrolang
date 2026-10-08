@@ -30,3 +30,70 @@ For more information, please refer to <https://unlicense.org>
 
 #define null 0x00000000
 #define size_t int
+
+// GTE data registers
+#define VXY0     0  // Vector0 X and Y, 2 packed signed 16-bit integers
+#define VZ0      1  // Vector0 Z, signed 16-bit integer
+#define VXY1     2  // Vector1 X and Y, 2 packed signed 16-bit integers
+#define VZ1      3  // Vector1 Z, signed 16-bit integer
+#define VXY2     4  // Vector2 X and Y, 2 packed signed 16-bit integers
+#define VZ2      5  // Vector2 Z, signed 16-bit integer
+#define RGBC     6  // Color/code value, 4 packed unsigned bytes
+#define OTZ      7  // Average Z value (for Ordering Table), unsigned 16-bit integer
+#define GTE_IR0  8  // 16-bit Accumulator (Interpolate), signed 16-bit integer
+#define GTE_IR1  9  // 16-bit Accumulator (Vector X), signed 16-bit integer
+#define GTE_IR2  10 // 16-bit Accumulator (Vector Y), signed 16-bit integer
+#define GTE_IR3  11 // 16-bit Accumulator (Vector Z), signed 16-bit integer
+#define GTE_SXY0 12 // Screen XY-coordinate FIFO stage1, 2 packed signed 16-bit integers
+#define GTE_SXY1 13 // Screen XY-coordinate FIFO stage2, 2 packed signed 16-bit integers
+#define GTE_SXY2 14 // Screen XY-coordinate FIFO stage3, 2 packed signed 16-bit integers
+#define GTE_SXYP 15 // Screen XY-coordinate FIFO stage4, 2 packed signed 16-bit integers
+#define GTE_SZ0  16 // Screen Z-coordinate FIFO stage1, unsigned 16-bit integer
+#define GTE_SZ1  17 // Screen Z-coordinate FIFO stage2, unsigned 16-bit integer
+#define GTE_SZ2  18 // Screen Z-coordinate FIFO stage3, unsigned 16-bit integer
+#define GTE_SZ3  19 // Screen Z-coordinate FIFO stage4, unsigned 16-bit integer
+#define GTE_RGB0 20 // Color CRGB-code/color FIFO stage1, 4 packed unsigned bytes
+#define GTE_RGB1 21 // Color CRGB-code/color FIFO stage2, 4 packed unsigned bytes
+#define GTE_RGB2 22 // Color CRGB-code/color FIFO stage3, 4 packed unsigned bytes
+#define GTE_MAC0 24 // 32bit Maths Accumulators (Value), signed 32-bit integer
+#define GTE_MAC1 25 // 32bit Maths Accumulators (Vector X), signed 32-bit integer
+#define GTE_MAC2 26 // 32bit Maths Accumulators (Vector Y), signed 32-bit integer
+#define GTE_MAC3 27 // 32bit Maths Accumulators (Vector Z), signed 32-bit integer
+#define GTE_IRGB 28 // Convert RGB Color (48bit vs 15bit), unsigned 16-bit integer
+#define GTE_ORGB 29 // 
+#define GTE_LZCS 30 // Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
+#define GTE_LZCR 31 // Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
+
+// GTE control registers
+#define GTE_R11R12 0  // Rotation matrix 3x3 (r11, r12), 2 signed 16-bit integers
+#define GTE_R13R21 1  // Rotation matrix 3x3 (r13, r21), 2 signed 16-bit integers
+#define GTE_R22R23 2  // Rotation matrix 3x3 (r22, r23), 2 signed 16-bit integers
+#define GTE_R31R32 3  // Rotation matrix 3x3 (r31, r32), 2 signed 16-bit integers
+#define GTE_R33    4  // Rotation matrix 3x3 (r33), signed 16-bit integer
+#define GTE_TRX    5  // Translation vector X, signed 32-bit integer
+#define GTE_TRY    6  // Translation vector Y, signed 32-bit integer
+#define GTE_TRZ    7  // Translation vector Z, signed 32-bit integer
+#define GTE_L11L12 8  // Light source matrix 3x3 (l11, l12), 2 signed 16-bit integers
+#define GTE_L13L21 9  // Light source matrix 3x3 (l13, l21), 2 signed 16-bit integers
+#define GTE_L22L23 10 // Light source matrix 3x3 (l22, l23), 2 signed 16-bit integers
+#define GTE_L31L32 11 // Light source matrix 3x3 (l31, l32), 2 signed 16-bit integers
+#define GTE_L33    12 // Light source matrix 3x3 (l33), signed 16-bit integer
+#define GTE_RBK    13 // Background color R, unsigned 32-bit integer
+#define GTE_GBK    14 // Background color G, unsigned 32-bit integer
+#define GTE_BBK    15 // Background color B, unsigned 32-bit integer
+#define GTE_LR1LR2 16 // Light color matrix source (lr1, lr2), 2 signed 16-bit integers
+#define GTE_LR3LG1 17 // Light color matrix source (lr3, lg1), 2 signed 16-bit integers
+#define GTE_LG2LG3 18 // Light color matrix source (lg2, lg3), 2 signed 16-bit integers
+#define GTE_LB1LB2 19 // Light color matrix source (lb1, lb2), 2 signed 16-bit integers
+#define GTE_LB3    20 // Light color matrix source (lb3), signed 16-bit integer
+#define GTE_RFC    21 // Far color R, unsigned 32-bit integer
+#define GTE_GFC    22 // Far color G, unsigned 32-bit integer
+#define GTE_BFC    23 // Far color B, unsigned 32-bit integer
+#define GTE_OFX    24 // Screen offset X, signed 32-bit integer
+#define GTE_OFY    25 // Screen offset Y, signed 32-bit integer
+#define GTE_H      26 // Projection plane distance, unsigned 16-bit integer
+#define GTE_DQA    27 // Depth queing parameter A (coefficient), signed 16-bit integer
+#define GTE_DQB    28 // Depth queing parameter B (offset), unsigned 32-bit integer
+#define GTE_ZSF3   29 // Z-averaging scale factor, signed 16-bit integer
+#define GTE_ZSF4   30 // Z-averaging scale factor, signed 16-bit integer
+#define GTE_FLAG   31 // Flag (read-only), returns any calculation errors, 20 bits

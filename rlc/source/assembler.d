@@ -119,9 +119,6 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
                 throw err(filename, lineNum, "unlabeled ASCII data: \"" ~ str ~ "\"");
             continue;
         }
-        
-        if (currentSection != textSection)
-            throw err(filename, lineNum, "program code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
 
         string[] parts = line.splitter(regex(r"[\s,()]+")).filter!(s => !s.empty).array;
 
@@ -129,6 +126,20 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
 
         string op = parts[0].toLower;
         string[] args = parts[1..$];
+        
+        if (op == "word")
+        {
+            // Raw words
+            foreach(arg; args)
+            {
+                output ~= AsmInstr(Op.WORD, makeNone, makeNone, makeNone, i, [cast(Word)parseInt(arg)]);
+            }
+        }
+        else
+        {
+            if (currentSection != textSection)
+                throw err(filename, lineNum, "program code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
+        }
 
         if (op == "nop")
             output ~= AsmInstr(Op.NOP);
@@ -316,6 +327,12 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
             output ~= AsmInstr(Op.CTC2, args[0].makeReg, args[1].makeRegGteControl, makeNone, i);
         else if (op == "cfc2" && args.length == 2)
             output ~= AsmInstr(Op.CFC2, args[0].makeReg, args[1].makeRegGteControl, makeNone, i);
+        
+        else if (op == "lwc2" && args.length == 3)
+            output ~= AsmInstr(Op.LWC2, args[0].makeRegGteData, args[1].makeImm, args[2].makeReg, i);
+        else if (op == "swc2" && args.length == 3)
+            output ~= AsmInstr(Op.SWC2, args[0].makeRegGteData, args[1].makeImm, args[2].makeReg, i);
+        
         else if (op == "cop2" && args.length == 1)
             output ~= AsmInstr(Op.COP2, args[0].makeImm, makeNone, makeNone, i);
         
@@ -323,8 +340,46 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
             output ~= AsmInstr(Op.RTPS, makeNone, makeNone, makeNone, i);
         else if (op == "rtpt" && args.length == 0)
             output ~= AsmInstr(Op.RTPT, makeNone, makeNone, makeNone, i);
-        
-        // TODO: other GTE instruction opcodes
+        else if (op == "mvmva" && args.length == 0)
+            output ~= AsmInstr(Op.MVMVA, makeNone, makeNone, makeNone, i);
+        else if (op == "dcpl" && args.length == 0)
+            output ~= AsmInstr(Op.DCPL, makeNone, makeNone, makeNone, i);
+        else if (op == "dpcs" && args.length == 0)
+            output ~= AsmInstr(Op.DPCS, makeNone, makeNone, makeNone, i);
+        else if (op == "dpct" && args.length == 0)
+            output ~= AsmInstr(Op.DPCT, makeNone, makeNone, makeNone, i);
+        else if (op == "intpl" && args.length == 0)
+            output ~= AsmInstr(Op.INTPL, makeNone, makeNone, makeNone, i);
+        else if (op == "sqr" && args.length == 0)
+            output ~= AsmInstr(Op.SQR, makeNone, makeNone, makeNone, i);
+        else if (op == "ncs" && args.length == 0)
+            output ~= AsmInstr(Op.NCS, makeNone, makeNone, makeNone, i);
+        else if (op == "nct" && args.length == 0)
+            output ~= AsmInstr(Op.NCT, makeNone, makeNone, makeNone, i);
+        else if (op == "ncds" && args.length == 0)
+            output ~= AsmInstr(Op.NCDS, makeNone, makeNone, makeNone, i);
+        else if (op == "ncdt" && args.length == 0)
+            output ~= AsmInstr(Op.NCDT, makeNone, makeNone, makeNone, i);
+        else if (op == "nccs" && args.length == 0)
+            output ~= AsmInstr(Op.NCCS, makeNone, makeNone, makeNone, i);
+        else if (op == "ncct" && args.length == 0)
+            output ~= AsmInstr(Op.NCCT, makeNone, makeNone, makeNone, i);
+        else if (op == "cdp" && args.length == 0)
+            output ~= AsmInstr(Op.CDP, makeNone, makeNone, makeNone, i);
+        else if (op == "cc" && args.length == 0)
+            output ~= AsmInstr(Op.CC, makeNone, makeNone, makeNone, i);
+        else if (op == "nclip" && args.length == 0)
+            output ~= AsmInstr(Op.NCLIP, makeNone, makeNone, makeNone, i);
+        else if (op == "avsz3" && args.length == 0)
+            output ~= AsmInstr(Op.AVSZ3, makeNone, makeNone, makeNone, i);
+        else if (op == "avsz4" && args.length == 0)
+            output ~= AsmInstr(Op.AVSZ4, makeNone, makeNone, makeNone, i);
+        else if (op == "op" && args.length == 0)
+            output ~= AsmInstr(Op.OP, makeNone, makeNone, makeNone, i);
+        else if (op == "gpf" && args.length == 0)
+            output ~= AsmInstr(Op.GPF, makeNone, makeNone, makeNone, i);
+        else if (op == "gpl" && args.length == 0)
+            output ~= AsmInstr(Op.GPL, makeNone, makeNone, makeNone, i);
         
         else
             throw err(filename, lineNum, "unknown instruction \"" ~ op ~ "\"");
