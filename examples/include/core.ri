@@ -28,10 +28,12 @@ For more information, please refer to <https://unlicense.org>
  * Core definitions.
  */
 
+// Types
 #define null 0x00000000
 #define size_t int
 
-#define F_ONE 0x1000
+// Fixed-point constants
+#define F_ONE 0x1000 // For rotation matrices
 
 // COP0 registers
 #define COP0_BPC      3  // Breakpoint on execute (R/W)

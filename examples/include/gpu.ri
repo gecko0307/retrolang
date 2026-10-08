@@ -54,6 +54,8 @@ For more information, please refer to <https://unlicense.org>
 
 #define GP1_RESET      0x00000000
 #define GP1_RESET_FIFO 0x01000000
+#define GP1_DISP_ENABLE  0x03000000
+#define GP1_DISP_DISABLE 0x03000001
 #define GP1_DISP_OFFS  0x05000000
 #define GP1_HRANGE     0x06000000
 #define GP1_VRANGE     0x07000000
@@ -353,7 +355,7 @@ void gpuInit(struct GpuSettings* settings)
     *gp1 = GP1_DISP_MODE | x1 | y1 | interleaving | bitDepth | (__gpuSettings->videoMode << 3);
     
     // Enable display
-    *gp1 = 0x03000000;
+    *gp1 = GP1_DISP_ENABLE;
     
     gpuCurrentBuffer = GPU_BUF0;
     gpuOt = GPU_OT0;
