@@ -61,6 +61,9 @@ struct RTPSTransform
     int tz;
     
     // 3x3 rotation matrix of Q3.12 elements
+    // R11 R12 R13
+    // R21 R22 R23
+    // R31 R32 R33
     short r[9];
     
     // Projection settings
@@ -146,7 +149,30 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     int color = data->color;
     
     // Upload transform parameters to GTE
-    gteRTPTSetParams(tr);
+    //gteRTPTSetParams(tr);
+    
+    // Translation tr->tx,ty,tz
+    gte_ctc2(GTE_TRX, tr->tx);
+    gte_ctc2(GTE_TRY, tr->ty);
+    gte_ctc2(GTE_TRZ, tr->tz);
+    
+    // Rotation matrix
+    //gte_ctc2(GTE_R11R12, tr->r[0]);
+    //gte_ctc2(GTE_R13R21, tr->r[2]);
+    //gte_ctc2(GTE_R22R23, tr->r[4]);
+    //gte_ctc2(GTE_R31R32, tr->r[6]);
+    gte_ctc2(GTE_R11R12, *(int*)&tr->r[0]);
+    gte_ctc2(GTE_R13R21, *(int*)&tr->r[2]);
+    gte_ctc2(GTE_R22R23, *(int*)&tr->r[4]);
+    gte_ctc2(GTE_R31R32, *(int*)&tr->r[6]);
+    gte_ctc2(GTE_R33,    tr->r[8]);
+    
+    // Projection params
+    gte_ctc2(GTE_H,   tr->h);
+    gte_ctc2(GTE_OFX, tr->ofx);
+    gte_ctc2(GTE_OFY, tr->ofy);
+    gte_ctc2(GTE_DQA, tr->dqa);
+    gte_ctc2(GTE_DQB, tr->dqb);
     
     int numIndices = psm->numTris * 3;
     for (int i = 0; i < numIndices; i += 3)
@@ -161,7 +187,12 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         triVertices[2] = vertices[vi3];
         
         // Rotate-translate-perspective transform
-        gteRTPTRun(triVertices, projected);
+        //gteRTPTRun(triVertices, projected);
+        gte_set_vertex(triVertices);
+        gte_rtpt();
+        nop();
+        nop();
+        gte_get_vertex(projected);
         
         // Screen-space vertices x, y
         x1 = projected[0].x; y1 = projected[0].y;
@@ -231,8 +262,6 @@ char* textures @("assets/texture.tim");
 char* character @("assets/character.psm");
 char* floor @("assets/floor.psm");
 char* sin4096 @("sin_table/sin4096.bin");
-
-#define F_ONE 0x1000
 
 #define QPI 0x200
 #define HPI 0x400

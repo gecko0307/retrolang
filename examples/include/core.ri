@@ -31,6 +31,8 @@ For more information, please refer to <https://unlicense.org>
 #define null 0x00000000
 #define size_t int
 
+#define F_ONE 0x1000
+
 // GTE data registers
 #define VXY0     0  // Vector0 X and Y, 2 packed signed 16-bit integers
 #define VZ0      1  // Vector0 Z, signed 16-bit integer

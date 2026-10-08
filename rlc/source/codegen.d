@@ -1636,6 +1636,7 @@ class CodeGen
     string[] intrinsics = [
         "nop",
         "gte_enable",
+        "gte_set_vertex", "gte_get_vertex",
         "gte_mtc2", "gte_ctc2",
         "gte_swc2", "gte_lwc2",
         "gte_rtps", "gte_rtpt", "gte_mvmva",
@@ -1681,6 +1682,7 @@ class CodeGen
             case "nop":       nop(); break;
             
             case "gte_enable":
+            {
                 Reg t0 = allocTemp();
                 Reg t1 = allocTemp();
                 emit(Op.MFC0, makeReg(t0), makeRegCop0(12), makeNone);    // t0 = Status
@@ -1693,6 +1695,36 @@ class CodeGen
                 release(Val(t1, true));
                 release(Val(t0, true));
                 break;
+            }
+            
+            case "gte_set_vertex":
+            {
+                checkArgs(e, 1);
+                Val v = genExpr(e.args[0]);
+                gte_lwc2(VXY0,  0, v.r);
+                gte_lwc2(VZ0,   4, v.r);
+                gte_lwc2(VXY1,  8, v.r);
+                gte_lwc2(VZ1,  12, v.r);
+                gte_lwc2(VXY2, 16, v.r);
+                gte_lwc2(VZ2,  20, v.r);
+                nop();
+                nop();
+                break;
+            }
+            
+            case "gte_get_vertex":
+            {
+                checkArgs(e, 1);
+                Val v = genExpr(e.args[0]);
+                gte_swc2(SXY0,  0, v.r);
+                gte_swc2(SZ1,   4, v.r);
+                gte_swc2(SXY1,  8, v.r);
+                gte_swc2(SZ2,  12, v.r);
+                gte_swc2(SXY2, 16, v.r);
+                gte_swc2(SZ3,  20, v.r);
+                release(v);
+                break;
+            }
             
             case "gte_mtc2":    // gte_mtc2(reg, value)
             case "gte_ctc2":    // gte_ctc2(reg, value)
