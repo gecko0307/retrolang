@@ -74,13 +74,47 @@ General-purpose registers:
 - `$fp` / `$s8` - frame pointer
 - `$ra` - return address
 
-Examples:
+COP0 registers:
 
-```asm
-move $t0, $a0
-li $v0, 0x01
-jr $ra
-```
+TODO
+
+COP2 (GTE) data registers:
+
+- `$VXY0` - Vector0 X and Y, 2 packed signed 16-bit integers
+- `$VZ0`  - Vector0 Z, signed 16-bit integer
+- `$VXY1` - Vector1 X and Y, 2 packed signed 16-bit integers
+- `$VZ1`  - Vector1 Z, signed 16-bit integer
+- `$VXY2` - Vector2 X and Y, 2 packed signed 16-bit integers
+- `$VZ2`  - Vector2 Z, signed 16-bit integer
+- `$RGBC` - Color/code value, 4 packed unsigned bytes
+- `$OTZ`  - Average Z value (for Ordering Table), unsigned 16-bit integer
+- `$IR0`  - 16-bit Accumulator (Interpolate), signed 16-bit integer
+- `$IR1`  - 16-bit Accumulator (Vector X), signed 16-bit integer
+- `$IR2`  - 16-bit Accumulator (Vector Y), signed 16-bit integer
+- `$IR3`  - 16-bit Accumulator (Vector Z), signed 16-bit integer
+- `$SXY0` - Screen XY-coordinate FIFO stage1, 2 packed signed 16-bit integers
+- `$SXY1` - Screen XY-coordinate FIFO stage2, 2 packed signed 16-bit integers
+- `$SXY2` - Screen XY-coordinate FIFO stage3, 2 packed signed 16-bit integers
+- `$SXYP` - Screen XY-coordinate FIFO stage4, 2 packed signed 16-bit integers
+- `$SZ0`  - Screen Z-coordinate FIFO stage1, unsigned 16-bit integer
+- `$SZ1`  - Screen Z-coordinate FIFO stage2, unsigned 16-bit integer
+- `$SZ2`  - Screen Z-coordinate FIFO stage3, unsigned 16-bit integer
+- `$SZ3`  - Screen Z-coordinate FIFO stage4, unsigned 16-bit integer
+- `$RGB0` - Color CRGB-code/color FIFO stage1, 4 packed unsigned bytes
+- `$RGB1` - Color CRGB-code/color FIFO stage2, 4 packed unsigned bytes
+- `$RGB2` - Color CRGB-code/color FIFO stage3, 4 packed unsigned bytes
+- `$MAC0` - 32bit Maths Accumulators (Value), signed 32-bit integer
+- `$MAC1` - 32bit Maths Accumulators (Vector X), signed 32-bit integer
+- `$MAC2` - 32bit Maths Accumulators (Vector Y), signed 32-bit integer
+- `$MAC3` - 32bit Maths Accumulators (Vector Z), signed 32-bit integer
+- `$IRGB` - Convert RGB Color (48bit vs 15bit), unsigned 16-bit integer
+- `$ORGB` - 
+- `$LZCS` - Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
+- `$LZCR` - Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
+
+COP2 (GTE) control registers:
+
+TODO
 
 ## Instructions
 
@@ -145,6 +179,8 @@ lwr rt, imm(base)
 sw  rt, imm(base)
 sh  rt, imm(base)
 sb  rt, imm(base)
+swl rt, imm(base)
+swr rt, imm(base)
 ```
 
 ### Control flow
@@ -166,20 +202,52 @@ b rs, target
 bal target
 ```
 
-### System and coprocessor ops
+### System
 
 ```asm
-syscall [code]
-break [code]
+syscall imm
+break imm
+```
+
+### Coprocessor 0
+```
 mtc0 rt, rd
 mfc0 rt, rd
+cop0 imm
+rfe
+```
+
+### Coprocessor 2 (GTE)
+```
 mtc2 rt, data_reg
 mfc2 rt, data_reg
 ctc2 rt, control_reg
 cfc2 rt, control_reg
+lwc2 rt, imm(base)
+swc2 rt, imm(base)
+bc2f imm
+bc2t imm
 cop2 imm
 rtps
 rtpt
+mvmva
+dcpl
+dpcs
+dpct
+intpl
+sqr
+ncs
+nct
+ncds
+ncdt
+nccs
+ncct
+cdp
+cc
+nclip
+avsz3
+avsz4
+op
+gpf
+gpl
 ```
-
-GTE support is partial at the moment.

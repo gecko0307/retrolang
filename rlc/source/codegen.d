@@ -1747,6 +1747,7 @@ class CodeGen
         "gte_enable",
         "gte_set_matrix",
         "gte_set_vertex", "gte_get_vertex",
+        "gte_mfc2", "gte_cfc2",
         "gte_mtc2", "gte_ctc2",
         "gte_swc2", "gte_lwc2",
         "gte_rtps", "gte_rtpt", "gte_mvmva",

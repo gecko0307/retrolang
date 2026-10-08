@@ -18,3 +18,7 @@ The R3000 has 32 general-purpose registers:
 - `$sp` - stack pointer; holds the first free address on the stack
 - `$fp` - frame pointer
 - `$ra` - return address; jumping to this address returns from the procedure.
+
+## Instructions
+
+TODO
