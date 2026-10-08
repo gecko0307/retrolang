@@ -341,6 +341,8 @@ Word opMtc0(Reg rt, Reg rd) { return opR(0x10, 0x04, rt, rd, 0, 0); }
 // TODO: opBc0f
 // TODO: opCop0
 
+// TODO: opRfe
+
 Word opMfc2(Reg rt, Reg rd) { return opR(0x12, 0x00, rt, rd, 0, 0); }
 Word opCfc2(Reg rt, Reg rd) { return opR(0x12, 0x02, rt, rd, 0, 0); }
 Word opMtc2(Reg rt, Reg rd) { return opR(0x12, 0x04, rt, rd, 0, 0); }
