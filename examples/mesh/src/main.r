@@ -1,3 +1,29 @@
+/*
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the software
+to the public domain. We make this dedication for the benefit of the
+public at large and to the detriment of our heirs and successors.
+We intend this dedication to be an overt act of relinquishment in 
+perpetuity of all present and future rights to this software under
+copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+*/
+
 /**
  * Mesh rendering test
  */
@@ -48,7 +74,8 @@ struct RTPSTransform
 };
 
 void gteInit() @("gteInit.s");
-void gteRTPT(struct RTPSTransform* rtpsTransform, struct Vertex* inVertices, struct SVertex* outVertices) @("gteRTPT.s");
+void gteRTPTSetParams(struct RTPSTransform* rtpsTransform) @("gteRTPTSetParams.s");
+void gteRTPTRun(struct Vertex* inVertices, struct SVertex* outVertices) @("gteRTPTRun.s");
 
 // PSM file header
 struct PSMHeader
@@ -93,14 +120,19 @@ struct PSMData
  */
 #define Z_SHIFT 2
 
-void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* tr, int zOffset)
+/// Draws a PSM mesh with a given transformation.
+void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* tr, int zBias)
 {
     // GTE transformation input and output
     struct Vertex triVertices[3];
     struct SVertex projected[3];
+    short x1, y1;
+    short x2, y2;
+    short x3, y3;
     
-    uint px = data->texture->px + data->tilex;
-    uint py = data->texture->py + data->tiley;
+    // VRAM position of the texture tile
+    uint tx = data->texture->px + data->tilex;
+    uint ty = data->texture->py + data->tiley;
     
     ushort vi1, vi2, vi3;
     int z1, z2, z3, otz;
@@ -111,41 +143,51 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     
     uint clutId = (uint)data->texture->clutId << 16;
     uint tpage = (uint)data->texture->tpage << 16;
+    int color = data->color;
     
-    for (int i = 0; i < psm->numTris; i++)
+    // Upload transform parameters to GTE
+    gteRTPTSetParams(tr);
+    
+    int numIndices = psm->numTris * 3;
+    for (int i = 0; i < numIndices; i += 3)
     {
-        vi1 = indices[i * 3];
-        vi2 = indices[i * 3 + 1];
-        vi3 = indices[i * 3 + 2];
-        struct Vertex* v1 = &vertices[vi1];
-        struct Vertex* v2 = &vertices[vi2];
-        struct Vertex* v3 = &vertices[vi3];
+        // Read triangle vertices
+        vi1 = indices[i];
+        vi2 = indices[i + 1];
+        vi3 = indices[i + 2];
         
-        triVertices[0] = *v1;
-        triVertices[1] = *v2;
-        triVertices[2] = *v3;
-        gteRTPT(tr, triVertices, projected);
+        triVertices[0] = vertices[vi1];
+        triVertices[1] = vertices[vi2];
+        triVertices[2] = vertices[vi3];
         
-        if (projected[0].x < 0 && projected[1].x < 0 && projected[2].x < 0)
+        // Rotate-translate-perspective transform
+        gteRTPTRun(triVertices, projected);
+        
+        // Screen-space vertices x, y
+        x1 = projected[0].x; y1 = projected[0].y;
+        x2 = projected[1].x; y2 = projected[1].y;
+        x3 = projected[2].x; y3 = projected[2].y;
+        
+        // Screen clipping
+        if (x1 < 0 && x2 < 0 && x3 < 0)
             continue;
-        if (projected[0].x >= SCREEN_WIDTH && 
-            projected[1].x >= SCREEN_WIDTH &&
-            projected[2].x >= SCREEN_WIDTH)
+        if (x1 >= SCREEN_WIDTH && 
+            x2 >= SCREEN_WIDTH &&
+            x3 >= SCREEN_WIDTH)
             continue;
-        if (projected[0].y < 0 && projected[1].y < 0 && projected[2].y < 0)
+        if (y1 < 0 && y2 < 0 && y3 < 0)
             continue;
-        if (projected[0].y >= SCREEN_HEIGHT &&
-            projected[1].y >= SCREEN_HEIGHT &&
-            projected[2].y >= SCREEN_HEIGHT)
+        if (y1 >= SCREEN_HEIGHT &&
+            y2 >= SCREEN_HEIGHT &&
+            y3 >= SCREEN_HEIGHT)
             continue;
         
         // Backface culling
-        int area =
-            (projected[1].x - projected[0].x) * (projected[2].y - projected[0].y) - 
-            (projected[2].x - projected[0].x) * (projected[1].y - projected[0].y);
+        int area = (x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1);
         if (area > 0)
             continue;
         
+        // Screen-space depth
         z1 = projected[0].z;
         z2 = projected[1].z;
         z3 = projected[2].z;
@@ -153,25 +195,28 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         // Near-plane rejection
         if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
             continue;
-        //otz = (((z1 + z2 + z3) / 3) >> Z_SHIFT) + zOffset;
-        otz = (((z1 + z2 + z3) * (0x555 >> Z_SHIFT)) >> 12) + zOffset;
+        
+        //otz = (((z1 + z2 + z3) / 3) >> Z_SHIFT) + zBias;
+        otz = (((z1 + z2 + z3) * (0x555 >> Z_SHIFT)) >> 12) + zBias;
         if (otz >= OT_SIZE - 1 || otz < 0)
             continue; // Beyond the depth range
+        
         int* p = gpuAllocZ(7, otz);
         if (p == 0) break;
         
-        p[0] = GP0_TRI3 | data->color;
-        p[1] = (projected[0].y << 16) | (projected[0].x & 0xffff);
-        u = px + uvs[vi1 * 2];
-        v = py + uvs[vi1 * 2 + 1];
+        // Fill the packet
+        p[0] = GP0_TRI3 | color;
+        p[1] = (y1 << 16) | (x1 & 0xffff);
+        u = tx + uvs[vi1 * 2];
+        v = ty + uvs[vi1 * 2 + 1];
         p[2] = clutId | (v << 8) | (u & 0xff);
-        p[3] = (projected[1].y << 16) | (projected[1].x & 0xffff);
-        u = px + uvs[vi2 * 2];
-        v = py + uvs[vi2 * 2 + 1];
+        p[3] = (y2 << 16) | (x2 & 0xffff);
+        u = tx + uvs[vi2 * 2];
+        v = ty + uvs[vi2 * 2 + 1];
         p[4] = tpage  | (v << 8) | (u & 0xff);
-        p[5] = (projected[2].y << 16) | (projected[2].x & 0xffff);
-        u = px + uvs[vi3 * 2];
-        v = py + uvs[vi3 * 2 + 1];
+        p[5] = (y3 << 16) | (x3 & 0xffff);
+        u = tx + uvs[vi3 * 2];
+        v = ty + uvs[vi3 * 2 + 1];
         p[6] = (v << 8) | (u & 0xff);
     }
 }
@@ -402,7 +447,7 @@ void main()
         
         gpuSortClear(0x808080);
         drawPSM(psmCharacter, &dataCharacter, &tr, 0);
-        drawPSM(psmFloor, &dataFloor, &tr, 100);
+        drawPSM(psmFloor, &dataFloor, &tr, 50);
         gpuEndFrame();
     }
 }

@@ -41,7 +41,7 @@ RLC translates your program verbatim, without optimizations and unexpected chang
 
 Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files. Based on [LNK disassembler](https://github.com/gecko0307/psxlib/tree/main/tools/psxdisasm) from PSXLib.
 
-## Rerobuild
+## Retrobuild
 
 Build automation system. Compiles a Retrolang project into a PlayStation 1 executable, packs it into a CD-ROM image (CUE+BIN), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe a project.
 
@@ -181,3 +181,9 @@ In the library:
 - Sound
 - Memory cards
 - Analog sticks
+
+## License
+
+RLC, PSXDISASM, Retrobuild are distributed under the Boost Software License, 1.0.
+
+The standard library and all examples are distributed under Unlicense/Public Domain.
