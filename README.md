@@ -126,7 +126,7 @@ Usage (assuming you've copied the [include](/examples/include) folder to your pr
 #include "include/gpu.ri"
 ```
 
-## Examples Collecions
+## Examples Collection
 
 `examples` directory contains a number of basic demos showcasing possibilities of RLC.
 
