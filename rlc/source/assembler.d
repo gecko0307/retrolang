@@ -315,9 +315,9 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         }
         
         else if (op == "mtc0" && args.length == 2)
-            output ~= AsmInstr(Op.MTC0, args[0].makeReg, args[1].makeReg, makeNone, i); // TODO: makeRegCop0Data
+            output ~= AsmInstr(Op.MTC0, args[0].makeReg, args[1].makeRegCop0, makeNone, i);
         else if (op == "mfc0" && args.length == 2)
-            output ~= AsmInstr(Op.MFC0, args[0].makeReg, args[1].makeReg, makeNone, i); // TODO: makeRegCop0Data
+            output ~= AsmInstr(Op.MFC0, args[0].makeReg, args[1].makeRegCop0, makeNone, i);
         
         else if (op == "mtc2" && args.length == 2)
             output ~= AsmInstr(Op.MTC2, args[0].makeReg, args[1].makeRegGteData, makeNone, i);

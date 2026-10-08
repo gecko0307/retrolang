@@ -253,6 +253,8 @@ Word opLwr(Reg rt, short off, Reg base) { return opI(0x26, base, rt, off); }
 Word opSb(Reg rt, short off, Reg base)  { return opI(0x28, base, rt, off); }
 Word opSh(Reg rt, short off, Reg base)  { return opI(0x29, base, rt, off); }
 Word opSw(Reg rt, short off, Reg base)  { return opI(0x2B, base, rt, off); }
+// TODO: opSwl
+// TODO: opSwr
 Word opBlez(Reg rs, short off)          { return opI(0x06, rs, 0, off); }
 Word opBgtz(Reg rs, short off)          { return opI(0x07, rs, 0, off); }
 Word opBltz(Reg rs, short off)          { return opI(0x01, rs, 0x00, off); }
@@ -313,6 +315,14 @@ Word[] opLi(T)(Reg rt, T imm)
 Word opMfc0(Reg rt, Reg rd) { return opR(0x10, 0x00, rt, rd, 0, 0); }
 Word opMtc0(Reg rt, Reg rd) { return opR(0x10, 0x04, rt, rd, 0, 0); }
 
+// TODO: opCfc0
+// TODO: opCtc0
+// TODO: opLwc0
+// TODO: opSwc0
+// TODO: opBc0t
+// TODO: opBc0f
+// TODO: opCop0
+
 Word opMfc2(Reg rt, Reg rd) { return opR(0x12, 0x00, rt, rd, 0, 0); }
 Word opCfc2(Reg rt, Reg rd) { return opR(0x12, 0x02, rt, rd, 0, 0); }
 Word opMtc2(Reg rt, Reg rd) { return opR(0x12, 0x04, rt, rd, 0, 0); }
@@ -320,6 +330,9 @@ Word opCtc2(Reg rt, Reg rd) { return opR(0x12, 0x06, rt, rd, 0, 0); }
 
 Word opLwc2(Reg gteRt, short off, Reg base) { return opI(0x32, base, gteRt, off); }
 Word opSwc2(Reg gteRt, short off, Reg base) { return opI(0x3A, base, gteRt, off); }
+
+// TODO: opBc2t
+// TODO: opBc2f
 
 Word opCop2(uint command) { return 0x4A000000 | (command & 0x01ffffff); }
 
