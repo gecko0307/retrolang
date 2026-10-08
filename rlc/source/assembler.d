@@ -32,26 +32,6 @@ DEALINGS IN THE SOFTWARE.
  * Syntax is similar to AT&T. Format:
  *
  * [.label] mnemonic [operands]
- *
- * CPU registers:
- * $r0 - always zero
- * $at - temporary data for certain assembler pseudo-instructions
- * $v0..$v1 - procedure return values
- * $a0..$a3 - procedure arguments
- * $t0..$t7 - variables
- * $s0..$s7 - static procedure variables
- * $t8..$t9 - temporaries (variables)
- * $k0..$k1 - reserved for BIOS
- * $gp - global pointer
- * $sp - stack pointer; holds the first free address on the stack
- * $fp - frame pointer
- * $ra - return address; jumping to this address returns from the procedure.
- *
- * GTE data registers:
- * TODO
- *
- * GTE control registers:
- * TODO
  */
 module assembler;
 
@@ -127,9 +107,9 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         string op = parts[0].toLower;
         string[] args = parts[1..$];
         
+        // Raw word(s)
         if (op == "word")
         {
-            // Raw words
             foreach(arg; args)
             {
                 output ~= AsmInstr(Op.WORD, makeNone, makeNone, makeNone, i, [cast(Word)parseInt(arg)]);
@@ -141,9 +121,11 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
                 throw err(filename, lineNum, "program code should be in \".text\" section, current section is \"" ~ currentSection ~ "\"");
         }
 
+        // No-op/delay slot
         if (op == "nop")
             output ~= AsmInstr(Op.NOP);
         
+        // Arithmetic
         else if (op == "add" && args.length == 3)
             output ~= AsmInstr(Op.ADD, args[0].makeReg, args[1].makeReg, args[2].makeReg, i);
         else if (op == "addu" && args.length == 3)
@@ -173,6 +155,7 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         else if (op == "mthi" && args.length == 1)
             output ~= AsmInstr(Op.MTHI, args[0].makeReg, makeNone, makeNone, i);
         
+        // Unconditional jumps
         else if (op == "j" && args.length == 1)
         {
             AsmOperand imm;
@@ -201,6 +184,7 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
                 output ~= AsmInstr(Op.JALR, args[0].makeReg, args[1].makeReg, makeNone, i);
         }
         
+        // Modify registers
         else if (op == "li" && args.length == 2)
         {
             AsmOperand imm;
@@ -221,6 +205,7 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         else if (op == "not" && args.length == 2)
             output ~= AsmInstr(Op.NOT, args[0].makeReg, args[1].makeReg, makeNone, i);
         
+        // Comparison
         else if (op == "slt" && args.length == 3)
             output ~= AsmInstr(Op.SLT, args[0].makeReg, args[1].makeReg, args[2].makeReg, i);
         else if (op == "slti" && args.length == 3)
@@ -230,6 +215,7 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         else if (op == "sltiu" && args.length == 3)
             output ~= AsmInstr(Op.SLTIU, args[0].makeReg, args[1].makeReg, args[2].makeImm, i);
         
+        // Bitwise
         else if (op == "and" && args.length == 3)
             output ~= AsmInstr(Op.AND, args[0].makeReg, args[1].makeReg, args[2].makeReg, i);
         else if (op == "andi" && args.length == 3)
@@ -257,6 +243,7 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         else if (op == "srav" && args.length == 3)
             output ~= AsmInstr(Op.SRAV, args[0].makeReg, args[1].makeReg, args[2].makeReg, i);
         
+        // Memory
         else if (op == "lw" && args.length == 3)
             output ~= AsmInstr(Op.LW, args[0].makeReg, args[1].makeImm, args[2].makeReg, i);
         else if (op == "lh" && args.length == 3)
@@ -277,7 +264,12 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
             output ~= AsmInstr(Op.SH, args[0].makeReg, args[1].makeImm, args[2].makeReg, i);
         else if (op == "sb" && args.length == 3)
             output ~= AsmInstr(Op.SB, args[0].makeReg, args[1].makeImm, args[2].makeReg, i);
+        else if (op == "swl" && args.length == 3)
+            output ~= AsmInstr(Op.SWL, args[0].makeReg, args[1].makeImm, args[2].makeReg, i);
+        else if (op == "swr" && args.length == 3)
+            output ~= AsmInstr(Op.SWR, args[0].makeReg, args[1].makeImm, args[2].makeReg, i);
         
+        // Branching
         else if (op == "beq" && args.length == 3)
             output ~= AsmInstr(Op.BEQ, args[0].makeReg, args[1].makeReg, args[2].makeImm, i);
         else if (op == "bne" && args.length == 3)
@@ -314,11 +306,33 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
                 output ~= AsmInstr(Op.BREAK, args[0].makeImm, makeNone, makeNone, i);
         }
         
+        // COP0
         else if (op == "mtc0" && args.length == 2)
             output ~= AsmInstr(Op.MTC0, args[0].makeReg, args[1].makeRegCop0, makeNone, i);
         else if (op == "mfc0" && args.length == 2)
             output ~= AsmInstr(Op.MFC0, args[0].makeReg, args[1].makeRegCop0, makeNone, i);
+        else if (op == "ctc0" && args.length == 2)
+            output ~= AsmInstr(Op.CTC0, args[0].makeReg, args[1].makeRegCop0, makeNone, i);
+        else if (op == "cfc0" && args.length == 2)
+            output ~= AsmInstr(Op.CFC0, args[0].makeReg, args[1].makeRegCop0, makeNone, i);
         
+        else if (op == "lwc0" && args.length == 3)
+            output ~= AsmInstr(Op.LWC0, args[0].makeRegGteData, args[1].makeImm, args[2].makeReg, i);
+        else if (op == "swc0" && args.length == 3)
+            output ~= AsmInstr(Op.SWC0, args[0].makeRegGteData, args[1].makeImm, args[2].makeReg, i);
+        
+        else if (op == "bc0f" && args.length == 1)
+            output ~= AsmInstr(Op.BC0F, args[0].makeImm, makeNone, makeNone, i);
+        else if (op == "bc0t" && args.length == 1)
+            output ~= AsmInstr(Op.BC0T, args[0].makeImm, makeNone, makeNone, i);
+        
+        else if (op == "cop0" && args.length == 1)
+            output ~= AsmInstr(Op.COP0, args[0].makeImm, makeNone, makeNone, i);
+        
+        else if (op == "rfe" && args.length == 0)
+            output ~= AsmInstr(Op.RFE, makeNone, makeNone, makeNone, i);
+        
+        // COP2/GTE
         else if (op == "mtc2" && args.length == 2)
             output ~= AsmInstr(Op.MTC2, args[0].makeReg, args[1].makeRegGteData, makeNone, i);
         else if (op == "mfc2" && args.length == 2)
@@ -333,9 +347,15 @@ Assembly assemble(string code, string filename, string labelPrefix = "", size_t 
         else if (op == "swc2" && args.length == 3)
             output ~= AsmInstr(Op.SWC2, args[0].makeRegGteData, args[1].makeImm, args[2].makeReg, i);
         
+        else if (op == "bc2f" && args.length == 1)
+            output ~= AsmInstr(Op.BC2F, args[0].makeImm, makeNone, makeNone, i);
+        else if (op == "bc2t" && args.length == 1)
+            output ~= AsmInstr(Op.BC2T, args[0].makeImm, makeNone, makeNone, i);
+        
         else if (op == "cop2" && args.length == 1)
             output ~= AsmInstr(Op.COP2, args[0].makeImm, makeNone, makeNone, i);
         
+        // GTE command shorthands
         else if (op == "rtps" && args.length == 0)
             output ~= AsmInstr(Op.RTPS, makeNone, makeNone, makeNone, i);
         else if (op == "rtpt" && args.length == 0)
