@@ -123,23 +123,19 @@ struct PSMData
  */
 #define Z_SHIFT 2
 
+/**
+ * Transformed vertex cache.
+ */
+#define MAX_VERTS 4000
+struct SVertex vcache[MAX_VERTS];
+
 /// Draws a PSM mesh with a given transformation.
 void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* tr, int zBias)
 {
-    // GTE transformation input and output
-    struct Vertex triVertices[3];
-    struct SVertex projected[3];
-    short x1, y1;
-    short x2, y2;
-    short x3, y3;
-    
     // VRAM position of the texture tile
     uint tx = data->texture->px + data->tilex;
     uint ty = data->texture->py + data->tiley;
     
-    ushort vi1, vi2, vi3;
-    int z1, z2, z3, otz;
-    uint u, v;
     ushort* indices = data->indices;
     uchar* uvs = data->uvs;
     struct Vertex* vertices = data->vertices;
@@ -147,9 +143,6 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     uint clutId = (uint)data->texture->clutId << 16;
     uint tpage = (uint)data->texture->tpage << 16;
     int color = data->color;
-    
-    // Upload transform parameters to GTE
-    //gteRTPTSetParams(tr);
     
     // Upload translation to GTE
     gte_ctc2(GTE_TRX, tr->tx);
@@ -166,30 +159,35 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     gte_ctc2(GTE_DQA, tr->dqa);
     gte_ctc2(GTE_DQB, tr->dqb);
     
-    int numIndices = psm->numTris * 3;
-    for (int i = 0; i < numIndices; i += 3)
+    int n = psm->numVerts;
+    for (int i = 0; i < n; i += 3)
     {
-        // Read triangle vertices
+        // Rotate-translate-perspective transform
+        gte_set_vertex(&vertices[i]);
+        gte_rtpt();
+        nop();
+        nop();
+        gte_get_vertex(&vcache[i]);
+    }
+
+    ushort vi1, vi2, vi3;
+    int z1, z2, z3, otz;
+    uint u, v;
+    short x1, y1;
+    short x2, y2;
+    short x3, y3;
+    n = psm->numTris * 3;
+    for (int i = 0; i < n; i += 3)
+    {
+        // Read triangle indices
         vi1 = indices[i];
         vi2 = indices[i + 1];
         vi3 = indices[i + 2];
         
-        triVertices[0] = vertices[vi1];
-        triVertices[1] = vertices[vi2];
-        triVertices[2] = vertices[vi3];
-        
-        // Rotate-translate-perspective transform
-        //gteRTPTRun(triVertices, projected);
-        gte_set_vertex(triVertices);
-        gte_rtpt();
-        nop();
-        nop();
-        gte_get_vertex(projected);
-        
-        // Screen-space vertices x, y
-        x1 = projected[0].x; y1 = projected[0].y;
-        x2 = projected[1].x; y2 = projected[1].y;
-        x3 = projected[2].x; y3 = projected[2].y;
+        // Cached screen-space coordinates
+        x1 = vcache[vi1].x; y1 = vcache[vi1].y; z1 = vcache[vi1].z;
+        x2 = vcache[vi2].x; y2 = vcache[vi2].y; z2 = vcache[vi2].z;
+        x3 = vcache[vi3].x; y3 = vcache[vi3].y; z3 = vcache[vi3].z;
         
         // Screen clipping
         if (x1 < 0 && x2 < 0 && x3 < 0)
@@ -210,16 +208,10 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         if (area > 0)
             continue;
         
-        // Screen-space depth
-        z1 = projected[0].z;
-        z2 = projected[1].z;
-        z3 = projected[2].z;
-        
         // Near-plane rejection
         if (z1 < Z_NEAR || z2 < Z_NEAR || z3 < Z_NEAR)
             continue;
         
-        //otz = (((z1 + z2 + z3) / 3) >> Z_SHIFT) + zBias;
         otz = (((z1 + z2 + z3) * (0x555 >> Z_SHIFT)) >> 12) + zBias;
         if (otz >= OT_SIZE - 1 || otz < 0)
             continue; // Beyond the depth range
@@ -398,6 +390,7 @@ void main()
     dataFloor.tilex = 64;
     dataFloor.tiley = 0;
     dataFloor.color = COLOR_NEUTRAL;
+    bios_a(0x3f, "Floor vertices: %d\n", psmFloor->numVerts);
     
     // Character mesh data
     struct PSMHeader* psmCharacter = (struct PSMHeader*)character;
@@ -410,6 +403,7 @@ void main()
     dataCharacter.tilex = 0;
     dataCharacter.tiley = 0;
     dataCharacter.color = COLOR_NEUTRAL;
+    bios_a(0x3f, "Character vertices: %d\n", psmCharacter->numVerts);
     
     // Camera
     struct Camera cam;
@@ -469,8 +463,8 @@ void main()
         trSetCameraY(&tr, &cam, SCALE);
         
         gpuSortClear(0x808080);
-        drawPSM(psmCharacter, &dataCharacter, &tr, 0);
-        drawPSM(psmFloor, &dataFloor, &tr, 50);
+        drawPSM(psmCharacter, &dataCharacter, &tr, -20);
+        drawPSM(psmFloor, &dataFloor, &tr, 0);
         gpuEndFrame();
     }
 }

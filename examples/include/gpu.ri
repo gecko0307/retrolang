@@ -91,9 +91,26 @@ For more information, please refer to <https://unlicense.org>
  * Two command buffers at fixed RAM addresses.
  * Make sure this area does not collide with your data.
  */
+/*
 #define GPU_BUF_WORDS 4096
 #define GPU_BUF0 0x80180000
 #define GPU_BUF1 0x80184000
+
+#define GPU_OT0 0x80188000
+#define GPU_OT1 0x8018a000
+*/
+
+#define GPU_BUF_WORDS 8192
+#define GPU_BUF0 0x80180000
+#define GPU_BUF1 0x80188000
+
+/*
+ * Two ordering tables.
+ * Make sure this area does not collide with your data.
+ */
+#define OT_SIZE 2048         // in words (0x2000 bytes)
+#define GPU_OT0  0x80190000
+#define GPU_OT1  0x80192000
 
 int* gpuCurrentBuffer = GPU_BUF0; // buffer being filled
 int  gpuBufferPos = 0;            // next free word in gpuCurrentBuffer
@@ -258,10 +275,6 @@ int screenY = 0;
 int cyclesPerPixel = 0;
 
 int bufferOffset = 0;
-
-#define OT_SIZE 2048
-#define GPU_OT0 0x80188000
-#define GPU_OT1 0x80189000
 
 /// Pointer to the current ordering table.
 int* gpuOt = GPU_OT0;
