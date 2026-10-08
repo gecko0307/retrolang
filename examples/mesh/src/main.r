@@ -151,23 +151,19 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     // Upload transform parameters to GTE
     //gteRTPTSetParams(tr);
     
-    // Translation tr->tx,ty,tz
+    // Upload translation to GTE
     gte_ctc2(GTE_TRX, tr->tx);
     gte_ctc2(GTE_TRY, tr->ty);
     gte_ctc2(GTE_TRZ, tr->tz);
     
-    // Rotation matrix
-    //gte_ctc2(GTE_R11R12, tr->r[0]);
-    //gte_ctc2(GTE_R13R21, tr->r[2]);
-    //gte_ctc2(GTE_R22R23, tr->r[4]);
-    //gte_ctc2(GTE_R31R32, tr->r[6]);
+    // Upload rotation matrix to GTE
     gte_ctc2(GTE_R11R12, *(int*)&tr->r[0]);
     gte_ctc2(GTE_R13R21, *(int*)&tr->r[2]);
     gte_ctc2(GTE_R22R23, *(int*)&tr->r[4]);
     gte_ctc2(GTE_R31R32, *(int*)&tr->r[6]);
     gte_ctc2(GTE_R33,    tr->r[8]);
     
-    // Projection params
+    // Upload projection params to GTE
     gte_ctc2(GTE_H,   tr->h);
     gte_ctc2(GTE_OFX, tr->ofx);
     gte_ctc2(GTE_OFY, tr->ofy);
