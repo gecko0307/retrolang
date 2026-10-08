@@ -35,6 +35,20 @@ For more information, please refer to <https://unlicense.org>
 // Fixed-point constants
 #define F_ONE 0x1000 // For rotation matrices
 
+// RAM
+#define KUSEG_BASE 0x00000000
+#define KUSEG_SCRATCHPAD_START 0x1F800000
+#define KUSEG_SCRATCHPAD_END   0x1F8003FF
+#define KUSEG_BIOS 0x1FC00000
+#define KSEG0_BASE 0x80000000
+#define KSEG0_SCRATCHPAD_START 0x9F800000
+#define KSEG0_SCRATCHPAD_END   0x9F8003FF
+#define KSEG0_BIOS 0x9FC00000
+#define KSEG1_BASE 0xA0000000
+#define KSEG1_BIOS 0xBFC00000
+#define KSEG2_BASE 0xC0000000
+#define SCRATCHPAD_SIZE 0x400
+
 // COP0 registers
 #define COP0_BPC      3  // Breakpoint on execute (R/W)
 #define COP0_BDA      5  // Breakpoint on data access (R/W)
