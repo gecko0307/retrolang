@@ -76,7 +76,7 @@ struct RTPSTransform
     short dqb;
 };
 
-//void gteInit() @("gteInit.s");
+void gteInit() @("gteInit.s");
 void gteRTPTSetParams(struct RTPSTransform* rtpsTransform) @("gteRTPTSetParams.s");
 void gteRTPTRun(struct Vertex* inVertices, struct SVertex* outVertices) @("gteRTPTRun.s");
 

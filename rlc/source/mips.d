@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 /**
  * MIPS R3000 instruction set.
+ * Provides register enums and instruction encoding.
  */
 module mips;
 
@@ -36,9 +37,10 @@ import utils;
 alias Word = uint;
 alias Reg = ubyte;
 
+/// Opcode enums.
 enum Op
 {
-    // CPU opcode enums
+    // CPU
     NOP, WORD,
     SLL, SRL, SRA, SLLV, SRLV, SRAV,
     J, JAL, JR, JALR,
@@ -61,28 +63,28 @@ enum Op
     MTC2, MFC2, CTC2, CFC2,
     COP2,
     
-    // GTE opcode enums
+    // GTE
     RTPS, RTPT, MVMVA, DCPL, DPCS, DPCT,
     INTPL, SQR, NCS, NCT, NCDS, NCDT,
     NCCS, NCCT, CDP, CC, NCLIP,
     AVSZ3, AVSZ4, OP, GPF, GPL
 }
 
-// CPU registers
+/// CPU registers.
 enum: Reg
 {
-    R0   = 0,
-    AT   = 1,
+    R0   = 0,  // Always zero
+    AT   = 1,  // Temporary data for certain pseudo-instructions
     
-    V0   = 2,
+    V0   = 2,  // Procedure return values
     V1   = 3,
     
-    A0   = 4,
+    A0   = 4,  // Procedure arguments
     A1   = 5,
     A2   = 6,
     A3   = 7,
     
-    T0   = 8,
+    T0   = 8,  // Temporaries
     T1   = 9,
     T2   = 10,
     T3   = 11,
@@ -91,7 +93,7 @@ enum: Reg
     T6   = 14,
     T7   = 15,
     
-    S0   = 16,
+    S0   = 16, // Static procedure variables
     S1   = 17,
     S2   = 18,
     S3   = 19,
@@ -100,20 +102,36 @@ enum: Reg
     S6   = 22,
     S7   = 23,
     
-    T8   = 24,
+    T8   = 24, // Temporaries
     T9   = 25,
     
-    K0   = 26,
+    K0   = 26, // Reserved for BIOS
     K1   = 27,
     
-    GP   = 28,
-    SP   = 29,
-    FP   = 30,
+    GP   = 28, // Global pointer
+    SP   = 29, // Stack pointer; holds the first free address on the stack
+    FP   = 30, // Frame pointer
     
-    RA   = 31
+    RA   = 31  // Return address; jumping to this address returns from a procedure
 }
 
-// GTE data registers
+/// COP0 registers.
+enum: Reg
+{
+    BPC = 3,      // Breakpoint on execute (R/W)
+    BDA = 5,      // Breakpoint on data access (R/W)
+    JUMPDEST = 6, // Randomly memorized jump address (R)
+    DCIC = 7,     // Breakpoint control (R/W)
+    BADVADDR = 8, // Bad Virtual Address (R)
+    BDAM = 9,     // Data Access breakpoint mask (R/W)
+    BPCM = 11,    // Execute breakpoint mask (R/W)
+    SR = 12,      // System status (R/W)
+    CAUSE = 13,   // The most recently recognised exception (R)
+    EPC = 14,     // Return Address from Trap (R)
+    PRID = 15     // Processor ID (R)
+}
+
+/// GTE data registers.
 enum: Reg
 {
     VXY0 = 0,  // Vector0 X and Y, 2 packed signed 16-bit integers
@@ -150,7 +168,7 @@ enum: Reg
     LZCR = 31  // Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
 }
 
-// GTE control registers
+/// GTE control registers.
 enum: Reg
 {
     R11R12 = 0,  // Rotation matrix 3x3 (r11, r12), 2 signed 16-bit integers

@@ -167,7 +167,13 @@ struct GpuTriangle3
     int color;
 };
 
-#define GpuSprite1 GpuRect
+struct GpuSprite1
+{
+    int x;
+    int y;
+    int width;
+    int height;
+};
 
 struct GpuSprite2
 {
@@ -389,10 +395,7 @@ void gpuOtClear()
 int* gpuAllocZ(int n, int z)
 {
     if (gpuBufferPos + n + 1 > GPU_BUF_WORDS)
-    {
-        //gpuFlush();
-        return 0; // out of primitive memory, caller must drop the primitive
-    }
+        return 0; // out of buffer capacity, caller must drop the primitive
     
     int* hdr = gpuCurrentBuffer + gpuBufferPos;
     gpuBufferPos += n + 1;

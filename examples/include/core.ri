@@ -33,15 +33,28 @@ For more information, please refer to <https://unlicense.org>
 
 #define F_ONE 0x1000
 
+// COP0 registers
+#define COP0_BPC      3  // Breakpoint on execute (R/W)
+#define COP0_BDA      5  // Breakpoint on data access (R/W)
+#define COP0_JUMPDEST 6  // Randomly memorized jump address (R)
+#define COP0_DCIC     7  // Breakpoint control (R/W)
+#define COP0_BADVADDR 8  // Bad Virtual Address (R)
+#define COP0_BDAM     9  // Data Access breakpoint mask (R/W)
+#define COP0_BPCM     11 // Execute breakpoint mask (R/W)
+#define COP0_SR       12 // System status (R/W)
+#define COP0_CAUSE    13 // The most recently recognised exception (R)
+#define COP0_EPC      14 // Return Address from Trap (R)
+#define COP0_PRID     15 // Processor ID (R)
+
 // GTE data registers
-#define VXY0     0  // Vector0 X and Y, 2 packed signed 16-bit integers
-#define VZ0      1  // Vector0 Z, signed 16-bit integer
-#define VXY1     2  // Vector1 X and Y, 2 packed signed 16-bit integers
-#define VZ1      3  // Vector1 Z, signed 16-bit integer
-#define VXY2     4  // Vector2 X and Y, 2 packed signed 16-bit integers
-#define VZ2      5  // Vector2 Z, signed 16-bit integer
-#define RGBC     6  // Color/code value, 4 packed unsigned bytes
-#define OTZ      7  // Average Z value (for Ordering Table), unsigned 16-bit integer
+#define GTE_VXY0 0  // Vector0 X and Y, 2 packed signed 16-bit integers
+#define GTE_VZ0  1  // Vector0 Z, signed 16-bit integer
+#define GTE_VXY1 2  // Vector1 X and Y, 2 packed signed 16-bit integers
+#define GTE_VZ1  3  // Vector1 Z, signed 16-bit integer
+#define GTE_VXY2 4  // Vector2 X and Y, 2 packed signed 16-bit integers
+#define GTE_VZ2  5  // Vector2 Z, signed 16-bit integer
+#define GTE_RGBC 6  // Color/code value, 4 packed unsigned bytes
+#define GTE_OTZ  7  // Average Z value (for Ordering Table), unsigned 16-bit integer
 #define GTE_IR0  8  // 16-bit Accumulator (Interpolate), signed 16-bit integer
 #define GTE_IR1  9  // 16-bit Accumulator (Vector X), signed 16-bit integer
 #define GTE_IR2  10 // 16-bit Accumulator (Vector Y), signed 16-bit integer

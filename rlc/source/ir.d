@@ -179,7 +179,7 @@ AsmOperand makeRegCop0(ubyte reg)
 AsmOperand makeRegCop0(string s)
 {
     AsmOperand operand;
-    operand.reg = parseReg(s);
+    operand.reg = parseRegCop0(s);
     operand.type = AsmOperandType.RegCop0;
     return operand;
 }
@@ -313,6 +313,33 @@ Reg parseReg(string s)
         case "ra": return RA;
         
         default: throw new Exception("Unsupported register: " ~ s);
+    }
+}
+
+Reg parseRegCop0(string s)
+{
+    s = s.strip.toLower;
+    if (s.startsWith("$"))
+        s = s[1..$];
+
+    if (s.isNumeric)
+        return s.to!ubyte;
+
+    switch (s)
+    {
+        case "bpc": return BPC;
+        case "bda": return BDA;
+        case "jumpdest": return JUMPDEST;
+        case "dcic": return DCIC;
+        case "badvaddr": return BADVADDR;
+        case "bdam": return BDAM;
+        case "bpcm": return BPCM;
+        case "sr": return SR;
+        case "cause": return CAUSE;
+        case "epc": return EPC;
+        case "prid": return PRID;
+        
+        default: throw new Exception("Unsupported COP0 register: " ~ s);
     }
 }
 

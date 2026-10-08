@@ -2,11 +2,11 @@
 
 .text
     ; Enable GTE
-    mfc0    $t0, $12
+    mfc0    $t0, $SR
     nop
     lui     $t1, 0x4000
     or      $t0, $t0, $t1
-    mtc0    $t0, $12
+    mtc0    $t0, $SR
     nop
     
     ; For AVSZ3
