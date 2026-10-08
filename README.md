@@ -70,7 +70,9 @@ Constant initialization is supported only for global arrays.
 
 **Program entry point**: `main()`, started from a small stub that sets `$sp`.
 
-**Intrinsics**: BIOS calls `bios_a(n, ...)`, `bios_b(n, ...)`, `bios_c(n, ...)` through the `A0h`/`B0h`/`C0h` vectors with up to 3 further arguments. `n` is a function number which is passed in `$t1` register.
+**BIOS intrinsics**: `bios_a(n, ...)`, `bios_b(n, ...)`, `bios_c(n, ...)` through the `A0h`/`B0h`/`C0h` vectors with up to 3 further arguments. `n` is a function number which is passed in `$t1` register.
+
+**GTE intrinsics**: `gte_enable`, `gte_ctc2`, `gte_mtc2`, `gte_rtpt` and others.
 
 **Embedded files**: a global array can have an attribute `@("file.bin")` to embed a file to the executable.
 
