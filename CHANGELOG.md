@@ -5,6 +5,8 @@ Retrolang 0.2.0 - TBD
   - Optimize array indexing with constant expressions
 - **Retrobuild**
   - New tool - Retrobuild, a simple TOML-based build automation system
+- **png2tim**
+  - New tool - PNG to TIM converter
 - **Examples**
   - Optimize mesh example. Rewrite the rendering function using new GTE intrinsic system, add backface culling, transformed vertex caching and other improvements.
 
