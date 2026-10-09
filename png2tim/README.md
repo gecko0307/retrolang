@@ -1,6 +1,6 @@
 #png2tim
 
-A simple PNG to TIM converter. Supports 
+A simple PNG to TIM converter.
 
 Usage:
 

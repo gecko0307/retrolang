@@ -41,6 +41,10 @@ RLC translates your program verbatim, without optimizations and unexpected chang
 
 Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files. Based on [LNK disassembler](https://github.com/gecko0307/psxlib/tree/main/tools/psxdisasm) from PSXLib.
 
+## png2tim
+
+A simple PNG to TIM converter.
+
 ## Retrobuild
 
 Build automation system. With Retrobuild, you don't have to call the compiler directly or write platform-specific scripts. It compiles a project, packs it into a CD-ROM image (CUE+BIN) using [mkpsxiso](https://github.com/lameguy64/mkpsxiso), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe projects.
