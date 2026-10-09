@@ -213,7 +213,7 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
             continue;
         
         otz = (((z1 + z2 + z3) * (0x555 >> Z_SHIFT)) >> 12) + zBias;
-        if (otz >= OT_SIZE - 1 || otz < 0)
+        if (otz >= OT_SIZE_WORDS - 1 || otz < 0)
             continue; // Beyond the depth range
         
         int* p = gpuAllocZ(7, otz);

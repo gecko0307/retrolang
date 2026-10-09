@@ -28,8 +28,8 @@ For more information, please refer to <https://unlicense.org>
  * GPU driver.
  */
 
-#define GPU_PORT_GP0  0x1f801810
-#define GPU_PORT_GP1  0x1f801814
+#define GPU_PORT_GP0  0xbf801810 //0x1f801810
+#define GPU_PORT_GP1  0xbf801814 //0x1f801814
 
 #define GP0_MEM2VRAM  0xa0000000
 
@@ -91,15 +91,6 @@ For more information, please refer to <https://unlicense.org>
  * Two command buffers at fixed RAM addresses.
  * Make sure this area does not collide with your data.
  */
-/*
-#define GPU_BUF_WORDS 4096
-#define GPU_BUF0 0x80180000
-#define GPU_BUF1 0x80184000
-
-#define GPU_OT0 0x80188000
-#define GPU_OT1 0x8018a000
-*/
-
 #define GPU_BUF_WORDS 8192
 #define GPU_BUF0 0x80180000
 #define GPU_BUF1 0x80188000
@@ -108,7 +99,7 @@ For more information, please refer to <https://unlicense.org>
  * Two ordering tables.
  * Make sure this area does not collide with your data.
  */
-#define OT_SIZE 2048         // in words (0x2000 bytes)
+#define OT_SIZE_WORDS 2048         // in words (0x2000 bytes)
 #define GPU_OT0  0x80190000
 #define GPU_OT1  0x80192000
 
@@ -258,15 +249,15 @@ struct GpuTexture
     struct TimData* image;
 };
 
-// GPU I/O ports
+// GPU I/O ports (KSEG1)
 int* gp0 = GPU_PORT_GP0;
 int* gp1 = GPU_PORT_GP1;
 
-// DMA ports
-int* dmaDpcr  = 0x1f8010f0; // DMA control (channel enables / priorities)
-int* dma2Madr = 0x1f8010a0; // channel 2: base address
-int* dma2Bcr  = 0x1f8010a4; // channel 2: block control
-int* dma2Chcr = 0x1f8010a8; // channel 2: channel control
+// DMA ports (KSEG1)
+int* dmaDpcr  = 0xbf8010f0; //0x1f8010f0, DMA control (channel enables / priorities)
+int* dma2Madr = 0xbf8010a0; //0x1f8010a0, channel 2: base address
+int* dma2Bcr  = 0xbf8010a4; //0x1f8010a4, channel 2: block control
+int* dma2Chcr = 0xbf8010a8; //0x1f8010a8, channel 2: channel control
 
 // Video mode parameters
 struct GpuSettings* __gpuSettings;
@@ -399,7 +390,7 @@ void gpuOtClear()
 {
     int i;
     gpuOt[0] = GPU_LIST_END;
-    for (i = 1; i < OT_SIZE; i++)
+    for (i = 1; i < OT_SIZE_WORDS; i++)
         gpuOt[i] = (uint)(gpuOt + i - 1) & GPU_LIST_END;
 }
 
@@ -424,7 +415,7 @@ int* gpuAllocZ(int n, int z)
 /// Env/clear packets: always the farthest bucket, so they run first.
 int* gpuAlloc(int n)
 {
-    return gpuAllocZ(n, OT_SIZE - 1);
+    return gpuAllocZ(n, OT_SIZE_WORDS - 1);
 }
 
 /// Terminates the list in the current buffer and starts the DMA transfer.
@@ -436,7 +427,7 @@ void gpuKick()
     // the previous transfer must be finished before the channel is reprogrammed
     while ((*dma2Chcr & DMA_BUSY) != 0) {} //gpuWaitDma();
 
-    *dma2Madr = (uint)(gpuOt + OT_SIZE - 1) & 0xffffff;
+    *dma2Madr = (uint)(gpuOt + OT_SIZE_WORDS - 1) & 0xffffff;
     *dma2Bcr = 0;
     *dma2Chcr = DMA2_LIST_START;
 }
@@ -461,7 +452,7 @@ void gpuFlush()
 ///
 void gpuQueueEnv()
 {
-    int* p = gpuAllocZ(3, OT_SIZE - 1);
+    int* p = gpuAllocZ(3, OT_SIZE_WORDS - 1);
     p[0] = GP0_DRAW_OFFS | (bufferOffset << 11);
     p[1] = GP0_CLIP_POS |
         ((bufferOffset + __gpuSettings->clip.y) << 10 | __gpuSettings->clip.x);
@@ -764,7 +755,7 @@ void gpuDrawTriangle3(struct GpuTriangle3* tri)
 void gpuSortClear(int color)
 {
     // Allocate the farthest bucket
-    int* p = gpuAllocZ(3, OT_SIZE - 1);
+    int* p = gpuAllocZ(3, OT_SIZE_WORDS - 1);
     if (p == 0) return;
     
     p[0] = GP0_FAST_RECT | color;
@@ -777,8 +768,8 @@ void gpuSortLine1(struct GpuLine1* line, int z, int color)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
-    if (zz > OT_SIZE - 2)
-        zz = OT_SIZE - 2;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
     int* p = gpuAllocZ(3, zz);
     if (p == 0) return;
     
@@ -792,8 +783,8 @@ void gpuSortLine2(struct GpuLine2* line, int z)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
-    if (zz > OT_SIZE - 2)
-        zz = OT_SIZE - 2;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
     int* p = gpuAllocZ(4, zz);
     if (p == 0) return;
     
@@ -808,8 +799,8 @@ void gpuSortSprite1(struct GpuSprite1* sprite, int z, int color)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
-    if (zz > OT_SIZE - 2)
-        zz = OT_SIZE - 2;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
     int* p = gpuAllocZ(3, zz);
     if (p == 0) return;
     
@@ -823,8 +814,8 @@ void gpuSortSprite2(struct GpuSprite2* sprite, int z)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
-    if (zz > OT_SIZE - 2)
-        zz = OT_SIZE - 2;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
     int* p = gpuAllocZ(5, zz);
     if (p == 0) return;
     
@@ -842,8 +833,8 @@ void gpuSortTriangle1(struct GpuTriangle1* tri, int z, int color)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
-    if (zz > OT_SIZE - 2)
-        zz = OT_SIZE - 2;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
     int* p = gpuAllocZ(4, zz);
     if (p == 0) return;
     
@@ -858,8 +849,8 @@ void gpuSortTriangle2(struct GpuTriangle2* tri, int z)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
-    if (zz > OT_SIZE - 2)
-        zz = OT_SIZE - 2;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
     int* p = gpuAllocZ(6, zz);
     if (p == 0) return;
     
@@ -876,8 +867,8 @@ void gpuSortTriangle3(struct GpuTriangle3* tri, int z)
 {
     int zz = z;
     //if (zz < 0) { zz = 0; }
-    if (zz > OT_SIZE - 2)
-        zz = OT_SIZE - 2;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
     int* p = gpuAllocZ(7, zz);
     if (p == 0) return;
     
