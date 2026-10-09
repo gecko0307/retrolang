@@ -1,5 +1,5 @@
-Retrolang 0.2.0 - TBD
----------------------
+Retrolang 0.2.0 - 10 Oct, 2026
+------------------------------
 - **RLC**
   - GTE intrinsics support
   - Optimize array indexing with constant expressions
