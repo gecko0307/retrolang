@@ -28,8 +28,8 @@ For more information, please refer to <https://unlicense.org>
  * GPU driver.
  */
 
-#define GPU_PORT_GP0  0xbf801810 //0x1f801810
-#define GPU_PORT_GP1  0xbf801814 //0x1f801814
+#define GPU_PORT_GP0  0x1f801810
+#define GPU_PORT_GP1  0x1f801814
 
 #define GP0_MEM2VRAM  0xa0000000
 
@@ -254,10 +254,10 @@ int* gp0 = GPU_PORT_GP0;
 int* gp1 = GPU_PORT_GP1;
 
 // DMA ports (KSEG1)
-int* dmaDpcr  = 0xbf8010f0; //0x1f8010f0, DMA control (channel enables / priorities)
-int* dma2Madr = 0xbf8010a0; //0x1f8010a0, channel 2: base address
-int* dma2Bcr  = 0xbf8010a4; //0x1f8010a4, channel 2: block control
-int* dma2Chcr = 0xbf8010a8; //0x1f8010a8, channel 2: channel control
+int* dmaDpcr  = 0x1f8010f0; // DMA control (channel enables / priorities)
+int* dma2Madr = 0x1f8010a0; // channel 2: base address
+int* dma2Bcr  = 0x1f8010a4; // channel 2: block control
+int* dma2Chcr = 0x1f8010a8; // channel 2: channel control
 
 // Video mode parameters
 struct GpuSettings* __gpuSettings;

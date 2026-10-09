@@ -1,1 +1,1 @@
-img2tim.exe -org 320 0 -plt 320 256 -bpp 4 -usealpha -o font.tim font.png
+"../../../png2tim/png2tim.exe" --bpp=4 --alpha=128 --ix=320 --iy=0 --cx=320 --cy=256 -o=font.tim font.png
