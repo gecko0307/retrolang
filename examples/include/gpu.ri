@@ -28,6 +28,13 @@ For more information, please refer to <https://unlicense.org>
  * GPU driver.
  */
 
+#define DMA_DPCR      0x1f8010f0
+#define DMA_DICR      0x1f8010f4
+
+#define DMA_CH2_MADR  0x1f8010a0
+#define DMA_CH2_BCR   0x1f8010a4
+#define DMA_CH2_CHCR  0x1f8010a8
+
 #define GPU_PORT_GP0  0x1f801810
 #define GPU_PORT_GP1  0x1f801814
 
@@ -249,15 +256,15 @@ struct GpuTexture
     struct TimData* image;
 };
 
-// GPU I/O ports (KSEG1)
+// GPU I/O ports
 int* gp0 = GPU_PORT_GP0;
 int* gp1 = GPU_PORT_GP1;
 
-// DMA ports (KSEG1)
-int* dmaDpcr  = 0x1f8010f0; // DMA control (channel enables / priorities)
-int* dma2Madr = 0x1f8010a0; // channel 2: base address
-int* dma2Bcr  = 0x1f8010a4; // channel 2: block control
-int* dma2Chcr = 0x1f8010a8; // channel 2: channel control
+// DMA ports
+int* dmaDpcr  = DMA_DPCR;     // DMA control (channel enables / priorities)
+int* dma2Madr = DMA_CH2_MADR; // channel 2: base address
+int* dma2Bcr  = DMA_CH2_BCR;  // channel 2: block control
+int* dma2Chcr = DMA_CH2_CHCR; // channel 2: channel control
 
 // Video mode parameters
 struct GpuSettings* __gpuSettings;

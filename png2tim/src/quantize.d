@@ -8,7 +8,7 @@ struct IndexedImage
 {
     uint width;
     uint height;
-    ubyte[] pixels;   // one index per byte
+    ubyte[] pixels; // one index per byte
     ushort[] palette; // PS1 15-bit colors, padded to maxColors entries
 }
 
