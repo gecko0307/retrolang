@@ -1746,6 +1746,7 @@ class CodeGen
     string[] intrinsics = [
         "nop",
         "gte_enable",
+        // TODO: "gte_disable"
         "gte_set_matrix",
         "gte_set_vertex", "gte_get_vertex",
         "gte_mfc2", "gte_cfc2",
@@ -1862,8 +1863,8 @@ class CodeGen
                 break;
             }
             
-            case "gte_mtc2":    // gte_mtc2(reg, value)
-            case "gte_ctc2":    // gte_ctc2(reg, value)
+            case "gte_mtc2":
+            case "gte_ctc2":
             {
                 checkArgs(e, 2);
                 Reg g = gteRegArg(e.args[0], name);
@@ -1873,8 +1874,8 @@ class CodeGen
                 release(v);
                 break;
             }
-            case "gte_swc2":    // gte_swc2(reg, ptr): store a GTE data register to memory
-            case "gte_lwc2":    // gte_lwc2(reg, ptr): load a GTE data register from memory
+            case "gte_swc2":
+            case "gte_lwc2":
             {
                 checkArgs(e, 2);
                 Reg g = gteRegArg(e.args[0], name);
