@@ -78,7 +78,7 @@ bool isReserved(string s)
 {
     return inList(s, [
         "int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned",
-        "struct", "sizeof",
+        "struct", "sizeof", "macro",
         "if", "else", "while", "do", "for", "return", "break", "continue"
     ]);
 }

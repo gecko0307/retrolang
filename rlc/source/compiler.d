@@ -61,6 +61,17 @@ DEALINGS IN THE SOFTWARE.
  *   Builtins   : bios_a(n, ...), bios_b(n, ...), bios_c(n, ...) call BIOS function n
  *                through the A0h / B0h / C0h vectors (up to 3 further arguments).
  *                e.g. bios_a(0x3F, "x=%d\n", x)  ->  printf
+ *   Macros     : AST macros, defined at top level and expanded in place by the parser
+ *                (a macro must be defined before it is used). Arguments are expressions;
+ *                they are substituted by name, so an argument is re-evaluated wherever its
+ *                parameter is used. Variables declared in a macro body are hygienic.
+ *                    macro hello(s) { bios_a(0x3F, "hi\n"); }      statement macro: hello();
+ *                    macro repeat(f, n) { for (int i = 0; i < n; i++) { f; } }
+ *                                                                  repeat(x++; 10);  (',' also works)
+ *                    macro sq(x) = x * x;                          expression macro with parameters
+ *                    macro N = 16;  macro N2 = N * 2;              constants (any expression)
+ *                    macro Region = (0x80050000, 2048);            list macro: Region[0], Region.length,
+ *                                                                  and f(Region) passes both elements
  *   Entry      : main(), started from a small stub that sets $sp.
  *
  * Code generation notes

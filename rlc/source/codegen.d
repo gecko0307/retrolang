@@ -801,39 +801,6 @@ class CodeGen
                 Val pv = genExpr(e.a);
                 return LValue(LK.Mem, pv.r, 0, et, pv.isTemp);
             }
-
-            /*
-            case EK.Index:
-            {
-                CType bt = typeOf(e.a);
-                if (!bt.isPtr)
-                    throw err(e.file, e.line, "subscripted value is neither array nor pointer");
-                CType et = bt.deref();
-                if (et.ptr == 0 && et.base == Base.Void)
-                    throw err(e.file, e.line, "cannot index void*");
-                int esz = et.size();
-
-                long ci;
-                if (constEval(e.b, ci) && fits16(ci * esz))
-                {
-                    long off = ci * esz;
-                    if (e.a.kind == EK.Var)
-                    {
-                        Var av = lookup(e.a.name, e.a.file, e.a.line);
-                        if (av.isArray && av.st == Storage.InStack && fits16(av.offset + off))
-                            return LValue(LK.Mem, SP, av.offset + off, et, false);
-                    }
-                    Val bv = genExpr(e.a);
-                    return LValue(LK.Mem, bv.r, off, et, bv.isTemp);
-                }
-
-                Val basev = genExpr(e.a);
-                Val idx = scaleVal(genExpr(e.b), esz);
-                Val sum = dest2(-1, basev, idx);
-                rrr(Op.ADDU, sum.r, basev.r, idx.r);
-                return LValue(LK.Mem, sum.r, 0, et, true);
-            }
-            */
             
             case EK.Index:
             {
@@ -855,10 +822,10 @@ class CodeGen
                     long off = ci * esz;
                     if (haveBase && fits16(base.off + off))
                         return LValue(LK.Mem, base.reg, base.off + off, et, base.tempAddr);
-                    if (haveBase)        // offset too large: materialize the address
+                    if (haveBase) // offset too large: materialize the address
                     {
                         Val bv2 = dest1(-1, Val(base.reg, base.tempAddr));
-                        rri(Op.ADDIU, bv2.r, base.reg, base.off);   // may need li+addu for huge offsets
+                        rri(Op.ADDIU, bv2.r, base.reg, base.off); // may need li+addu for huge offsets
                         return LValue(LK.Mem, bv2.r, off, et, bv2.isTemp);
                     }
                     Val bv = genExpr(e.a);
@@ -1602,42 +1569,42 @@ class CodeGen
     Val genGteGetMAC0(int want = -1)
     {
         Val d = dest0(want);
-        gte_mfc2(d.r, 24); // MAC0 register, stores NCLIP result
+        gte_mfc2(d.r, MAC0); // MAC0 register, stores NCLIP result
         return d;
     }
 
     Val genGteGetOTZ(int want = -1)
     {
         Val d = dest0(want);
-        gte_mfc2(d.r, 25); // OTZ register, stores AVSZ3 result
+        gte_mfc2(d.r, OTZ); // stores AVSZ3 result
         return d;
     }
 
-    Val genGteGetFlags(int want = -1)
+    Val genGteGetFLAG(int want = -1)
     {
         Val d = dest0(want);
-        gte_cfc2(d.r, 63); // FLAG
+        gte_cfc2(d.r, FLAG); // FLAG
         return d;
     }
     
     void genGteStoreSXY0(Expr packetBaseExpr, long offset)
     {
         Val base = genExpr(packetBaseExpr);
-        gte_swc2(12, offset, base.r);
+        gte_swc2(SXY0, offset, base.r);
         release(base);
     }
 
     void genGteStoreSXY1(Expr packetBaseExpr, long offset)
     {
         Val base = genExpr(packetBaseExpr);
-        gte_swc2(13, offset, base.r);
+        gte_swc2(SXY1, offset, base.r);
         release(base);
     }
 
     void genGteStoreSXY2(Expr packetBaseExpr, long offset)
     {
         Val base = genExpr(packetBaseExpr);
-        gte_swc2(14, offset, base.r);
+        gte_swc2(SXY2, offset, base.r);
         release(base);
     }
 

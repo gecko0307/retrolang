@@ -153,6 +153,29 @@ class GlobalDecl
     string attrFilename;
 }
 
+/// Macro kind.
+enum MK
+{
+    Stmt,   // macro name(params) { statements }
+    Expr,   // macro PI = expr;   macro sq(x) = x * x;
+    List    // macro Region = (a, b, ...);
+}
+
+/// Macro definition (macros exist only at parse time, they are expanded in place).
+class Macro
+{
+    string name;
+    MK kind;
+    string file;
+    int line;
+    bool hasParens;         // declared with a parameter list
+    string[] params;
+    Stmt body_;             // Stmt
+    Expr expr;              // Expr
+    Expr[] list;            // List
+    string[] locals;        // variables declared in the body (renamed per expansion)
+}
+
 /// Program context.
 class Program
 {

@@ -28,45 +28,51 @@ For more information, please refer to <https://unlicense.org>
  * GPU driver.
  */
 
-#define DMA_DPCR      0x1f8010f0
-#define DMA_DICR      0x1f8010f4
+#define DMA_DPCR            0x1f8010f0
+#define DMA_DICR            0x1f8010f4
 
-#define DMA_CH2_MADR  0x1f8010a0
-#define DMA_CH2_BCR   0x1f8010a4
-#define DMA_CH2_CHCR  0x1f8010a8
+#define DMA_CH2_MADR        0x1f8010a0
+#define DMA_CH2_BCR         0x1f8010a4
+#define DMA_CH2_CHCR        0x1f8010a8
 
-#define GPU_PORT_GP0  0x1f801810
-#define GPU_PORT_GP1  0x1f801814
+#define DMA_CH2_ENABLE      0x00000800
+#define DMA_BUSY            0x01000000
+#define DMA_CH2_LIST_START  0x01000401 // RAM -> GPU, linked list, start
+#define DMA_CH2_BLOCK_START 0x01000201 // RAM -> GPU, block (request) mode, start
+#define GPU_LIST_END        0x00ffffff
 
-#define GP0_MEM2VRAM  0xa0000000
+#define GPU_PORT_GP0        0x1f801810
+#define GPU_PORT_GP1        0x1f801814
 
-#define GP0_CLIP_POS  0xe3000000
-#define GP0_CLIP_SIZE 0xe4000000
-#define GP0_DRAW_OFFS 0xe5000000
-#define GP0_MASK      0xe6000000
+#define GP0_MEM2VRAM        0xa0000000
 
-#define GP0_FAST_RECT 0x02000000
-#define GP0_TRI1      0x20000000
-#define GP0_TRI2      0x30000000
-#define GP0_TRI3      0x24000000
-#define GP0_LINE1     0x40000000
-#define GP0_LINE2     0x50000000
-#define GP0_SPRITE1   0x60000000
-#define GP0_SPRITE2   0xe1000000
+#define GP0_CLIP_POS        0xe3000000
+#define GP0_CLIP_SIZE       0xe4000000
+#define GP0_DRAW_OFFS       0xe5000000
+#define GP0_MASK            0xe6000000
 
-#define GP0_SPRITE_TEX1 0x64000000
-#define GP0_SPRITE_TEX2 0x65000000
+#define GP0_FAST_RECT       0x02000000
+#define GP0_TRI1            0x20000000
+#define GP0_TRI2            0x30000000
+#define GP0_TRI3            0x24000000
+#define GP0_LINE1           0x40000000
+#define GP0_LINE2           0x50000000
+#define GP0_SPRITE1         0x60000000
+#define GP0_SPRITE2         0xe1000000
 
-#define COLOR_NEUTRAL 0x808080
+#define GP0_SPRITE_TEX1     0x64000000
+#define GP0_SPRITE_TEX2     0x65000000
 
-#define GP1_RESET      0x00000000
-#define GP1_RESET_FIFO 0x01000000
-#define GP1_DISP_ENABLE  0x03000000
-#define GP1_DISP_DISABLE 0x03000001
-#define GP1_DISP_OFFS  0x05000000
-#define GP1_HRANGE     0x06000000
-#define GP1_VRANGE     0x07000000
-#define GP1_DISP_MODE  0x08000000
+#define COLOR_NEUTRAL       0x00808080
+
+#define GP1_RESET           0x00000000
+#define GP1_RESET_FIFO      0x01000000
+#define GP1_DISP_ENABLE     0x03000000
+#define GP1_DISP_DISABLE    0x03000001
+#define GP1_DISP_OFFS       0x05000000
+#define GP1_HRANGE          0x06000000
+#define GP1_VRANGE          0x07000000
+#define GP1_DISP_MODE       0x08000000
 
 #define VMODE_NTSC  0
 #define VMODE_PAL   1
@@ -87,12 +93,6 @@ For more information, please refer to <https://unlicense.org>
 
 #define COLORDEPTH_15BIT 0
 #define COLORDEPTH_24BIT 1
-
-#define DMA_CH2_ENABLE   0x00000800
-#define DMA_BUSY         0x01000000
-#define DMA2_LIST_START  0x01000401 // RAM -> GPU, linked list, start
-#define DMA2_BLOCK_START 0x01000201 // RAM -> GPU, block (request) mode, start
-#define GPU_LIST_END     0x00ffffff
 
 /*
  * Two command buffers at fixed RAM addresses.
@@ -436,7 +436,7 @@ void gpuKick()
 
     *dma2Madr = (uint)(gpuOt + OT_SIZE_WORDS - 1) & 0xffffff;
     *dma2Bcr = 0;
-    *dma2Chcr = DMA2_LIST_START;
+    *dma2Chcr = DMA_CH2_LIST_START;
 }
 
 /**
@@ -602,7 +602,7 @@ void gpuQueueMemToVram(struct TimData* timData, uint sizeInBytes)
     {
         *dma2Madr = (uint)data & 0xffffff;
         *dma2Bcr = (blocks << 16) | 16;
-        *dma2Chcr = DMA2_BLOCK_START;
+        *dma2Chcr = DMA_CH2_BLOCK_START;
         gpuWaitDma();
         data += blocks << 4;
     }

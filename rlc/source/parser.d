@@ -34,6 +34,7 @@ import types;
 import ast;
 import error;
 import utils;
+import macroexp;
 
 long wrap32(long v)
 {
@@ -139,10 +140,226 @@ class Parser
 {
     Token[] toks;
     size_t p;
+    Macro[string] macroTable;
+
+    /// Parameters of the macro whose body is being parsed (they shadow macros).
+    string[] curParams;
 
     this(Token[] t)
     {
         toks = t;
+    }
+
+    Macro lookupMacro(string name)
+    {
+        foreach (q; curParams)
+        {
+            if (q == name)
+                return null;
+        }
+        if (auto m = name in macroTable)
+            return *m;
+        return null;
+    }
+
+    void checkNotMacro(string name, string file, int line)
+    {
+        if (name in macroTable)
+            throw err(file, line, format("\"%s\" is already defined as a macro", name));
+    }
+
+    /**
+     * Call / macro-use arguments after the opening '(' up to and including ')'.
+     * A list macro written as a whole argument is spliced into its elements.
+     * Macro uses also accept ';' as a separator: repeat(x++; 10).
+     */
+    Expr[] parseArgList(bool allowSemi)
+    {
+        Expr[] args;
+        if (!isSym(")"))
+        {
+            do
+            {
+                Token t = peek();
+                Macro lm = (t.kind == TK.Ident) ? lookupMacro(t.text) : null;
+                if (lm !is null && lm.kind == MK.List
+                    && (isSym(",", 1) || isSym(")", 1) || isSym(";", 1)))
+                {
+                    next();
+                    foreach (el; lm.list)
+                        args ~= cloneExpr(el, useSiteCtx(t.file, t.line));
+                }
+                else
+                    args ~= parseAssign();
+            } while (acceptSym(",") || (allowSemi && acceptSym(";")));
+        }
+        expectSym(")");
+        return args;
+    }
+
+    /**
+     * macro name = expr;          - expression macro
+     * macro name(params) = expr;  - expression macro with parameters
+     * macro name = (a, b, ...);   - list macro
+     * macro name(params) { body } - statement macro
+     */
+    void parseMacroDef()
+    {
+        Token kw = next(); // "macro"
+        string name = expectIdent();
+        if (name in macroTable)
+            throw err(kw.file, kw.line, format("redefinition of macro \"%s\"", name));
+
+        auto m = new Macro();
+        m.name = name;
+        m.file = kw.file;
+        m.line = kw.line;
+
+        if (acceptSym("("))
+        {
+            m.hasParens = true;
+            if (!isSym(")"))
+            {
+                do
+                {
+                    string pn = expectIdent();
+                    foreach (q; m.params)
+                    {
+                        if (q == pn)
+                            throw err(kw.file, kw.line, format("duplicate macro parameter \"%s\"", pn));
+                    }
+                    m.params ~= pn;
+                } while (acceptSym(",") || acceptSym(";"));
+            }
+            expectSym(")");
+
+            curParams = m.params;
+            scope(exit) curParams = null;
+
+            if (isSym("{"))
+            {
+                m.kind = MK.Stmt;
+                m.body_ = parseBlock();
+                collectDecls(m.body_, m.locals);
+                foreach (l; m.locals)
+                {
+                    foreach (q; m.params)
+                    {
+                        if (l == q)
+                            throw err(kw.file, kw.line,
+                                format("variable \"%s\" in macro \"%s\" has the same name as a parameter", l, name));
+                    }
+                }
+            }
+            else if (acceptSym("="))
+            {
+                m.kind = MK.Expr;
+                m.expr = parseAssign();
+                expectSym(";");
+            }
+            else
+                throw err(peek().file, peek().line, "expected \"{\" or \"=\" after macro parameters");
+        }
+        else if (acceptSym("="))
+        {
+            bool isList = false;
+
+            // macro B = A;  where A is a list macro: copy of the list
+            Macro alias_ = (peek().kind == TK.Ident) ? lookupMacro(peek().text) : null;
+            if (alias_ !is null && alias_.kind == MK.List && isSym(";", 1))
+            {
+                Token at = next();
+                next();
+                m.kind = MK.List;
+                foreach (el; alias_.list)
+                    m.list ~= cloneExpr(el, useSiteCtx(at.file, at.line));
+                isList = true;
+            }
+            // macro L = (a, b, ...);   (a single parenthesized expression is not a list)
+            else if (isSym("(") && !isTypeStart(1))
+            {
+                size_t save = p;
+                try
+                {
+                    next();
+                    Expr[] items = parseArgList(false);
+                    if (items.length >= 2 && isSym(";"))
+                    {
+                        next();
+                        m.kind = MK.List;
+                        m.list = items;
+                        isList = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // not a list, reparsed below as an ordinary expression (reports the real error)
+                }
+                if (!isList)
+                    p = save;
+            }
+
+            if (!isList)
+            {
+                m.kind = MK.Expr;
+                m.expr = parseAssign();
+                expectSym(";");
+            }
+        }
+        else
+            throw err(peek().file, peek().line, "expected \"(\" or \"=\" after macro name");
+
+        macroTable[name] = m;
+    }
+
+    /// Identifier that names a macro, in expression position.
+    Expr parseMacroUse(Macro m, Token t)
+    {
+        switch (m.kind)
+        {
+            case MK.Stmt:
+                throw err(t.file, t.line,
+                    format("statement macro \"%s\" cannot be used in an expression", m.name));
+
+            case MK.Expr:
+            {
+                Expr[] margs;
+                if (m.hasParens)
+                {
+                    expectSym("(");
+                    margs = parseArgList(true);
+                }
+                return expandExprMacro(m, margs, t.file, t.line);
+            }
+
+            default: // MK.List
+            {
+                if (acceptSym("["))
+                {
+                    int line = peek().line;
+                    string file = peek().file;
+                    Expr ie = parseExpr();
+                    expectSym("]");
+                    long idx;
+                    if (!constEval(ie, idx))
+                        throw err(file, line, "list macro index must be a constant expression");
+                    if (idx < 0 || idx >= cast(long) m.list.length)
+                        throw err(t.file, t.line,
+                            format("index %s is out of range for list macro \"%s\" (length %s)",
+                                   idx, m.name, m.list.length));
+                    return cloneExpr(m.list[cast(size_t) idx], useSiteCtx(t.file, t.line));
+                }
+                if (isSym(".") && isKw("length", 1))
+                {
+                    next();
+                    next();
+                    return numExpr(cast(long) m.list.length, t.file, t.line);
+                }
+                throw err(t.file, t.line,
+                    format("list macro \"%s\" can only be indexed (%s[0]), measured (%s.length) " ~
+                           "or passed as call arguments", m.name, m.name, m.name));
+            }
+        }
     }
 
     Token peek(size_t k = 0)
@@ -283,6 +500,12 @@ class Parser
         auto prog = new Program();
         while (peek().kind != TK.Eof)
         {
+            if (isKw("macro"))
+            {
+                parseMacroDef();
+                continue;
+            }
+
             if (isKw("struct") && peek(1).kind == TK.Ident && isSym("{", 2))
             {
                 parseStructDef();
@@ -293,6 +516,7 @@ class Parser
             string file = peek().file;
             CType ty = parseType();
             string name = expectIdent();
+            checkNotMacro(name, file, line);
 
             if (isSym("("))
             {
@@ -316,6 +540,7 @@ class Parser
                         if (isStructVal(pt))
                             throw err(peek().file, peek().line, "structs cannot be passed by value (pass a pointer)");
                         string pn = expectIdent();
+                        checkNotMacro(pn, file, line);
                         f.params ~= Param(pt, pn);
                     } while (acceptSym(","));
                 }
@@ -446,6 +671,7 @@ class Parser
                     ty.ptr++;
                 checkComplete(ty, file, line);
                 name = expectIdent();
+                checkNotMacro(name, file, line);
                 continue;
             }
             break;
@@ -553,6 +779,7 @@ class Parser
             auto d = new Stmt(SK.Decl, peek().file, peek().line);
             d.ty = ty;
             d.name = expectIdent();
+            checkNotMacro(d.name, d.file, d.line);
             if (acceptSym("["))
             {
                 long n = parseConstExpr();
@@ -690,6 +917,22 @@ class Parser
             return new Stmt(SK.Continue, t.file, t.line);
         }
 
+        if (t.kind == TK.Ident)
+        {
+            Macro sm = lookupMacro(t.text);
+            if (sm !is null && sm.kind == MK.Stmt)
+            {
+                if (!isSym("(", 1))
+                    throw err(t.file, t.line,
+                        format("statement macro \"%s\" must be used as %s(...)", sm.name, sm.name));
+                next(); // name
+                next(); // (
+                Expr[] margs = parseArgList(true);
+                acceptSym(";");
+                return expandStmtMacro(sm, margs, t.file, t.line);
+            }
+        }
+
         if (isTypeStart())
             return parseDecl();
 
@@ -814,14 +1057,7 @@ class Parser
                 next();
                 auto c = new Expr(EK.Call, t.file, t.line);
                 c.name = e.name;
-                if (!isSym(")"))
-                {
-                    do
-                    {
-                        c.args ~= parseAssign();
-                    } while (acceptSym(","));
-                }
-                expectSym(")");
+                c.args = parseArgList(false);
                 e = c;
             }
             else if (isSym(".") || isSym("->"))
@@ -865,6 +1101,9 @@ class Parser
         }
         if (t.kind == TK.Ident && !isReserved(t.text))
         {
+            Macro um = lookupMacro(t.text);
+            if (um !is null)
+                return parseMacroUse(um, t);
             auto e = new Expr(EK.Var, t.file, t.line);
             e.name = t.text;
             return e;

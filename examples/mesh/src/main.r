@@ -129,6 +129,24 @@ struct PSMData
 #define MAX_VERTS 4000
 struct SVertex vcache[MAX_VERTS];
 
+macro gte_upload_transform(tr)
+{
+    // Upload translation
+    gte_ctc2(GTE_TRX, tr->tx);
+    gte_ctc2(GTE_TRY, tr->ty);
+    gte_ctc2(GTE_TRZ, tr->tz);
+    
+    // Upload rotation matrix
+    gte_set_matrix(tr->r);
+    
+    // Upload projection params
+    gte_ctc2(GTE_H,   tr->h);
+    gte_ctc2(GTE_OFX, tr->ofx);
+    gte_ctc2(GTE_OFY, tr->ofy);
+    gte_ctc2(GTE_DQA, tr->dqa);
+    gte_ctc2(GTE_DQB, tr->dqb);
+}
+
 /// Draws a PSM mesh with a given transformation.
 void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* tr, int zBias)
 {
@@ -144,20 +162,7 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     uint tpage = (uint)data->texture->tpage << 16;
     int color = data->color;
     
-    // Upload translation to GTE
-    gte_ctc2(GTE_TRX, tr->tx);
-    gte_ctc2(GTE_TRY, tr->ty);
-    gte_ctc2(GTE_TRZ, tr->tz);
-    
-    // Upload rotation matrix to GTE
-    gte_set_matrix(tr->r);
-    
-    // Upload projection params to GTE
-    gte_ctc2(GTE_H,   tr->h);
-    gte_ctc2(GTE_OFX, tr->ofx);
-    gte_ctc2(GTE_OFY, tr->ofy);
-    gte_ctc2(GTE_DQA, tr->dqa);
-    gte_ctc2(GTE_DQB, tr->dqb);
+    gte_upload_transform(tr);
     
     int n = psm->numVerts;
     for (int i = 0; i < n; i += 3)
