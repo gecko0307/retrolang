@@ -164,6 +164,9 @@ string invertCmp(string op)
     }
 }
 
+/**
+ * Retrolang code generator.
+ */
 class CodeGen
 {
     /// Path to the processed file.
@@ -1623,7 +1626,7 @@ class CodeGen
         {
             if (args.length < 1 || !constEval(args[0], biosFn))
                 throw err(e.file, e.line, name ~ "() needs a constant function number as its first argument");
-            args = args[1 .. $];
+            args = args[1..$];
         }
         else
         {
@@ -1634,8 +1637,9 @@ class CodeGen
                 throw err(e.file, e.line, "function \"" ~ name ~ "\" is declared but never defined");
             if (args.length != pf.params.length)
                 throw err(e.file, e.line, format("\"%s\" expects %s argument(s) but %s given",
-                                         name, pf.params.length, args.length));
+                    name, pf.params.length, args.length));
         }
+
         if (args.length > 4)
             throw err(e.file, e.line, "at most 4 call arguments are supported");
 
@@ -1647,7 +1651,7 @@ class CodeGen
             vals ~= genExpr(a);
 
         // Save live temporaries
-        foreach (i; 0 .. d0)
+        foreach (i; 0..d0)
             mem(Op.SW, tempRegs[i], 4 * i, SP);
 
         foreach (i, v; vals)
@@ -1667,7 +1671,7 @@ class CodeGen
         }
 
         // Restore live temporaries
-        foreach (i; 0 .. d0)
+        foreach (i; 0..d0)
             mem(Op.LW, tempRegs[i], 4 * i, SP);
         if (d0 > 0)
             nop(); // load delay slot
@@ -1712,8 +1716,9 @@ class CodeGen
     // TODO: COP0 intrinsics
     string[] intrinsics = [
         "nop",
+        "cop0", "cop2",
         "gte_enable",
-        // TODO: "gte_disable"
+        "gte_disable",
         "gte_set_matrix",
         "gte_set_vertex", "gte_get_vertex",
         "gte_mfc2", "gte_cfc2",
@@ -1761,8 +1766,23 @@ class CodeGen
         switch(name)
         {
             case "nop":
+            {
                 nop();
                 break;
+            }
+            
+            case "cop0":
+            case "cop2":
+            {
+                long opcode = 0;
+                if (e.args.length < 1 || !constEval(e.args[0], opcode))
+                    throw err(e.file, e.line, name ~ "() needs a constant opcode as its argument");
+                if (name == "cop0")
+                    emit(Op.COP0, makeImm(opcode), makeNone, makeNone);
+                else if (name == "cop2")
+                    emit(Op.COP2, makeImm(opcode), makeNone, makeNone);
+                break;
+            }
             
             case "gte_enable":
             {
@@ -1772,6 +1792,23 @@ class CodeGen
                 nop();
                 emit(Op.LUI,  makeReg(t1), makeImm(0x4000), makeNone);
                 emit(Op.OR,   makeReg(t0), makeReg(t0),     makeReg(t1));
+                emit(Op.MTC0, makeReg(t0), makeRegCop0(SR), makeNone);
+                nop();
+                nop();
+                release(Val(t1, true));
+                release(Val(t0, true));
+                break;
+            }
+            
+            case "gte_disable":
+            {
+                Reg t0 = allocTemp();
+                Reg t1 = allocTemp();
+                emit(Op.MFC0, makeReg(t0), makeRegCop0(SR), makeNone);
+                nop();
+                emit(Op.LUI,  makeReg(t1), makeImm(0xbfff), makeNone);
+                emit(Op.ORI,  makeReg(t1), makeReg(t1),     makeImm(0xffff));
+                emit(Op.AND,  makeReg(t0), makeReg(t0),     makeReg(t1));
                 emit(Op.MTC0, makeReg(t0), makeRegCop0(SR), makeNone);
                 nop();
                 nop();
@@ -1841,6 +1878,7 @@ class CodeGen
                 release(v);
                 break;
             }
+            
             case "gte_swc2":
             case "gte_lwc2":
             {
@@ -1853,28 +1891,28 @@ class CodeGen
                 break;
             }
             
-            case "gte_rtps":  gte_rtps(); break;
-            case "gte_rtpt":  gte_rtpt(); break;
+            case "gte_rtps":  gte_rtps();  break;
+            case "gte_rtpt":  gte_rtpt();  break;
             case "gte_mvmva": gte_mvmva(); break;
-            case "gte_dcpl":  gte_dcpl(); break;
-            case "gte_dpcs":  gte_dpcs(); break;
-            case "gte_dpct":  gte_dpct(); break;
+            case "gte_dcpl":  gte_dcpl();  break;
+            case "gte_dpcs":  gte_dpcs();  break;
+            case "gte_dpct":  gte_dpct();  break;
             case "gte_intpl": gte_intpl(); break;
-            case "gte_sqr":   gte_sqr(); break;
-            case "gte_ncs":   gte_ncs(); break;
-            case "gte_nct":   gte_nct(); break;
-            case "gte_ncds":  gte_ncds(); break;
-            case "gte_ncdt":  gte_ncdt(); break;
-            case "gte_nccs":  gte_nccs(); break;
-            case "gte_ncct":  gte_ncct(); break;
-            case "gte_cdp":   gte_cdp(); break;
-            case "gte_cc":    gte_cc(); break;
+            case "gte_sqr":   gte_sqr();   break;
+            case "gte_ncs":   gte_ncs();   break;
+            case "gte_nct":   gte_nct();   break;
+            case "gte_ncds":  gte_ncds();  break;
+            case "gte_ncdt":  gte_ncdt();  break;
+            case "gte_nccs":  gte_nccs();  break;
+            case "gte_ncct":  gte_ncct();  break;
+            case "gte_cdp":   gte_cdp();   break;
+            case "gte_cc":    gte_cc();    break;
             case "gte_nclip": gte_nclip(); break;
             case "gte_avsz3": gte_avsz3(); break;
             case "gte_avsz4": gte_avsz4(); break;
-            case "gte_op":    gte_op(); break;
-            case "gte_gpf":   gte_gpf(); break;
-            case "gte_gpl":   gte_gpl(); break;
+            case "gte_op":    gte_op();    break;
+            case "gte_gpf":   gte_gpf();   break;
+            case "gte_gpl":   gte_gpl();   break;
             default: break;
         }
     }
@@ -1912,12 +1950,16 @@ class CodeGen
             }
 
             case SK.Decl:
+            {
                 genDecl(s);
                 break;
+            }
 
             case SK.ExprS:
+            {
                 genExprStmt(s.e);
                 break;
+            }
 
             case SK.If:
             {
@@ -2019,16 +2061,20 @@ class CodeGen
             }
 
             case SK.Break:
+            {
                 if (breakStack.length == 0)
                     throw err(s.file, s.line, "\"break\" outside of a loop");
                 jump(breakStack[$ - 1]);
                 break;
+            }
 
             case SK.Continue:
+            {
                 if (contStack.length == 0)
                     throw err(s.file, s.line, "\"continue\" outside of a loop");
                 jump(contStack[$ - 1]);
                 break;
+            }
 
             default:
                 break;
