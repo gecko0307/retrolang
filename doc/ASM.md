@@ -1,6 +1,6 @@
 # Retrolang Assembler
 
-Retrolang implements a minimalistic MIPS-I assembler which can be used to write entire programs or separate functions.
+Retrolang implements a minimalistic MIPS R3000 assembler which can be used to write entire programs or separate functions.
 
 ## Source format
 
