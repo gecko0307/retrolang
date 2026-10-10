@@ -147,7 +147,7 @@ Usage (assuming you've copied the [include](/examples/include) folder to your pr
 - [text](/examples/text) - bitmap font loading and text rendering (queued rendering via command buffer)
 - [mesh](/examples/mesh) - walkable 3D scene with a first person camera.
 
-All examples support building with Retrobuild. Alternatively, `build.bat` can be used under Windows, or `build.sh` under Linux. RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository. Optionally, to build a CD-ROM image, mkpsxiso must be available system-wide or locally as `/mkpsxiso/mkpsxiso.exe` in the repository. Optionally, to gererate a *.cu2 file (for PSIO), Python must be installed.
+All examples support building with Retrobuild. RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository. Optionally, to build a CD-ROM image, mkpsxiso must be available system-wide or locally as `/mkpsxiso/mkpsxiso.exe` in the repository.
 
 ## Recommended Tools
 
