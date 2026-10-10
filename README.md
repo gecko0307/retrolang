@@ -13,7 +13,7 @@ All provided software is experimental and is in alpha stage.
 
 ## Rationale
 
-Retrolang is a result of 10+ years of tinkering with PsyQ SDK, custom GPU libraries and related tools. It was initially created as an assembler (alternative to ASMPSX), but eventually got many improvements. I always wanted to write my own software for PSX, but the tooling was frustratingly clunky: ANSI C, closed-source libraries, undocumented file formats and outdated utilities that don't run on modern OSes. So I eventually decided to make my own everything, right down to the machine code, so I wouldn't be dependent on software I couldn't fix or improve.
+Retrolang is a result of 10+ years of tinkering with PsyQ SDK, custom GPU libraries and related tools. It was initially created as an assembler (alternative to ASMPSX), but eventually got many improvements. I always wanted to write my own programs for PSX, but the tooling was frustratingly clunky: ANSI C, closed-source libraries, undocumented file formats and outdated utilities that don't run on modern OSes. So I eventually decided to make my own everything, right down to the machine code, so I wouldn't be dependent on software I couldn't fix or improve.
 
 Main philosophy of the project: PSX programming doesn't require a full-fledged C with all of its baggage. A subset is sufficient. What's really needed are platform-specific language capabilities, as well as a simple, readable and easily hackable standard library. Popular C toolchains also tend to be bulky; Retrolang produces tiny executables that can run via [FreePSXBoot](https://github.com/brad-lin/FreePSXBoot).
 
