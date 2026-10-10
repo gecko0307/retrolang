@@ -31,7 +31,7 @@ Basic commands:
 - `gte_gpf()` -
 - `gte_gpl()`- 
 
-Inline macros:
+Inline GTE macros:
 
 - `gte_enable()` - 
 - `gte_set_matrix()` - 
