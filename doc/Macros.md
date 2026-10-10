@@ -16,7 +16,8 @@ void main()
 }
 ```
 
-Unlike function templates in languages like C++ or D, the statement macro is untyped, returns no value, and possesses no runtime semantics; it serves purely as an abstract syntactic template for generating repetitive code. Its parameters are not final values ​​but expressions (AST nodes) that are copied at each point of use:
+Unlike function templates in languages like C++ or D, the statement macro is untyped, returns no value, and possesses no runtime semantics; it serves purely as an abstract syntactic template for generating repetitive code. Its parameters are not final values ​​but expressions (AST nodes); expanding a macro deep-copies its body, replacing every reference to a parameter with a copy of the
+argument expression. An argument is re-evaluated at every place where it is used.
 
 ```c
 macro repeat(f, n)
@@ -44,7 +45,11 @@ for(int i = 0; i < 10; i++)
 }
 ```
 
-You can also define expression macros for constants and compile-time calculations:
+Variables declared inside a macro body get a unique name per expansion, so they can never capture or shadow variables used by the arguments.
+
+When inlining performance-critical code, pass plain variables or constants into macros, never expressions like `*p` or `a[i++]` (unless repeating an expression is what you intend).
+
+You can also define expression macros for constants and compile-time evaluation:
 
 ```c
 macro A = 5;
