@@ -120,7 +120,7 @@ See [doc folder](/doc) for more details on the language.
 
 ## Standard Library
 
-Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs. It is partly a port of [PSXLib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
+Retrolang provides a minimal set of optional low-level functionality that aid with writing PlayStation programs. It is partly a port of [PSXLib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
 
 * `core.ri` - core definitions
 * `gpu.ri` - GPU driver / graphics API
