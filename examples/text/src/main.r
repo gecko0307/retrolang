@@ -32,8 +32,8 @@ void drawText(struct GpuTexture* fontAtlas, int x, int y, char* text)
         int* p = gpuAllocZ(5, 0);
         p[0] = GP0_SPRITE2 | fontAtlas->tpage;
         p[1] = GP0_SPRITE_TEX2;
-        p[2] = (y << 16) | (x & 0xffff);
-        p[3] = ((uint)fontAtlas->clutId << 16) | (v << 8) | u;
+        p[2] = GP0_PACK_COORDS(x, y);
+        p[3] = GP0_PACK_UV_DATA(u, v, (uint)fontAtlas->clutId);
         p[4] = (CH_HEIGHT << 16) | CH_WIDTH;
         
         x += CH_WIDTH + CH_KERNING;

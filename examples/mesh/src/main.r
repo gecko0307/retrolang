@@ -76,10 +76,6 @@ struct RTPSTransform
     short dqb;
 };
 
-void gteInit() @("gteInit.s");
-void gteRTPTSetParams(struct RTPSTransform* rtpsTransform) @("gteRTPTSetParams.s");
-void gteRTPTRun(struct Vertex* inVertices, struct SVertex* outVertices) @("gteRTPTRun.s");
-
 // PSM file header
 struct PSMHeader
 {
@@ -158,8 +154,8 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
     uchar* uvs = data->uvs;
     struct Vertex* vertices = data->vertices;
     
-    uint clutId = (uint)data->texture->clutId << 16;
-    uint tpage = (uint)data->texture->tpage << 16;
+    uint clutId = (uint)data->texture->clutId;
+    uint tpage = (uint)data->texture->tpage;
     int color = data->color;
     
     gte_upload_transform(tr);
@@ -226,18 +222,18 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
         
         // Fill the packet
         p[0] = GP0_TRI3 | color;
-        p[1] = (y1 << 16) | (x1 & 0xffff);
+        p[1] = GP0_PACK_COORDS(x1, y1);
         u = tx + uvs[vi1 * 2];
         v = ty + uvs[vi1 * 2 + 1];
-        p[2] = clutId | (v << 8) | (u & 0xff);
-        p[3] = (y2 << 16) | (x2 & 0xffff);
+        p[2] = GP0_PACK_UV_DATA(u, v, clutId);
+        p[3] = GP0_PACK_COORDS(x2, y2);
         u = tx + uvs[vi2 * 2];
         v = ty + uvs[vi2 * 2 + 1];
-        p[4] = tpage  | (v << 8) | (u & 0xff);
-        p[5] = (y3 << 16) | (x3 & 0xffff);
+        p[4] = GP0_PACK_UV_DATA(u, v, tpage);
+        p[5] = GP0_PACK_COORDS(x3, y3);
         u = tx + uvs[vi3 * 2];
         v = ty + uvs[vi3 * 2 + 1];
-        p[6] = (v << 8) | (u & 0xff);
+        p[6] = GP0_PACK_UV(u, v);
     }
 }
 

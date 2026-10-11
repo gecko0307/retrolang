@@ -50,6 +50,9 @@ For more information, please refer to <https://unlicense.org>
 #define SCRATCHPAD_SIZE 0x400
 
 // COP0 registers
+#define COP0_INDX     0
+#define COP0_RAND     1
+#define COP0_TLBL     2
 #define COP0_BPC      3  // Breakpoint on execute (R/W)
 #define COP0_BDA      5  // Breakpoint on data access (R/W)
 #define COP0_JUMPDEST 6  // Randomly memorized jump address (R)
