@@ -1,8 +1,8 @@
 # Retrolang Language Reference
 
-Retrolang is a minimalistic C-like system language for the MIPS R3000 / PlayStation 1. The compiler, `rlc`, translates a `.r` source file directly into a PS-X EXE. It has no runtime library, no heap and no optimizer: what you write is, nearly statement for statement, what the CPU executes.
+Retrolang is a minimalistic C-like system language for MIPS R3000 / PlayStation 1. The compiler, `rlc`, translates a `.r` source file directly into a PS-X EXE. It has no runtime library, no heap and no optimizer: what you write is, nearly statement for statement, what the CPU executes.
 
-This document covers the core language. See the separate documents for macros, GTE intrinsics and external assembly.
+This document covers the core language. See the separate documents for advanced features like macros, GTE intrinsics and external assembly.
 
 ## Contents
 
