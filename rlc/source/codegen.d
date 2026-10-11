@@ -177,6 +177,9 @@ class CodeGen
     /// Containing directory of the processed file.
     string parentDirectory;
     
+    /// List of directories to look for embedded data files.
+    string[] dataDirs;
+    
     Program prog;
     Assembly ass;
     AsmInstr[] program;
@@ -207,10 +210,11 @@ class CodeGen
     string curFile;
     int curLine;
     
-    this(string path)
+    this(string path, string[] dataDirs)
     {
         this.path = path;
         this.parentDirectory = dirName(path);
+        this.dataDirs = dataDirs;
     }
 
     /*
@@ -2411,11 +2415,24 @@ class CodeGen
                     "an array cannot have both an initializer and a file attribute");
             
             // TODO: build path for searching external files
-            string externalFile = g.attrFilename;
-            if (exists(externalFile))
-                data = cast(ubyte[])read(externalFile);
-            else
-                throw err(g.file, g.line, "can't find file \"" ~ externalFile ~ "\"");
+            string externalFilePath = g.attrFilename;
+            bool foundFile = exists(externalFilePath);
+            if (!foundFile)
+            {
+                foreach(dir; dataDirs)
+                {
+                    externalFilePath = buildPath(dir, g.attrFilename);
+                    foundFile = exists(externalFilePath);
+                    if (foundFile)
+                        break;
+                }
+            }
+            
+            if (!foundFile)
+                throw err(g.file, g.line, "can't find file \"" ~ g.attrFilename ~ "\"");
+            
+            string normPath = buildNormalizedPath(absolutePath(externalFilePath));
+            data = cast(ubyte[])read(normPath);
 
             // The length is counted in elements; a trailing partial element is zero-padded.
             // An explicit size, e.g. char buf[4096] @("file"), must be large enough.
@@ -2424,11 +2441,11 @@ class CodeGen
             {
                 if (n > g.arrLen)
                     throw err(g.file, g.line, format("file \"%s\" (%s bytes) does not fit in %s[%s]",
-                        externalFile, data.length, g.name, g.arrLen));
+                        normPath, data.length, g.name, g.arrLen));
                 n = g.arrLen;
             }
             if (n <= 0)
-                throw err(g.file, g.line, "file \"" ~ externalFile ~ "\" is empty");
+                throw err(g.file, g.line, "file \"" ~ normPath ~ "\" is empty");
             data.length = n * esz;
             v.isArray = true;
             v.arrLen = n;

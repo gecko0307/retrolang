@@ -33,6 +33,8 @@ rlc [options] <input_file>
 
 | Option | Meaning |
 |---|---|
+| `-i`, `--include` <dirs> | Colon-separated list of directories to search for include files |
+| `-d`, `--data` <dirs> | Colon-separated list of directories to search for embedded data files |
 | `-o`, `--output <file>` | Output file name (default `PSX.EXE`) |
 | `-v`, `--verbose` | Print code size, data labels, section addresses and the generated instruction listing |
 | `-h`, `--help` | Show usage |
@@ -108,11 +110,13 @@ A preprocessor directive must be the first token on its line and takes the rest 
 |---|---|
 | `#define NAME tokens...` | Object-like token macro (no parameters) |
 | `#undef NAME` | Remove a definition |
-| `#include "file"` | Insert another source file; the path is relative to the including file |
+| `#include "file"` | Insert another source file |
 
 `#define` bodies are token sequences, expanded where the name is used. A macro never expands recursively into itself. There is no `#if`/`#ifdef` and no include guard, so include each file once. A file that includes itself, directly or indirectly, is an error.
 
 `#define` is purely lexical. For typed, hygienic substitution use `macro` (see Macros.md).
+
+Search path for `#include` directive is the containing directory of including file. If the file is not found there, the compiler will search in directories specified via `--include` command line option and stop on the first match.
 
 ---
 

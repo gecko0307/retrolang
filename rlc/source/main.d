@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 module main;
 
 import std.stdio;
+import std.array;
 import std.file: write, readText;
 import std.bitmanip;
 import std.path;
@@ -65,6 +66,8 @@ int main(string[] args)
 {
     initDiagnostics();
     
+    string includeDirsStr = "";
+    string dataDirsStr = "";
     string outputFile = DefaultOutputFile;
     bool verbose = false;
     
@@ -72,7 +75,9 @@ int main(string[] args)
     {
         auto helpInformation = getopt(
             args,
-            "output|o", "Output file name (default is PSX.EXE)", &outputFile,
+            "include|i", "Colon-separated list of directories to search for include files", &includeDirsStr,
+            "data|d",    "Colon-separated list of directories to search for embedded data files", &dataDirsStr,
+            "output|o",  "Output file name (default is PSX.EXE)", &outputFile,
             "verbose|v", "Print more information during the build", &verbose
         );
 
@@ -93,6 +98,9 @@ int main(string[] args)
         stderr.writeln("Usage: rlc [options] <input_file>");
         return 1;
     }
+    
+    string[] includeDirs = includeDirsStr.split(':');
+    string[] dataDirs = dataDirsStr.split(':');
 
     string filename = args[1];
     string sourceCode;
@@ -115,7 +123,7 @@ int main(string[] args)
         printInfo("Compiling \"%s\"...", filename);
         try
         {
-            ass = compile(sourceCode, filename);
+            ass = compile(sourceCode, filename, includeDirs);
         }
         catch (Exception e)
         {

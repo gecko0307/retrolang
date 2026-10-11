@@ -93,10 +93,14 @@ import codegen;
 import ir;
 
 /// Compiles source text to Assembly object.
-Assembly compile(string source, string filename)
+Assembly compile(
+    string source,
+    string filename,
+    string[] includeDirs = [],
+    string[] dataDirs = [])
 {
     structDefs = null;
-    Token[] toks = lex(source, filename);
+    Token[] toks = lex(source, filename, includeDirs);
     Program p = (new Parser(toks)).parseProgram();
-    return (new CodeGen(filename)).generate(p);
+    return (new CodeGen(filename, dataDirs)).generate(p);
 }

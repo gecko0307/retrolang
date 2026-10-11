@@ -28,9 +28,9 @@ For more information, please refer to <https://unlicense.org>
  * Mesh rendering test
  */
 
-#include "../../include/core.ri"
-#include "../../include/pad.ri"
-#include "../../include/gpu.ri"
+#include "core.ri"
+#include "pad.ri"
+#include "gpu.ri"
 
 // Model-space vertex
 struct Vertex

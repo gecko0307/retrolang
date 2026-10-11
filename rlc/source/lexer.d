@@ -84,7 +84,7 @@ bool isReserved(string s)
 }
 
 /// Lexes a file and runs the preprocessing pass.
-Token[] lex(string src, string path = "")
+Token[] lex(string src, string path, string[] includeDirs = [])
 {
     Token[][string] macros;
     bool[string] including;
@@ -94,7 +94,7 @@ Token[] lex(string src, string path = "")
     Token[] toks = lexRaw(src, path);
     int lastLine = toks[$ - 1].line;
 
-    Token[] res = preprocess(toks, path, macros, including);
+    Token[] res = preprocess(toks, path, macros, including, includeDirs);
     res ~= Token(TK.Eof, "<end of file>", 0, lastLine, false, path);
     return res;
 }
@@ -246,7 +246,8 @@ private Token[] preprocess(
     Token[] toks,
     string path,
     ref Token[][string] macros,
-    ref bool[string] including)
+    ref bool[string] including,
+    string[] includeDirs)
 {
     Token[] res;
     size_t i = 0;
@@ -291,15 +292,27 @@ private Token[] preprocess(
 
                     string name = d[1].text;
                     string full = path.length ? buildPath(dirName(path), name) : name;
-                    if (!exists(full))
+                    bool foundFile = exists(full);
+                    if (!foundFile)
+                    {
+                        foreach(dir; includeDirs)
+                        {
+                            full = buildPath(dir, name);
+                            foundFile = exists(full);
+                            if (foundFile)
+                                break;
+                        }
+                    }
+                    
+                    if (!foundFile)
                         throw err(path, t.line, "can't find file \"" ~ name ~ "\"");
-
+                    
                     string norm = buildNormalizedPath(absolutePath(full));
                     if (norm in including)
                         throw err(path, t.line, "circular include of \"" ~ name ~ "\"");
 
                     including[norm] = true;
-                    res ~= preprocess(lexRaw(readText(full), full), full, macros, including);
+                    res ~= preprocess(lexRaw(readText(full), full), full, macros, including, includeDirs);
                     including.remove(norm);
                     break;
 
