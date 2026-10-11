@@ -194,3 +194,10 @@ In the library:
 RLC, PSXDISASM and Retrobuild are distributed under the Boost Software License, 1.0.
 
 The standard library and all examples are distributed under Unlicense/Public Domain.
+
+## Special Thanks To
+
+- [Martin Korth aka nocash](https://problemkaputt.de/) for his excellent [PlayStation spec](https://problemkaputt.de/psxspx-contents.htm)
+- Joshua Walker for his book [Everything You Have Always Wanted to Know about the Playstation But Were Afraid to Ask](https://www.romhacking.net/documents/127/)
+- [Lionel Flandrin aka simias](https://github.com/simias) for his [PlayStation emulation guide](https://github.com/simias/psx-guide)
+- [IDT R30xx Family Software Reference Manual](https://cgi.cse.unsw.edu.au/~cs3231/doc/R3000.pdf) by Integrated Device Technology, Inc.
