@@ -38,10 +38,7 @@ bool isAllowedRegion(RamRegion region)
     return false;
 }
 
-void validateMemory(
-    RamRegion[] regions,
-    MemoryRange[] reservedRanges = []
-)
+void validateMemory(RamRegion[] regions, MemoryRange[] reservedRanges = [])
 {
     MemoryRange[] ranges;
     if (reservedRanges.length)

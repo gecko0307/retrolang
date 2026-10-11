@@ -741,8 +741,9 @@ class Parser
                         throw err(file, line, "unsupported attribute token");
                 }
                 
-                if (!g.attrRegion.isAligned)
-                    throw err(file, line, "region should be aligned to 4 bytes");
+                if (g.attrRegion !is null)
+                    if (!g.attrRegion.isAligned)
+                        throw err(file, line, "region should be aligned to 4 bytes");
             }
 
             prog.globals ~= g;

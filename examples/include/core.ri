@@ -30,7 +30,15 @@ For more information, please refer to <https://unlicense.org>
 
 // Types
 #define null 0x00000000
-#define size_t int
+#define size_t uint
+#define int32_t int
+#define uint32_t uint
+#define int16_t short
+#define uint16_t ushort
+#define int8_t char
+#define uint8_t uchar
+#define byte char
+#define ubyte uchar
 
 // Fixed-point constants
 #define F_ONE 0x1000 // For rotation matrices
