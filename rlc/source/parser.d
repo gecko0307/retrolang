@@ -35,6 +35,7 @@ import ast;
 import error;
 import utils;
 import macroexp;
+import ir;
 
 long wrap32(long v)
 {
@@ -675,19 +676,69 @@ class Parser
             
             if (acceptSym("@"))
             {
-                expectSym("(");
-                if (!isSym(")"))
+                if (isSym("("))
                 {
-                    auto attrType = peek().kind;
-                    if (attrType == TK.Str)
+                    // Tuple attribute
+                    expectSym("(");
+                    if (!isSym(")"))
+                    {
+                        auto attrKind = peek().kind;
+                        if (attrKind == TK.Str)
+                        {
+                            Token s = next();
+                            g.attrFilename = s.text;
+                        }
+                        else if (attrKind == TK.Num)
+                        {
+                            uint regionBase = cast(uint)parseConstExpr();
+                            uint regionSize = 0;
+                            if (acceptSym(","))
+                                regionSize = cast(uint)parseConstExpr();
+                            g.attrRegion = prog.getRegion(regionBase, regionSize);
+                        }
+                        else
+                            throw err(file, line, "unsupported attribute token");
+                        
+                        expectSym(")");
+                    }
+                }
+                else
+                {
+                    // List macro attribute
+                    auto attrKind = peek().kind;
+                    if (attrKind == TK.Ident)
                     {
                         Token s = next();
-                        g.attrFilename = s.text;
+                        uint regionBase = 0;
+                        uint regionSize = 0;
+                        Macro lm = lookupMacro(s.text);
+                        if (lm !is null && lm.kind == MK.List)
+                        {
+                            foreach (i, el; lm.list)
+                            {
+                                if (i > 1)
+                                    break;
+                                
+                                auto arg = cloneExpr(el, useSiteCtx(file, line));
+                                long v;
+                                if (constEval(arg, v))
+                                {
+                                    if (i == 0)
+                                        regionBase = cast(uint)v;
+                                    else
+                                        regionSize = cast(uint)v;
+                                }
+                                else
+                                    throw err(file, line, "constant expression expected");
+                            }
+                        }
+                        else
+                            throw err(file, line, "invalid attribute macro \"" ~ s.text ~ "\"");
+                        
+                        g.attrRegion = prog.getRegion(regionBase, regionSize);
                     }
                     else
-                        throw err(file, line, "attribute requires a string");
-                    
-                    expectSym(")");
+                        throw err(file, line, "unsupported attribute token");
                 }
             }
 

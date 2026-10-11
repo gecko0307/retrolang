@@ -258,12 +258,54 @@ struct AsmDataEntry
     ubyte[] data;
 }
 
+struct RegionAllocation
+{
+    RamRegion region;
+    ulong offset;
+    ulong size;
+    
+    ulong address() const @property
+    {
+        return region.baseAddress + offset;
+    }
+}
+
+/// Memory region attribute
+class RamRegion
+{
+    ulong baseAddress;
+    ulong size;
+    RegionAllocation[] allocations;
+    ulong pos;
+    
+    this(ulong baseAddress, ulong size)
+    {
+        this.baseAddress = baseAddress;
+        this.size = size;
+        this.pos = 0;
+    }
+    
+    RegionAllocation* allocate(ulong allocSize)
+    {
+        if (size > 0)
+        {
+            if (pos + allocSize > size)
+                return null;
+        }
+        
+        allocations ~= RegionAllocation(this, pos, allocSize);
+        pos += allocSize;
+        return &allocations[$-1];
+    }
+}
+
 class Assembly
 {
     AsmInstr[] instructions;
     AsmDataEntry[] dataEntries;
     size_t[string] sections;
     size_t[string] dataLabels;
+    RamRegion[] regions;
     
     this()
     {

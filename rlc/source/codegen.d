@@ -41,7 +41,7 @@ import utils;
 import mips;
 import ir;
 import assembler;
-import psxexe: STACK_ADDR;
+import memmap: STACK_ADDR;
 
 /*
  * Register pools
@@ -75,7 +75,8 @@ enum Storage
 {
     InReg,
     InStack,
-    InGlobal
+    InGlobal,
+    InRegion
 }
 
 class Var
@@ -86,6 +87,7 @@ class Var
     Reg reg;            // InReg
     int offset;         // InStack: offset from $sp
     string label;       // InGlobal
+    RegionAllocation* allocation; // InRegion
     bool isArray;
     int arrLen;
 }
@@ -733,6 +735,8 @@ class CodeGen
             Val d = dest0(want);
             if (v.st == Storage.InStack)
                 rri(Op.ADDIU, d.r, SP, v.offset);
+            else if (v.st == Storage.InRegion)
+                li(d.r, v.allocation.address);
             else
                 liLabel(d.r, v.label);
             return d;
@@ -892,10 +896,20 @@ class CodeGen
                 lv = LValue(LK.Mem, SP, v.offset, v.ty, false);
                 return true;
             }
-            Reg a = allocTemp();
-            liLabel(a, v.label);
-            lv = LValue(LK.Mem, a, 0, v.ty, true);
-            return true;
+            else if (v.st == Storage.InRegion)
+            {
+                Reg a = allocTemp();
+                li(a, v.allocation.address);
+                lv = LValue(LK.Mem, a, 0, v.ty, true);
+                return true;
+            }
+            else
+            {
+                Reg a = allocTemp();
+                liLabel(a, v.label);
+                lv = LValue(LK.Mem, a, 0, v.ty, true);
+                return true;
+            }
         }
 
         // Struct member whose type is an array: ask your member code for the
@@ -2419,6 +2433,29 @@ class CodeGen
             v.isArray = true;
             v.arrLen = n;
         }
+        else if (g.attrRegion !is null)
+        {
+            if (!g.isArray)
+                throw err(g.file, g.line, "static region allocation is supported only for arrays");
+            if (g.hasInit)
+                throw err(g.file, g.line, "region-allocated array cannot have an initializer");
+            if (g.arrLen <= 0)
+                throw err(g.file, g.line, "region-allocated array should have length");
+            ulong size = g.arrLen * esz;
+            if (g.attrRegion.size > 0 && size > g.attrRegion.size)
+                throw err(g.file, g.line, "region-allocated array length exceeds specified region size");
+            
+            v.st = Storage.InRegion;
+            v.isArray = true;
+            v.arrLen = g.arrLen;
+            v.allocation = g.attrRegion.allocate(size);
+            
+            if (v.allocation is null)
+                throw err(g.file, g.line, "static region allocation failed, no free space left");
+            
+            globals[g.name] = v;
+            return;
+        }
         else if (g.isArray)
         {
             int n = g.arrLen;
@@ -2512,6 +2549,7 @@ class CodeGen
         }
 
         ass.instructions = program;
+        ass.regions = p.regions;
         return ass;
     }
 }

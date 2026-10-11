@@ -28,6 +28,7 @@ DEALINGS IN THE SOFTWARE.
 module ast;
 
 import types;
+import ir;
 
 /// Expression kind.
 enum EK
@@ -151,6 +152,7 @@ class GlobalDecl
     bool strInit;
     ubyte[] strBytes;
     string attrFilename;
+    RamRegion attrRegion;
 }
 
 /// Macro kind.
@@ -182,4 +184,24 @@ class Program
 {
     Func[] funcs;
     GlobalDecl[] globals;
+    RamRegion[] regions;
+    
+    /// Returns a memory region with a given base address, resizing if necessary.
+    RamRegion getRegion(ulong baseAddress, ulong size)
+    {
+        foreach(r; regions)
+        {
+            if (r.baseAddress == baseAddress)
+            {
+                if (size > r.size)
+                    r.size = size;
+                return r;
+            }
+        }
+        
+        // Existing region not found, create a new one
+        RamRegion reg = new RamRegion(baseAddress, size);
+        regions ~= reg;
+        return reg;
+    }
 }

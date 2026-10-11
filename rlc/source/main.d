@@ -37,11 +37,12 @@ import std.format;
 import mips;
 import ir;
 import psxexe;
+import memmap;
 import utils;
 import assembler;
-import preprocessor;
 import compiler;
 import linker;
+import memchecker;
 import error;
 
 version(Windows)
@@ -144,11 +145,27 @@ int main(string[] args)
     printInfo("Linking...");
     ubyte[] exeCode;
     if (!link(ass, verbose, exeCode)) return 1;
-
-    // Generate PS-X EXE and save to file
-    printInfo("Saving to \"%s\"...", outputFile);
+    
+    // Generate PS-X EXE
     PsxExe exe = new PsxExe(exeCode, 0);
     
+    // Validate memory regions
+    try
+    {
+        MemoryRange[] reservedRanges;
+        reservedRanges ~= MemoryRange(LOAD_ADDR,  LOAD_ADDR + exe.size, "PSX-EXE");
+        reservedRanges ~= MemoryRange(STACK_ADDR, STACK_ADDR + STACK_SIZE, "Stack");
+        reservedRanges ~= MemoryRange(RAM_BASE, RAM_BASE + BIOS_SIZE, "BIOS workspace");
+        validateMemory(ass.regions, reservedRanges);
+    }
+    catch (Exception e)
+    {
+        printError(e);
+        return 1;
+    }
+
+    // Save PSX-EXE to file
+    printInfo("Saving to \"%s\"...", outputFile);
     write(outputFile, exe.binary); 
     
     printInfo("Done!");

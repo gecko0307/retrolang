@@ -31,6 +31,7 @@ import std.stdio;
 
 import mips;
 import ir;
+import memmap;
 import psxexe;
 import utils;
 

@@ -56,6 +56,11 @@ Exception err(string file, int line, string msg)
     return new CompileError(file, line, msg);
 }
 
+Exception err(string msg)
+{
+    return new Exception(msg);
+}
+
 version (Windows)
 {
     import core.sys.windows.windows;
@@ -120,7 +125,7 @@ void printError(string msg)
 
 void printError(Exception e)
 {
-    if (auto ce = cast(CompileError) e)
+    if (auto ce = cast(CompileError)e)
     {
         stderr.writefln("%s %s %s",
             paint(Style.bold, format("%s(%s):", buildNormalizedPath(ce.file), ce.line)),

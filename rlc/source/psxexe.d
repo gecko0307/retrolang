@@ -31,17 +31,8 @@ DEALINGS IN THE SOFTWARE.
  */
 module psxexe;
 
+import memmap;
 import utils;
-
-enum uint RAM_BASE = 0x80000000;
-enum uint RAM_SIZE = 2 * 1024 * 1024;
-enum uint BIOS_SIZE = 64 * 1024;
-enum uint HEADER_SIZE = 2 * 1024;
-enum uint LOAD_ADDR = RAM_BASE + BIOS_SIZE;
-enum uint HEADER_ADDR = LOAD_ADDR - HEADER_SIZE;
-enum uint RAM = LOAD_ADDR;
-enum uint RAM_LENGTH  = RAM_SIZE - BIOS_SIZE;
-enum uint STACK_ADDR = RAM_BASE + 0x001FFF00;
 
 uint relocate(T)(T adr)
 {
@@ -73,11 +64,16 @@ class PsxExe
         binary ~= enc(STACK_ADDR);
         binary ~= enc(stackOffset);
         binary ~= new ubyte[24];
-        binary ~= new ubyte[HEADER_SIZE - binary.length];
+        binary ~= new ubyte[EXE_HEADER_SIZE - binary.length];
         
         // Append code + padding to align to 2048 bytes
         binary ~= code;
         if (codePadding > 0)
             binary ~= new ubyte[codePadding];
+    }
+    
+    size_t size() const @property
+    {
+        return binary.length;
     }
 }
