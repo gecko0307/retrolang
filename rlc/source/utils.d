@@ -41,7 +41,7 @@ ushort lo16(uint w)
     return cast(ushort)(w & 0x0000ffff);
 }
 
-uint aligned(uint value, uint alignment)
+T aligned(T)(T value, T alignment)
 {
     return (value + (alignment - 1)) & ~(alignment - 1);
 }

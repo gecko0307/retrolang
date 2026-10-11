@@ -285,8 +285,17 @@ class RamRegion
         this.pos = 0;
     }
     
+    bool isAligned()
+    {
+        return
+            (baseAddress % 4 == 0) &&
+            (size == 0 || size % 4 == 0);
+    }
+    
     RegionAllocation* allocate(ulong allocSize)
     {
+        allocSize = aligned(allocSize, 4);
+        
         if (size > 0)
         {
             if (pos + allocSize > size)

@@ -43,11 +43,19 @@ For more information, please refer to <https://unlicense.org>
 #define KSEG0_BASE 0x80000000
 #define KSEG0_SCRATCHPAD_START 0x9F800000
 #define KSEG0_SCRATCHPAD_END   0x9F8003FF
+#define KSEG0_SCRATCHPAD_SIZE  1024
 #define KSEG0_BIOS 0x9FC00000
 #define KSEG1_BASE 0xA0000000
 #define KSEG1_BIOS 0xBFC00000
 #define KSEG2_BASE 0xC0000000
 #define SCRATCHPAD_SIZE 0x400
+
+macro TO_KUSEG(addr) = ((addr & 0x1FFFFFFF) | KUSEG_BASE);
+macro TO_KSEG0(addr) = ((addr & 0x1FFFFFFF) | KSEG0_BASE);
+macro TO_KSEG1(addr) = ((addr & 0x1FFFFFFF) | KSEG1_BASE);
+macro TO_KSEG2(addr) = ((addr & 0x1FFFFFFF) | KSEG2_BASE);
+
+macro SCRATCHPAD = (KSEG0_SCRATCHPAD_START, KSEG0_SCRATCHPAD_SIZE);
 
 // COP0 registers
 #define COP0_INDX     0
