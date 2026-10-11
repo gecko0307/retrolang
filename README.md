@@ -88,6 +88,8 @@ Constant initialization is supported only for global arrays.
 
 **AST macros**: abstract, reusable expressions and statements. Retrolang supports expresson macros, parametrized expresson macros, list macros (tuples), and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
 
+**Static allocator**: a global array can be placed in an arbitrary region of available RAM using the region attribute: `@(0x80180000, 1024)`. Regions work like static arenas: the compiler automatically bumps offset for a new allocation that shares the region base address with existing allocation. List macros can be used to identify regions. Base addresses must be given in KSEG0.
+
 **Code generation notes:**
 
 - Local variables live in `$s0`-`$s7` (callee-saved) unless their address is taken, in which case (or when registers run out) they live in the stack frame.
@@ -184,7 +186,6 @@ In the library:
 
 - Matrix math
 - CD-ROM I/O
-- Heap allocator
 - Sound
 - Memory cards
 - Analog sticks
