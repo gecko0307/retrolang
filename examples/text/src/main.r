@@ -2,10 +2,10 @@
  * Text rendering test.
  */
 
-#include "../../include/core.ri"
-#include "../../include/bios.ri"
-#include "../../include/pad.ri"
-#include "../../include/gpu.ri"
+#include "core.ri"
+#include "bios.ri"
+#include "pad.ri"
+#include "gpu.ri"
 
 struct GpuSettings gpu;
 

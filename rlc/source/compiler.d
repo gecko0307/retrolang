@@ -102,5 +102,5 @@ Assembly compile(
     structDefs = null;
     Token[] toks = lex(source, filename, includeDirs);
     Program p = (new Parser(toks)).parseProgram();
-    return (new CodeGen(filename, dataDirs)).generate(p);
+    return (new CodeGen(filename, dataDirs, includeDirs)).generate(p);
 }

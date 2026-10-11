@@ -29,6 +29,7 @@ For more information, please refer to <https://unlicense.org>
  */
 
 #include "core.ri"
+#include "bios.ri"
 #include "pad.ri"
 #include "gpu.ri"
 
@@ -361,10 +362,10 @@ void main()
     // Read TIM data
     struct GpuTexture tex;
     gpuTextureInit((struct TimHeader*)texture, &tex);
-    bios_a(0x3f, "tex.px = %d\n", tex.px);
-    bios_a(0x3f, "tex.py = %d\n", tex.py);
-    bios_a(0x3f, "tex.width = %d\n", tex.width);
-    bios_a(0x3f, "tex.height = %d\n", tex.height);
+    printf("tex.px = %d\n", tex.px);
+    printf("tex.py = %d\n", tex.py);
+    printf("tex.width = %d\n", tex.width);
+    printf("tex.height = %d\n", tex.height);
     
     // Upload to VRAM
     gpuTextureUpload(&tex);
@@ -393,7 +394,7 @@ void main()
     dataFloor.tilex = 64;
     dataFloor.tiley = 0;
     dataFloor.color = COLOR_NEUTRAL;
-    bios_a(0x3f, "Floor vertices: %d\n", psmFloor->numVerts);
+    printf("Floor vertices: %d\n", psmFloor->numVerts);
     
     // Character mesh data
     struct PSMHeader* psmCharacter = (struct PSMHeader*)character;
@@ -406,7 +407,7 @@ void main()
     dataCharacter.tilex = 0;
     dataCharacter.tiley = 0;
     dataCharacter.color = COLOR_NEUTRAL;
-    bios_a(0x3f, "Character vertices: %d\n", psmCharacter->numVerts);
+    printf("Character vertices: %d\n", psmCharacter->numVerts);
     
     // Camera
     struct Camera cam;

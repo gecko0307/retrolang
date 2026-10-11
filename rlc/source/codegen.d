@@ -180,6 +180,9 @@ class CodeGen
     /// List of directories to look for embedded data files.
     string[] dataDirs;
     
+    /// List of directories to look for assembly files.
+    string[] includeDirs;
+    
     Program prog;
     Assembly ass;
     AsmInstr[] program;
@@ -210,11 +213,12 @@ class CodeGen
     string curFile;
     int curLine;
     
-    this(string path, string[] dataDirs)
+    this(string path, string[] dataDirs, string[] includeDirs)
     {
         this.path = path;
         this.parentDirectory = dirName(path);
         this.dataDirs = dataDirs;
+        this.includeDirs = includeDirs;
     }
 
     /*
@@ -2277,17 +2281,30 @@ class CodeGen
         
         if (f.attrFilename != "")
         {
-            string asmFilename = buildPath(parentDirectory, f.attrFilename).buildNormalizedPath;
-            if (!exists(asmFilename))
-                throw err(f.file, f.line, "can't find file \"" ~ asmFilename ~ "\"");
+            string asmFilePath = buildPath(parentDirectory, f.attrFilename);
+            bool foundFile = exists(asmFilePath);
+            if (!foundFile)
+            {
+                foreach(dir; includeDirs)
+                {
+                    asmFilePath = buildPath(dir, f.attrFilename);
+                    foundFile = exists(asmFilePath);
+                    if (foundFile)
+                        break;
+                }
+            }
+            if (!foundFile)
+                throw err(f.file, f.line, "can't find file \"" ~ f.attrFilename ~ "\"");
             
-            if (auto owner = asmFilename in asmFileOwner)
-                throw err(f.file, f.line, "assembly file \"" ~ asmFilename ~ "\" is already used by function \"" ~ *owner ~ "\"");
-            asmFileOwner[asmFilename] = f.name;
+            string asmNormFilename = asmFilePath.buildNormalizedPath;
             
-            string asmCode = readText(asmFilename);
-            string asmLabelPrefix = asmFilename;
-            Assembly extAsm = assemble(asmCode, asmFilename, asmLabelPrefix, cur.length);
+            if (auto owner = asmNormFilename in asmFileOwner)
+                throw err(f.file, f.line, "assembly file \"" ~ asmNormFilename ~ "\" is already used by function \"" ~ *owner ~ "\"");
+            asmFileOwner[asmNormFilename] = f.name;
+            
+            string asmCode = readText(asmNormFilename);
+            string asmLabelPrefix = asmNormFilename;
+            Assembly extAsm = assemble(asmCode, asmNormFilename, asmLabelPrefix, cur.length);
             cur ~= extAsm.instructions;
             ass.dataEntries ~= extAsm.dataEntries;
         }

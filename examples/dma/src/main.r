@@ -2,9 +2,9 @@
  * DMA triangle rendering test.
  */
 
-#include "../../include/core.ri"
-#include "../../include/pad.ri"
-#include "../../include/gpu.ri"
+#include "core.ri"
+#include "pad.ri"
+#include "gpu.ri"
 
 struct GpuSettings gpu;
 

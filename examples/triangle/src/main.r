@@ -3,9 +3,9 @@
  * Clears the screen with a solid color and draws a triangle.
  */
 
-#include "../../include/core.ri"
-#include "../../include/pad.ri"
-#include "../../include/gpu.ri"
+#include "core.ri"
+#include "pad.ri"
+#include "gpu.ri"
 
 // Global GPU config
 struct GpuSettings gpu;

@@ -2,9 +2,10 @@
  * 2D sprite rendering test.
  */
 
-#include "../../include/core.ri"
-#include "../../include/pad.ri"
-#include "../../include/gpu.ri"
+#include "core.ri"
+#include "bios.ri"
+#include "pad.ri"
+#include "gpu.ri"
 
 struct GpuSettings gpu;
 
@@ -30,10 +31,10 @@ void main()
     struct GpuTexture tex;
     gpuTextureInit((struct TimHeader*)catImage, &tex);
     
-    bios_a(0x3f, "tex.px = %d\n", tex.px);
-    bios_a(0x3f, "tex.py = %d\n", tex.py);
-    bios_a(0x3f, "tex.width = %d\n", tex.width);
-    bios_a(0x3f, "tex.height = %d\n", tex.height);
+    printf("tex.px = %d\n", tex.px);
+    printf("tex.py = %d\n", tex.py);
+    printf("tex.width = %d\n", tex.width);
+    printf("tex.height = %d\n", tex.height);
     
     // Upload to VRAM
     gpuTextureUpload(&tex);
