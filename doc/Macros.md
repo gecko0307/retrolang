@@ -2,6 +2,19 @@
 
 Retrtolang lacks C's powerful preprocessor, but supports AST macros instead. Macros are parts of the program reusable at compile time. Retrolang supports expresson macros, parametrized expresson macros, list macros, and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
 
+Expression macros are constant expressions:
+
+```c
+macro A = 5;
+macro B = A * 10;
+```
+
+They can take parateres:
+
+```c
+macro sqr(x) = x * x;
+```
+
 Statement macro is a special parametrized function-like statement block that expands into inline code rather than a function call:
 
 ```c
@@ -49,12 +62,13 @@ Variables declared inside a macro body get a unique name per expansion, so they 
 
 When inlining performance-critical code, pass plain variables or constants into macros, never expressions like `*p` or `a[i++]` (unless repeating an expression is what you intend).
 
-You can also define expression macros for constants and compile-time evaluation:
+Macro parameters can have default values:
 
 ```c
-macro A = 5;
-macro B = A * 10;
+macro bump(v, by = 1) { v += by; }
 ```
+
+Defaults can use other macros.
 
 List macros can be used to store compile-time expression lists (tuples):
 
