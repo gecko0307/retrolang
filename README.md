@@ -19,7 +19,7 @@ Main philosophy of the project: PSX programming doesn't require a full-fledged C
 
 Project goals:
 - Provide a convenient domain-specific language as a trade-off between C and assembly for R3000 programming;
-- Provide modern, open, self-contained replacements for legacy tools.
+- Provide modern, open, self-contained x86_64 replacements for legacy tools.
 
 ## RLC
 
