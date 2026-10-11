@@ -1,3 +1,11 @@
+Retrolang 0.3.0 - TBD
+---------------------
+- **RLC**
+  - AST macros support
+- **Examples**
+  - `gpu.ri`: data packing macros `GP0_PACK_COORDS`, `GP0_PACK_UV`, `GP0_PACK_UV_DATA`
+  - All examples are now Retrobuild projects.
+
 Retrolang 0.2.0 - 10 Oct, 2026
 ------------------------------
 - **RLC**
