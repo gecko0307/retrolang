@@ -124,7 +124,8 @@ struct PSMData
  * Transformed vertex cache.
  */
 #define MAX_VERTS 4000
-struct SVertex vcache[MAX_VERTS];
+macro VertexCacheRegion = (0x80194000, 8 * MAX_VERTS);
+struct SVertex vcache[MAX_VERTS] @VertexCacheRegion;
 
 macro gte_upload_transform(tr)
 {
