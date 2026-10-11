@@ -1,6 +1,6 @@
 # Macros
 
-Retrtolang lacks C's powerful preprocessor, but supports AST macros instead. Macros are parts of the program reusable at compile time. Retrolang supports expresson macros, parametrized expresson macros, list macros, and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
+Retrtolang lacks C's powerful preprocessor, but code inlining is crucial when writing programs at the bare-metal level, so AST macros support was added. Macros are parts of the program reusable at compile time. Retrolang supports expresson macros, parametrized expresson macros, list macros, and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
 
 Expression macros are constant expressions:
 
