@@ -17,6 +17,10 @@ Retrolang is a result of 10+ years of tinkering with PsyQ SDK, custom GPU librar
 
 Main philosophy of the project: PSX programming doesn't require a full-fledged C with all of its baggage. A subset is sufficient. What's really needed are platform-specific language capabilities, as well as a simple, readable and easily hackable standard library. Popular C toolchains also tend to be bulky; Retrolang produces tiny executables that can run via [FreePSXBoot](https://github.com/brad-lin/FreePSXBoot).
 
+Project goals:
+- Provide a convenient domain-specific language as a trade-off between C and assembly for R3000 programming;
+- Provide modern, open, self-contained tooling.
+
 ## RLC
 
 The main tool is RLC, the Retrolang Compiler. It combines an assembler, compiler, and a linker in a single program and directly outputs `PSX.EXE`.
