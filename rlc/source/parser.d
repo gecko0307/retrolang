@@ -140,6 +140,8 @@ class Parser
 {
     Token[] toks;
     size_t p;
+
+    /// Macros defined so far (a macro must be defined before it is used).
     Macro[string] macroTable;
 
     /// Parameters of the macro whose body is being parsed (they shadow macros).
@@ -198,14 +200,14 @@ class Parser
     }
 
     /**
-     * macro name = expr;          - expression macro
-     * macro name(params) = expr;  - expression macro with parameters
-     * macro name = (a, b, ...);   - list macro
-     * macro name(params) { body } - statement macro
+     * macro name(params) { body }     statement macro
+     * macro name(params) = expr;      expression macro with parameters
+     * macro name = expr;              constant (expression) macro
+     * macro name = (a, b, ...);       list macro
      */
     void parseMacroDef()
     {
-        Token kw = next(); // "macro"
+        Token kw = next(); // 'macro'
         string name = expectIdent();
         if (name in macroTable)
             throw err(kw.file, kw.line, format("redefinition of macro \"%s\"", name));
@@ -218,6 +220,8 @@ class Parser
         if (acceptSym("("))
         {
             m.hasParens = true;
+            scope(exit) curParams = null;
+            bool sawDefault = false;
             if (!isSym(")"))
             {
                 do
@@ -229,12 +233,39 @@ class Parser
                             throw err(kw.file, kw.line, format("duplicate macro parameter \"%s\"", pn));
                     }
                     m.params ~= pn;
+                    curParams = m.params; // earlier parameters are not macros inside a default value
+
+                    if (acceptSym("="))
+                    {
+                        m.defaults ~= parseAssign();
+                        sawDefault = true;
+                    }
+                    else
+                    {
+                        if (sawDefault)
+                            throw err(kw.file, kw.line,
+                                format("parameter \"%s\" has no default value but follows one that has", pn));
+                        m.defaults ~= null;
+                    }
                 } while (acceptSym(",") || acceptSym(";"));
             }
             expectSym(")");
 
+            // A default may use earlier parameters, but not itself or later ones.
+            foreach (i, d; m.defaults)
+            {
+                if (d is null)
+                    continue;
+                foreach (q; m.params[i .. $])
+                {
+                    if (refersTo(d, q))
+                        throw err(kw.file, kw.line,
+                            format("default value of parameter \"%s\" cannot refer to \"%s\"",
+                                   m.params[i], q));
+                }
+            }
+
             curParams = m.params;
-            scope(exit) curParams = null;
 
             if (isSym("{"))
             {

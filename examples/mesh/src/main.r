@@ -243,10 +243,10 @@ void drawPSM(struct PSMHeader* psm, struct PSMData* data, struct RTPSTransform* 
 // Global GPU config
 struct GpuSettings gpu;
 
-char* textures @("assets/texture.tim");
-char* character @("assets/character.psm");
-char* floor @("assets/floor.psm");
-char* sin4096 @("sin_table/sin4096.bin");
+uchar texture[] @("assets/texture.tim");
+uchar character[] @("assets/character.psm");
+uchar floor[] @("assets/floor.psm");
+uchar sin4096[] @("sin_table/sin4096.bin");
 
 #define QPI 0x200
 #define HPI 0x400
@@ -360,7 +360,7 @@ void main()
     
     // Read TIM data
     struct GpuTexture tex;
-    gpuTextureInit((struct TimHeader*)textures, &tex);
+    gpuTextureInit((struct TimHeader*)texture, &tex);
     bios_a(0x3f, "tex.px = %d\n", tex.px);
     bios_a(0x3f, "tex.py = %d\n", tex.py);
     bios_a(0x3f, "tex.width = %d\n", tex.width);
@@ -380,14 +380,14 @@ void main()
     tr.dqa = F_ONE;
     tr.dqb = 0x000;
     
-    char* meshStart;
+    uchar* meshStart;
     
     // Floor mesh data
     struct PSMHeader* psmFloor = (struct PSMHeader*)floor;
     struct PSMData dataFloor;
     meshStart = floor;
     dataFloor.vertices = (struct Vertex*)(meshStart + 16);
-    dataFloor.uvs = (uchar*)(meshStart + psmFloor->uvOffset);
+    dataFloor.uvs = meshStart + psmFloor->uvOffset;
     dataFloor.indices = (ushort*)(meshStart + psmFloor->idxOffset);
     dataFloor.texture = &tex;
     dataFloor.tilex = 64;
@@ -400,7 +400,7 @@ void main()
     struct PSMData dataCharacter;
     meshStart = character;
     dataCharacter.vertices = (struct Vertex*)(meshStart + 16);
-    dataCharacter.uvs = (uchar*)(meshStart + psmCharacter->uvOffset);
+    dataCharacter.uvs = meshStart + psmCharacter->uvOffset;
     dataCharacter.indices = (ushort*)(meshStart + psmCharacter->idxOffset);
     dataCharacter.texture = &tex;
     dataCharacter.tilex = 0;

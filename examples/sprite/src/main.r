@@ -8,7 +8,7 @@
 
 struct GpuSettings gpu;
 
-char* catImage @("assets/cat.tim");
+uchar catImage[] @("assets/cat.tim");
 
 void main()
 {

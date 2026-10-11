@@ -2389,8 +2389,12 @@ class CodeGen
         
         if (g.attrFilename.length > 0)
         {
-            if (g.ty.ptr == 0)
-                throw err(g.file, g.line, "file attribute requires an array");
+            if (!g.isArray)
+                throw err(g.file, g.line,
+                    "a file can only initialize an array, declare it as \"" ~ g.name ~ "[]\"");
+            if (g.hasInit)
+                throw err(g.file, g.line,
+                    "an array cannot have both an initializer and a file attribute");
             
             // TODO: build path for searching external files
             string externalFile = g.attrFilename;
@@ -2398,8 +2402,22 @@ class CodeGen
                 data = cast(ubyte[])read(externalFile);
             else
                 throw err(g.file, g.line, "can't find file \"" ~ externalFile ~ "\"");
+
+            // The length is counted in elements; a trailing partial element is zero-padded.
+            // An explicit size, e.g. char buf[4096] @("file"), must be large enough.
+            int n = cast(int)((data.length + esz - 1) / esz);
+            if (g.arrLen >= 0)
+            {
+                if (n > g.arrLen)
+                    throw err(g.file, g.line, format("file \"%s\" (%s bytes) does not fit in %s[%s]",
+                        externalFile, data.length, g.name, g.arrLen));
+                n = g.arrLen;
+            }
+            if (n <= 0)
+                throw err(g.file, g.line, "file \"" ~ externalFile ~ "\" is empty");
+            data.length = n * esz;
             v.isArray = true;
-            v.arrLen = cast(int)data.length;
+            v.arrLen = n;
         }
         else if (g.isArray)
         {

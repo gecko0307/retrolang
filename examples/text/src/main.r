@@ -3,6 +3,7 @@
  */
 
 #include "../../include/core.ri"
+#include "../../include/bios.ri"
 #include "../../include/pad.ri"
 #include "../../include/gpu.ri"
 
@@ -40,7 +41,7 @@ void drawText(struct GpuTexture* fontAtlas, int x, int y, char* text)
     }
 }
 
-char* fontImage @("assets/font.tim");
+uchar fontImage[] @("assets/font.tim");
 
 void main()
 {
@@ -63,10 +64,10 @@ void main()
     struct GpuTexture font;
     gpuTextureInit((struct TimHeader*)fontImage, &font);
     
-    bios_a(0x3f, "font.px = %d\n", font.px);
-    bios_a(0x3f, "font.py = %d\n", font.py);
-    bios_a(0x3f, "font.width = %d\n", font.width);
-    bios_a(0x3f, "font.height = %d\n", font.height);
+    printf("font.px = %d\n", font.px);
+    printf("font.py = %d\n", font.py);
+    printf("font.width = %d\n", font.width);
+    printf("font.height = %d\n", font.height);
     
     // Upload font atlas to VRAM
     gpuTextureUpload(&font);

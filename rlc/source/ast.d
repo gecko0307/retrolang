@@ -170,6 +170,7 @@ class Macro
     int line;
     bool hasParens;         // declared with a parameter list
     string[] params;
+    Expr[] defaults;        // parallel to params; null = required parameter
     Stmt body_;             // Stmt
     Expr expr;              // Expr
     Expr[] list;            // List

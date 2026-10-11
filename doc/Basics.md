@@ -160,19 +160,17 @@ uint* GP0 = 0x1F801810;             // pointer initialized with a constant addre
 - A string initializer is only allowed for `char` arrays. A global `char*` cannot be initialized with a string literal, only with external data file (see below).
 - Globals and functions can be used before their definition in the file. Structs and macros cannot; they must be defined first.
 
-Embedding a binary file into a global array:
+An array declaration can take a binary file instead of an initializer list:
 
 ```c
-uchar* texture @("texture.bin");
+uchar texture[] @("texture.tim");   // one element per byte; the length is the file size
+int   words[]   @("data.bin");      // length in ints; a trailing partial int is zero-padded
+char  buf[4096] @("data.bin");      // explicit size: must be >= the file, the rest is filled with zeros
 ```
 
-Or:
-
-```c
-uchar texture[] @("texture.bin");   // array length is the file size in bytes
-```
-
-**The path is resolved relative to the working directory of the compiler**, not the `*.r` source file.
+- Elements are stored in the file's byte order, ensure little-endian integers.
+- The path is resolved relative to the working directory of the compiler**, not the `*.r` source file.
+- An empty file, or a file larger than an explicit array size, is an error.
 
 ### Local variables
 

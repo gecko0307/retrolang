@@ -69,6 +69,7 @@ DEALINGS IN THE SOFTWARE.
  *                    macro repeat(f, n) { for (int i = 0; i < n; i++) { f; } }
  *                                                                  repeat(x++; 10);  (',' also works)
  *                    macro sq(x) = x * x;                          expression macro with parameters
+ *                    macro log(f, a = 0) = bios_a(0x3F, f, a);     default parameter values: log("hi\n");
  *                    macro N = 16;  macro N2 = N * 2;              constants (any expression)
  *                    macro Region = (0x80050000, 2048);            list macro: Region[0], Region.length,
  *                                                                  and f(Region) passes both elements

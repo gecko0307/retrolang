@@ -40,14 +40,14 @@ DEALINGS IN THE SOFTWARE.
  * once, copy it into a macro-local first.
  */
 module macroexp;
-
+ 
 import std.format: format;
-
+ 
 import ast;
 import error;
-
+ 
 private int macroCounter;
-
+ 
 /// State of one expansion (or of a plain copy when no substitution is needed).
 class MacroSubst
 {
@@ -57,7 +57,7 @@ class MacroSubst
     string file;              // use site: copied nodes report errors here
     int line;
 }
-
+ 
 /// Context that only moves copied nodes to a use site (no substitution).
 MacroSubst useSiteCtx(string file, int line)
 {
@@ -66,7 +66,24 @@ MacroSubst useSiteCtx(string file, int line)
     ctx.line = line;
     return ctx;
 }
-
+ 
+/// Does the expression mention variable (or call) `name`?
+bool refersTo(Expr e, string name)
+{
+    if (e is null)
+        return false;
+    if ((e.kind == EK.Var || e.kind == EK.Call) && e.name == name)
+        return true;
+    if (refersTo(e.a, name) || refersTo(e.b, name))
+        return true;
+    foreach (x; e.args)
+    {
+        if (refersTo(x, name))
+            return true;
+    }
+    return false;
+}
+ 
 /// Collects the names of all variables declared in a statement tree.
 void collectDecls(Stmt s, ref string[] names)
 {
@@ -80,7 +97,7 @@ void collectDecls(Stmt s, ref string[] names)
     collectDecls(s.thenS, names);
     collectDecls(s.elseS, names);
 }
-
+ 
 /**
  * Deep copy of an expression. With ctx == null the copy is exact (this is used for
  * arguments, which must not be substituted again). Otherwise parameters are replaced,
@@ -90,7 +107,7 @@ Expr cloneExpr(Expr e, MacroSubst ctx)
 {
     if (e is null)
         return null;
-
+ 
     if (ctx !is null)
     {
         if (e.kind == EK.Var)
@@ -111,7 +128,7 @@ Expr cloneExpr(Expr e, MacroSubst ctx)
                        ctx.macroName, e.name));
         }
     }
-
+ 
     auto n = new Expr(e.kind,
                       ctx !is null ? ctx.file : e.file,
                       ctx !is null ? ctx.line : e.line);
@@ -133,13 +150,13 @@ Expr cloneExpr(Expr e, MacroSubst ctx)
     n.arrow = e.arrow;
     return n;
 }
-
+ 
 /// Deep copy of a statement, see cloneExpr.
 Stmt cloneStmt(Stmt s, MacroSubst ctx)
 {
     if (s is null)
         return null;
-
+ 
     auto n = new Stmt(s.kind,
                       ctx !is null ? ctx.file : s.file,
                       ctx !is null ? ctx.line : s.line);
@@ -161,36 +178,45 @@ Stmt cloneStmt(Stmt s, MacroSubst ctx)
     n.arrLen = s.arrLen;
     return n;
 }
-
+ 
 private MacroSubst makeCtx(Macro m, Expr[] args, string file, int line)
 {
     if (args.length > m.params.length)
         throw err(file, line,
             format("macro \"%s\" takes at most %s argument(s) but %s given",
                    m.name, m.params.length, args.length));
-
+ 
     auto ctx = new MacroSubst();
     ctx.macroName = m.name;
     ctx.file = file;
     ctx.line = line;
-
-    // Missing trailing arguments are allowed; it is an error only if the body uses them.
+ 
+    // A missing argument takes the parameter's default value. The default is expanded
+    // right here, so it sees the arguments of the earlier parameters (b = a + 1).
+    // A missing argument without a default is an error only if the body uses it.
     foreach (i, pn; m.params)
-        ctx.args[pn] = (i < args.length) ? args[i] : null;
-
+    {
+        if (i < args.length)
+            ctx.args[pn] = args[i];
+        else if (i < m.defaults.length && m.defaults[i] !is null)
+            ctx.args[pn] = cloneExpr(m.defaults[i], ctx);
+        else
+            ctx.args[pn] = null;
+    }
+ 
     int id = ++macroCounter;
     foreach (ln; m.locals)
         ctx.renames[ln] = format("%s.%s", ln, id);
-
+ 
     return ctx;
 }
-
+ 
 /// Expands a statement macro into a (scoped) block.
 Stmt expandStmtMacro(Macro m, Expr[] args, string file, int line)
 {
     return cloneStmt(m.body_, makeCtx(m, args, file, line));
 }
-
+ 
 /// Expands an expression macro (constant, or one with parameters).
 Expr expandExprMacro(Macro m, Expr[] args, string file, int line)
 {
