@@ -34,7 +34,7 @@ void drawTile(struct Tile* tile, int z)
     p[4] = GP0_PACK_COORDS(TILE_WIDTH, TILE_HEIGHT);
 }
 
-macro TILE(u, v) = (u << 2) | (v & 0xf);
+macro TILE(u, v) = (u << 4) | (v & 0xf);
 macro TILE_EMPTY = TILE(10, 15);
 macro TILE_GRND1 = TILE(0, 0);
 macro TILE_GRND2 = TILE(0, 1);
@@ -275,9 +275,10 @@ void main()
             for (int x = 0; x < LEVEL_WIDTH; x++)
             {
                 uchar t = levelTiles[y * LEVEL_WIDTH + x];
+                if (t == TILE_EMPTY) continue;
                 tile.x = x * TILE_WIDTH;
                 tile.y = y * TILE_HEIGHT;
-                tile.u = (t >> 2)  * TILE_WIDTH;
+                tile.u = (t >> 4)  * TILE_WIDTH;
                 tile.v = (t & 0xf) * TILE_HEIGHT;
                 drawTile(&tile, 1);
             }
