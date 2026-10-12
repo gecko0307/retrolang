@@ -30,6 +30,8 @@ For more information, please refer to <https://unlicense.org>
 
 // Types
 #define null 0x00000000
+#define true 1
+#define false 0
 #define size_t uint
 #define int32_t int
 #define uint32_t uint
