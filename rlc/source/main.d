@@ -155,7 +155,8 @@ int main(string[] args)
     if (!link(ass, verbose, exeCode)) return 1;
     
     // Generate PS-X EXE
-    PsxExe exe = new PsxExe(exeCode, 0);
+    // TODO: region from command line argument
+    PsxExe exe = new PsxExe(exeCode, 0, PsxExeRegion.Europe);
     
     // Validate memory regions
     try

@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <iso_project image_name="game.bin" cue_sheet="game.cue">
-	<track type="data">
+	<track type="data" xa_edc="true" new_type="false">
 		<identifiers
 			system ="PLAYSTATION"
 			application ="PLAYSTATION"
 			volume ="GAME"
-			volume_set ="GAME"
-			publisher ="GECKO"
-			data_preparer ="MKPSXISO"
 		/>
 		<license file="../licenses/infoeur.dat"/>
 		<directory_tree>
-			<file name="PSX.EXE" type="data" source="iso/PSX.EXE"/>
+			<file name="SYSTEM.CNF" type="data" source="iso/SYSTEM.CNF" order="0"/>
+			<file name="PSX.EXE" type="data" source="iso/PSX.EXE" order="1"/>
 			<dummy sectors="1024"/>
 		</directory_tree>
 	</track>

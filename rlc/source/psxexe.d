@@ -31,6 +31,7 @@ DEALINGS IN THE SOFTWARE.
  */
 module psxexe;
 
+import error;
 import memmap;
 import utils;
 
@@ -39,11 +40,22 @@ uint relocate(T)(T adr)
     return LOAD_ADDR + cast(uint)adr;
 }
 
+enum PsxExeRegion
+{
+    Japan = 0,
+    Europe = 1,
+    NorthAmerica = 2
+}
+
+enum RegionStrJapan = "Sony Computer Entertainment Inc. for Japan area";
+enum RegionStrEurope = "Sony Computer Entertainment Inc. for Europe area";
+enum RegionStrNorthAmerica = "Sony Computer Entertainment Inc. for North America area";
+
 class PsxExe
 {
     ubyte[] binary;
     
-    this(ubyte[] code, uint relEntryPoint)
+    this(ubyte[] code, uint relEntryPoint, PsxExeRegion region = PsxExeRegion.NorthAmerica)
     {
         uint absEntryPoint = relocate(relEntryPoint);
         
@@ -51,7 +63,7 @@ class PsxExe
         uint codeSize = cast(uint)code.length;
         uint alignedCodeSize = aligned(codeSize, 2048);
         uint codePadding = alignedCodeSize - codeSize;
-        uint stackOffset = 0;
+        uint stackInitialOffset = 0;
         
         // Header
         binary ~= [0x50, 0x53, 0x2d, 0x58, 0x20, 0x45, 0x58, 0x45]; // "PS-X EXE"
@@ -62,8 +74,16 @@ class PsxExe
         binary ~= enc(alignedCodeSize);
         binary ~= new ubyte[16];
         binary ~= enc(STACK_ADDR);
-        binary ~= enc(stackOffset);
-        binary ~= new ubyte[24];
+        binary ~= enc(stackInitialOffset);
+        binary ~= new ubyte[20];
+        if (region == PsxExeRegion.Japan)
+            binary ~= cast(ubyte[])RegionStrJapan;
+        else if (region == PsxExeRegion.Europe)
+            binary ~= cast(ubyte[])RegionStrEurope;
+        else if (region == PsxExeRegion.NorthAmerica)
+            binary ~= cast(ubyte[])RegionStrNorthAmerica;
+        else
+            throw err("Unsupported EXE region!");
         binary ~= new ubyte[EXE_HEADER_SIZE - binary.length];
         
         // Append code + padding to align to 2048 bytes

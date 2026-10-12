@@ -89,6 +89,8 @@ int boxHitsSolid(int left, int top)
 
 void main()
 {
+    padInit();
+    
     gpu.videoMode = VMODE_PAL;
     gpu.display.width = 320;
     gpu.display.height = 240;
@@ -100,9 +102,7 @@ void main()
     gpu.clip.y = 0;
     gpu.interleaving = 0;
     gpu.colorDepth = COLORDEPTH_15BIT;
-    
     gpuInit(&gpu);
-    padInit();
     
     struct GpuTexture tilesTex;
     gpuTextureInit((struct TimHeader*)tiles, &tilesTex);

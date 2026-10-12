@@ -2394,12 +2394,32 @@ class CodeGen
         curLbls = null;
         curFile = path;
         curLine = 0;
+        
         placeLabel("_start");
+        
+        // Set stack pointer
         li(SP, STACK_ADDR);
+        
+        // A(44h) FlushCache
+        li(T1, 0x44);
+        li(T2, 0xA0);
+        emit(Op.JALR, makeReg(RA), makeReg(T2), makeNone());
+        nop();
+        
+        // B(18h) ResetEntryInt
+        li(T1, 0x18);
+        li(T2, 0xB0);
+        emit(Op.JALR, makeReg(RA), makeReg(T2), makeNone());
+        nop();
+        
+        // Call main
         emit(Op.JAL, makeLabel("f_main"), makeNone(), makeNone());
         nop();
+        
+        // Loop forever
         placeLabel("_halt");
         jump("_halt");
+        
         flush();
     }
 
