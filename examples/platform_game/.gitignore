@@ -1,0 +1,7 @@
+iso/*
+*.exe
+*.dll
+*.bin
+*.cue
+*.cu2
+run.bat

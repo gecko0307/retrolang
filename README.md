@@ -151,6 +151,7 @@ Usage (assuming you've copied the [include](/examples/include) folder to your pr
 - [dma](/examples/dma) - classic colored triangle demo (queued rendering via command buffer)
 - [sprite](/examples/sprite) - TIM texture loading and sprite rendering (direct rendering via GP0)
 - [text](/examples/text) - bitmap font loading and text rendering (queued rendering via command buffer)
+- [platformer](/examples/platformer) - 2D platform game
 - [mesh](/examples/mesh) - walkable 3D scene with a first person camera.
 
 All examples support building with Retrobuild. RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository. Optionally, to build a CD-ROM image, mkpsxiso must be available system-wide or locally as `/mkpsxiso/mkpsxiso.exe` in the repository.
