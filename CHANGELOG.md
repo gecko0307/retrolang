@@ -1,5 +1,12 @@
-Retrolang 0.3.0 - TBD
+Retrolang 0.4.0 - TBD
 ---------------------
+- **RLC**
+  - Add necessary initialization for a correct full boot
+- **Examples**
+  - New CD system area DAT file.
+
+Retrolang 0.3.0 - 12 Oct, 2026
+------------------------------
 - **RLC**
   - AST macros support
   - Static memory allocator
