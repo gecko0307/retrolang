@@ -344,8 +344,19 @@ class CodeGen
     }
     
     /*
-     * GTE Intrinsic Emission Helpers
+     * Coprocessor intrinsic emission
      */
+
+    void mtc0(Reg cpuReg, Reg cop0Reg)
+    {
+        emit(Op.MTC0, makeReg(cpuReg), makeRegCop0(cop0Reg), makeNone());
+    }
+
+    void mfc0(Reg cpuReg, Reg cop0Reg)
+    {
+        emit(Op.MFC0, makeReg(cpuReg), makeRegCop0(cop0Reg), makeNone());
+        nop();
+    }
 
     void gte_mtc2(Reg cpuReg, Reg gteDataReg)
     {
@@ -1739,6 +1750,9 @@ class CodeGen
     string[] intrinsics = [
         "nop",
         "cop0", "cop2",
+        "mfc0",
+        "mtc0",
+        
         "gte_enable",
         "gte_disable",
         "gte_set_matrix",
@@ -1765,6 +1779,16 @@ class CodeGen
     {
         switch (e.name)
         {
+            case "mfc0":
+            case "cfc0":
+            {
+                checkArgs(e, 1);
+                Reg g = cop0RegArg(e.args[0], e.name);
+                Val d = dest0(want);
+                if (e.name == "mfc0") mfc0(d.r, g);
+                //else                cfc0(d.r, g);
+                return d;
+            }
             case "gte_mfc2":
             case "gte_cfc2":
             {
@@ -1889,6 +1913,18 @@ class CodeGen
                 break;
             }
             
+            case "mtc0":
+            case "ctc0":
+            {
+                checkArgs(e, 2);
+                Reg g = cop0RegArg(e.args[0], name);
+                Val v = genExpr(e.args[1]);
+                if (name == "mtc0") mtc0(v.r, g);
+                //else              ctc0(v.r, cast(uint)g);
+                release(v);
+                break;
+            }
+            
             case "gte_mtc2":
             case "gte_ctc2":
             {
@@ -1937,6 +1973,14 @@ class CodeGen
             case "gte_gpl":   gte_gpl();   break;
             default: break;
         }
+    }
+    
+    Reg cop0RegArg(Expr arg, string fname)
+    {
+        long n;
+        if (!constEval(arg, n) || n < 3 || n > 15)
+            throw err(curFile, arg.line, fname ~ ": register number must be a constant from 0 to 31");
+        return cast(Reg)n;
     }
     
     Reg gteRegArg(Expr arg, string fname)

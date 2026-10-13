@@ -187,9 +187,6 @@ void padInit()
     _pad_buf1[0] = -1; // status byte 0xFF = "not updated yet"
     _pad_buf2[0] = -1;
     _pad_data = -1;
-    
-    printf("%x %x\n", _pad_buf1, _pad_buf2);
-    printf("%x %x\n", &_pad_buf1[0], &_pad_buf2[0]);
 
     bios_b(0x12, _pad_buf1, 34, _pad_buf2, 34); // InitPad2
     bios_b(0x13, 0, 0, 0, 0); // StartPad2

@@ -30,7 +30,8 @@ For more information, please refer to <https://unlicense.org>
 
 macro printf(fmt, a1=0, a2=0, a3=0) = bios_a(0x3f, fmt, a1, a2, a3);
 
-macro open(filename, accessMode)    = bios_b(0x32, filename, accessMode);
-macro lseek(fd, pos, seektype)      = bios_b(0x33, fd, pos, seektype);
-macro read(fd, buf, nbytes)         = bios_b(0x34, fd, buf, nbytes);
-macro close(fd)                     = bios_b(0x36, fd);
+macro cd_init()                        = bios_a(0x54); //_96_init
+macro cd_open(filename)                = bios_b(0x32, filename, 1);
+macro cd_lseek(fd, pos, seektype)      = bios_b(0x33, fd, pos, seektype);
+macro cd_read(fd, buf, nbytes)         = bios_b(0x34, fd, buf, nbytes);
+macro cd_close(fd)                     = bios_b(0x36, fd);
