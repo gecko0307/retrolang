@@ -1,6 +1,6 @@
 # Static Allocator
 
-Because PlayStation 1 has very limited fixed-size RAM, we recommend to avoid non-deterministic dynamic allocations and use a statically defined memory layout. Retrolang provides a language-level semantic that makes this a easier: memory regions. You can split available memory into large fixed-size chunks and statically allocate your buffers/arrays there. The compiler will calculate offsets and check collisions between regions and reserved areas.
+Because PlayStation 1 has very limited fixed-size RAM, we recommend to avoid non-deterministic dynamic allocations and use a statically defined memory layout. Retrolang provides a language-level semantic that makes it easier: memory regions. You can split available memory into large fixed-size chunks and statically allocate your buffers/arrays there. The compiler will calculate offsets and check collisions between regions and reserved areas.
 
 ```c
 macro REGION1 = (0x80180000, 160);
