@@ -54,7 +54,7 @@ void drawTile(struct Tile* tile, int z)
     uint u = tile->texture->px + tile->u;
     uint v = tile->texture->py + tile->v;
     p[0] = GP0_SPRITE2 | tile->texture->tpage;
-    p[1] = GP0_SPRITE_TEX2 | COLOR_NEUTRAL;
+    p[1] = GP0_SPRITE_TEX_RAW | COLOR_NEUTRAL;
     p[2] = GP0_PACK_COORDS(tile->x, tile->y);
     p[3] = GP0_PACK_UV_DATA(u, v, (uint)tile->texture->clutId);
     p[4] = GP0_PACK_COORDS(TILE_WIDTH, TILE_HEIGHT);

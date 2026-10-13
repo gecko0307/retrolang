@@ -10,6 +10,7 @@
 		<directory_tree>
 			<file name="SYSTEM.CNF" type="data" source="iso/SYSTEM.CNF" order="0"/>
 			<file name="PSX.EXE" type="data" source="iso/PSX.EXE" order="1"/>
+			<file name="CAT.TIM" type="data" source="iso/CAT.TIM" order="1"/>
 			<dummy sectors="1024"/>
 		</directory_tree>
 	</track>
