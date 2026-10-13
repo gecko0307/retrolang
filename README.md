@@ -125,6 +125,7 @@ See [doc folder](/doc) for more details on the language.
 Retrolang provides a minimal set of optional low-level functionality that aid with writing PlayStation programs. It is partly a port of [PSXLib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
 
 * `core.ri` - core definitions
+* `bios.ri` - macros for some common BIOS calls
 * `gpu.ri` - GPU driver / graphics API
 * `pad.ri` - gamepad driver.
 
@@ -181,10 +182,8 @@ What is not implemented yet in the language:
 In the library:
 
 - Matrix math
-- CD-ROM I/O
 - Sound
 - Memory cards
-- Analog sticks
 
 ## License
 

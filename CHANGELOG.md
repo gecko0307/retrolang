@@ -2,8 +2,11 @@ Retrolang 0.4.0 - TBD
 ---------------------
 - **RLC**
   - Add necessary initialization for a correct full boot
+  - `mfc0`, `mtc0`
 - **Examples**
-  - New CD system area DAT file.
+  - New pad driver, analog sticks support
+  - Functions to read files from the CD-ROM
+  - New DAT file for patching CD image system area.
 
 Retrolang 0.3.0 - 12 Oct, 2026
 ------------------------------
