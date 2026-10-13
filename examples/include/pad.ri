@@ -80,7 +80,9 @@ void padWaitSync()
 }
 */
 
-// SIO
+/*
+ * SIO
+ */
 
 // TODO: make intrinsics
 void sioSet8(int offset, char value)
@@ -106,13 +108,6 @@ ushort sioGet16(int offset)
     ushort* addr = JOY_BASE | (offset & 0xFFFF);
     return *addr;
 }
-
-/*
-void sioSet8(int offset, int value) @("sioSet8.s");
-void sioSet16(int offset, int value) @("sioSet16.s");
-int sioGet8(int offset) @("sioGet8.s");
-int sioGet16(int offset) @("sioGet16.s");
-*/
 
 int _cmd_enter[9];
 int _cmd_mode[9];
@@ -253,7 +248,7 @@ int stickAxis(int v, int neg, int pos)
     int s = v - 128;
     int bits = 0;
 
-    // keep the previous state in the hysteresis band
+    // Keep the previous state in the hysteresis band
     if (_stick_dirs & neg) bits = bits | neg;
     if (_stick_dirs & pos) bits = bits | pos;
 
@@ -267,7 +262,7 @@ int stickAxis(int v, int neg, int pos)
     return bits;
 }
 
-// signed -128..127, with a dead zone
+// Signed -128..127
 int padAxis(int v)
 {
     int s = v - 128;
