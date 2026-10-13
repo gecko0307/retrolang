@@ -28,6 +28,13 @@ For more information, please refer to <https://unlicense.org>
  * Gamepad driver.
  */
 
+#define JOY_BASE 0x1F800000
+#define JOY_DATA 0x1040
+#define JOY_STAT 0x1044
+#define JOY_MODE 0x1048
+#define JOY_CTRL 0x104A
+#define JOY_BAUD 0x104E
+
 #define PAD_ID_DIGITAL      0x41
 #define PAD_ID_ANALOG_GREEN 0x53
 #define PAD_ID_ANALOG_RED   0x73
@@ -48,8 +55,9 @@ For more information, please refer to <https://unlicense.org>
 #define PAD_LEFT     0x8000
 
 /*
-// Old pad API
-
+ * Old pad API
+ */
+/*
 int _pad_buf;
 int _pad_data = 0xffffffff;
 
@@ -75,10 +83,36 @@ void padWaitSync()
 // SIO
 
 // TODO: make intrinsics
+void sioSet8(int offset, char value)
+{
+    char* addr = JOY_BASE | (offset & 0xFFFF);
+    *addr = value;
+}
+
+void sioSet16(int offset, short value)
+{
+    short* addr = JOY_BASE | (offset & 0xFFFF);
+    *addr = value;
+}
+
+uchar sioGet8(int offset)
+{
+    uchar* addr = JOY_BASE | (offset & 0xFFFF);
+    return *addr;
+}
+
+ushort sioGet16(int offset)
+{
+    ushort* addr = JOY_BASE | (offset & 0xFFFF);
+    return *addr;
+}
+
+/*
 void sioSet8(int offset, int value) @("sioSet8.s");
 void sioSet16(int offset, int value) @("sioSet16.s");
 int sioGet8(int offset) @("sioGet8.s");
 int sioGet16(int offset) @("sioGet16.s");
+*/
 
 int _cmd_enter[9];
 int _cmd_mode[9];
@@ -99,26 +133,28 @@ void setCmd(int *c, int cmd, int a, int b)
 
 int sioXfer(int b)
 {
-    sioSet8(0x1040, b);                       // TX
+    sioSet8(JOY_DATA, b);                     // TX
     int t = 0;
-    while ((sioGet16(0x1044) & 2) == 0 && t < 100000)
+    while ((sioGet16(JOY_STAT) & 2) == 0 && t < 100000)
         // wait for RX byte
         t++;
-    int r = sioGet8(0x1040);                  // RX
+    int r = sioGet8(JOY_DATA);                // RX
     for (int d = 0; d < 100; d++) { }         // let the pad ACK before the next byte
     return r;
 }
 
 void sioSend(int *c)
 {
-    sioSet16(0x104A, 0x0003);                 // CTRL: TXEN + DTR (select port 1)
+    sioSet16(JOY_CTRL, 0x0003);               // TXEN + DTR (select port 1)
     for (int i = 0; i < 9; i++)
         c[i] = sioXfer(c[i]);                 // reply overwrites the sent byte
-    sioSet16(0x104A, 0x0000);                 // deselect
+    sioSet16(JOY_CTRL, 0x0000);               // deselect
     for (int d = 0; d < 20000; d++) { }       // gap between commands
 }
 
-// Buffered pad API
+/*
+ * Buffered pad API
+ */
 
 /*
  * Byte 0 - status (0x00 = OK, 0xFF = no pad)
@@ -144,8 +180,8 @@ int _stick_dirs;        // PAD_LEFT/RIGHT/UP/DOWN bits derived from the left sti
 void padInit()
 {
     // Force analog
-    sioSet16(0x1048, 0x000D);                 // MODE
-    sioSet16(0x104E, 0x0088);                 // BAUD
+    sioSet16(JOY_MODE, 0x000D);
+    sioSet16(JOY_BAUD, 0x0088);
     setCmd(_cmd_enter, 0x43, 0x01, 0x00);     // 01 43 00 01 00  enter config
     setCmd(_cmd_mode,  0x44, 0x01, 0x03);     // 01 44 00 01 03  analog + lock
     setCmd(_cmd_exit,  0x43, 0x00, 0x5A);     // 01 43 00 00 5A  exit config
