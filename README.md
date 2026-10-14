@@ -9,6 +9,18 @@ Retrolang tools are written entirely in [D language](https://dlang.org/).
 
 All provided software is experimental and is in alpha stage.
 
+## What can you do with Retrolang
+
+(in more or less convenient ways)
+
+- Render 2D and 3D graphics via command buffers and the DMA
+- Upload TIM files to VRAM
+- Work with the GTE
+- Query the gamepad buttons and analog sticks
+- Load files from the CD-ROM
+- Access the memory card
+- Work with the BIOS.
+
 ## Rationale
 
 Retrolang is a result of 10+ years of tinkering with PsyQ SDK, custom GPU libraries and related tools. It was initially created as an assembler (alternative to ASMPSX), but eventually got many improvements. I always wanted to write my own programs for PSX, but the tooling was frustratingly clunky: ANSI C, closed-source libraries, undocumented file formats and outdated utilities that don't run on modern OSes. So I eventually decided to make my own everything, right down to the machine code, so I wouldn't be dependent on software I couldn't fix or improve.
