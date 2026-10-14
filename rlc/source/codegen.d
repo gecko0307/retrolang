@@ -358,39 +358,40 @@ class CodeGen
         nop();
     }
 
-    void gte_mtc2(Reg cpuReg, Reg gteDataReg)
+    void mtc2(Reg cpuReg, Reg gteDataReg)
     {
         emit(Op.MTC2, makeReg(cpuReg), makeRegGteData(gteDataReg), makeNone());
     }
 
-    void gte_mfc2(Reg cpuReg, Reg gteDataReg)
+    void mfc2(Reg cpuReg, Reg gteDataReg)
     {
         emit(Op.MFC2, makeReg(cpuReg), makeRegGteData(gteDataReg), makeNone());
         nop();
     }
     
-    void gte_ctc2(Reg cpuReg, Reg gteCtrlReg)
+    void ctc2(Reg cpuReg, Reg gteCtrlReg)
     {
         emit(Op.CTC2, makeReg(cpuReg), makeRegGteControl(gteCtrlReg), makeNone());
     }
 
-    void gte_cfc2(Reg cpuReg, Reg gteCtrlReg)
+    void cfc2(Reg cpuReg, Reg gteCtrlReg)
     {
         emit(Op.CFC2, makeReg(cpuReg), makeRegGteControl(gteCtrlReg), makeNone());
         nop();
     }
 
-    void gte_swc2(Reg gteDataReg, long off, Reg base)
+    void swc2(Reg gteDataReg, long off, Reg base)
     {
         emit(Op.SWC2, makeRegGteData(gteDataReg), makeImm(off), makeReg(base));
     }
     
-    void gte_lwc2(Reg gteDataReg, long off, Reg base)
+    void lwc2(Reg gteDataReg, long off, Reg base)
     {
         emit(Op.LWC2, makeRegGteData(gteDataReg), makeImm(off), makeReg(base));
         nop();
     }
 
+    // GTE instructions
     void gte_rtps()  { emit(Op.RTPS,  makeNone(), makeNone(), makeNone()); }
     void gte_rtpt()  { emit(Op.RTPT,  makeNone(), makeNone(), makeNone()); }
     void gte_mvmva() { emit(Op.MVMVA, makeNone(), makeNone(), makeNone()); }
@@ -1578,22 +1579,22 @@ class CodeGen
         mem(Op.LW, t0, 0, v0.r);
         mem(Op.LW, t1, 4, v0.r);
         nop();
-        gte_mtc2(t0, 0); // VXY0
-        gte_mtc2(t1, 1); // VZ0
+        mtc2(t0, 0); // VXY0
+        mtc2(t1, 1); // VZ0
 
         // Vertex1 -> GTE VXY1 ($2), VZ1 ($3)
         mem(Op.LW, t0, 0, v1.r);
         mem(Op.LW, t1, 4, v1.r);
         nop();
-        gte_mtc2(t0, 2); // VXY1
-        gte_mtc2(t1, 3); // VZ1
+        mtc2(t0, 2); // VXY1
+        mtc2(t1, 3); // VZ1
 
         // Vertex2 -> GTE VXY2 ($4), VZ2 ($5)
         mem(Op.LW, t0, 0, v2.r);
         mem(Op.LW, t1, 4, v2.r);
         nop();
-        gte_mtc2(t0, 4); // VXY2
-        gte_mtc2(t1, 5); // VZ2
+        mtc2(t0, 4); // VXY2
+        mtc2(t1, 5); // VZ2
 
         release(Val(t1, true));
         release(Val(t0, true));
@@ -1605,42 +1606,42 @@ class CodeGen
     Val genGteGetMAC0(int want = -1)
     {
         Val d = dest0(want);
-        gte_mfc2(d.r, MAC0); // MAC0 register, stores NCLIP result
+        mfc2(d.r, MAC0); // MAC0 register, stores NCLIP result
         return d;
     }
 
     Val genGteGetOTZ(int want = -1)
     {
         Val d = dest0(want);
-        gte_mfc2(d.r, OTZ); // stores AVSZ3 result
+        mfc2(d.r, OTZ); // stores AVSZ3 result
         return d;
     }
 
     Val genGteGetFLAG(int want = -1)
     {
         Val d = dest0(want);
-        gte_cfc2(d.r, FLAG); // FLAG
+        cfc2(d.r, FLAG); // FLAG
         return d;
     }
     
     void genGteStoreSXY0(Expr packetBaseExpr, long offset)
     {
         Val base = genExpr(packetBaseExpr);
-        gte_swc2(SXY0, offset, base.r);
+        swc2(SXY0, offset, base.r);
         release(base);
     }
 
     void genGteStoreSXY1(Expr packetBaseExpr, long offset)
     {
         Val base = genExpr(packetBaseExpr);
-        gte_swc2(SXY1, offset, base.r);
+        swc2(SXY1, offset, base.r);
         release(base);
     }
 
     void genGteStoreSXY2(Expr packetBaseExpr, long offset)
     {
         Val base = genExpr(packetBaseExpr);
-        gte_swc2(SXY2, offset, base.r);
+        swc2(SXY2, offset, base.r);
         release(base);
     }
 
@@ -1750,16 +1751,16 @@ class CodeGen
     string[] intrinsics = [
         "nop",
         "cop0", "cop2",
-        "mfc0",
-        "mtc0",
+        "mfc0", "mtc0",
+        "mfc2", "cfc2",
+        "mtc2", "ctc2",
+        "swc2", "lwc2",
         
         "gte_enable",
         "gte_disable",
         "gte_set_matrix",
         "gte_set_vertex", "gte_get_vertex",
-        "gte_mfc2", "gte_cfc2",
-        "gte_mtc2", "gte_ctc2",
-        "gte_swc2", "gte_lwc2",
+        
         "gte_rtps", "gte_rtpt", "gte_mvmva",
         "gte_dcpl", "gte_dpcs", "gte_dpct",
         "gte_intpl", "gte_sqr", "gte_ncs",
@@ -1789,14 +1790,14 @@ class CodeGen
                 //else                cfc0(d.r, g);
                 return d;
             }
-            case "gte_mfc2":
-            case "gte_cfc2":
+            case "mfc2":
+            case "cfc2":
             {
                 checkArgs(e, 1);
                 Reg g = gteRegArg(e.args[0], e.name);
                 Val d = dest0(want);
-                if (e.name == "gte_mfc2") gte_mfc2(d.r, g);
-                else                      gte_cfc2(d.r, g);
+                if (e.name == "mfc2") mfc2(d.r, g);
+                else                  cfc2(d.r, g);
                 return d;
             }
             default:
@@ -1871,14 +1872,14 @@ class CodeGen
                 Reg t1 = allocTemp();
                 mem(Op.LW, t0, 0, v.r);
                 mem(Op.LW, t1, 4, v.r);
-                gte_ctc2(t0, 0);
+                ctc2(t0, R11R12);
                 mem(Op.LW, t0, 8, v.r);
-                gte_ctc2(t1, 1);
+                ctc2(t1, R13R21);
                 mem(Op.LW, t1, 12, v.r);
-                gte_ctc2(t0, 2);
+                ctc2(t0, R22R23);
                 mem(Op.LH, t0, 16, v.r);
-                gte_ctc2(t1, 3);
-                gte_ctc2(t0, 4);
+                ctc2(t1, R31R32);
+                ctc2(t0, R33);
                 td -= 2;
                 release(v);
                 break;
@@ -1888,12 +1889,12 @@ class CodeGen
             {
                 checkArgs(e, 1);
                 Val v = genExpr(e.args[0]);
-                gte_lwc2(VXY0,  0, v.r);
-                gte_lwc2(VZ0,   4, v.r);
-                gte_lwc2(VXY1,  8, v.r);
-                gte_lwc2(VZ1,  12, v.r);
-                gte_lwc2(VXY2, 16, v.r);
-                gte_lwc2(VZ2,  20, v.r);
+                lwc2(VXY0,  0, v.r);
+                lwc2(VZ0,   4, v.r);
+                lwc2(VXY1,  8, v.r);
+                lwc2(VZ1,  12, v.r);
+                lwc2(VXY2, 16, v.r);
+                lwc2(VZ2,  20, v.r);
                 nop();
                 nop();
                 break;
@@ -1903,12 +1904,12 @@ class CodeGen
             {
                 checkArgs(e, 1);
                 Val v = genExpr(e.args[0]);
-                gte_swc2(SXY0,  0, v.r);
-                gte_swc2(SZ1,   4, v.r);
-                gte_swc2(SXY1,  8, v.r);
-                gte_swc2(SZ2,  12, v.r);
-                gte_swc2(SXY2, 16, v.r);
-                gte_swc2(SZ3,  20, v.r);
+                swc2(SXY0,  0, v.r);
+                swc2(SZ1,   4, v.r);
+                swc2(SXY1,  8, v.r);
+                swc2(SZ2,  12, v.r);
+                swc2(SXY2, 16, v.r);
+                swc2(SZ3,  20, v.r);
                 release(v);
                 break;
             }
@@ -1925,26 +1926,26 @@ class CodeGen
                 break;
             }
             
-            case "gte_mtc2":
-            case "gte_ctc2":
+            case "mtc2":
+            case "ctc2":
             {
                 checkArgs(e, 2);
                 Reg g = gteRegArg(e.args[0], name);
                 Val v = genExpr(e.args[1]);
-                if (name == "gte_mtc2") gte_mtc2(v.r, g);
-                else                    gte_ctc2(v.r, cast(uint)g);
+                if (name == "mtc2") mtc2(v.r, g);
+                else                ctc2(v.r, cast(uint)g);
                 release(v);
                 break;
             }
             
-            case "gte_swc2":
-            case "gte_lwc2":
+            case "swc2":
+            case "lwc2":
             {
                 checkArgs(e, 2);
                 Reg g = gteRegArg(e.args[0], name);
                 Val p = genExpr(e.args[1]);
-                if (name == "gte_swc2") gte_swc2(g, 0, p.r);
-                else                    gte_lwc2(g, 0, p.r);
+                if (name == "swc2") swc2(g, 0, p.r);
+                else                lwc2(g, 0, p.r);
                 release(p);
                 break;
             }

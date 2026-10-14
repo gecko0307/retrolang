@@ -155,6 +155,7 @@ void main()
     int chDir = 1;
     int chu = 0;
     int chv = 0;
+    int canJump = 1;
     int jumpAccel = 0;
     int fallAccel = 0;
     int jumpAccelTimer = 0;
@@ -172,10 +173,18 @@ void main()
         if (pad1 & PAD_RIGHT) { dx = 2;  chDir = 1; }
 
         int jumpPressed = (pad1 & PAD_CROSS) > 0;
-        if (onGround && jumpPressed)
+        if (jumpPressed)
         {
-            jumpAccel = 3;
-            jumpAccelTimer = 0;
+            if (onGround && canJump)
+            {
+                jumpAccel = 3;
+                jumpAccelTimer = 0;
+                canJump = 0;
+            }
+        }
+        else
+        {
+            canJump = 1;
         }
         
         if (jumpAccel > 0 && jumpPressed)

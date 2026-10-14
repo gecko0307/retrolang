@@ -10,15 +10,15 @@ Certain common GTE operations are implemented as built-in macros, predefined seq
 
 Basic commands:
 
-- `gte_ctc2(ubyte rd, T expr)` - evaluates an expression, copying the value to the GTE control register
-- `gte_cfc2(ubyte rd, T expr)` - 
-- `gte_mtc2(ubyte rd, T expr)` - evaluates an expression, copying the value to the GTE data register
-- `gte_mfc2(ubyte rd, T expr)` -
-- `gte_swc2(ubyte rd, T* ref)` -
-- `gte_lwc2(ubyte rd, T* ref)` -
-- `gte_rtps()` -
-- `gte_rtpt()` -
-- `gte_mvmva()` -
+- `ctc2(ubyte rd, T expr)` - evaluates an expression, copying the value to the GTE control register. This is most efficient if `expr` is a local variable
+- `cfc2(ubyte rd)` - copies the value from the GTE control register to a local variable
+- `mtc2(ubyte rd, T expr)` - evaluates an expression, copying the value to the GTE data register. This is most efficient if `expr` is a local variable
+- `mfc2(ubyte rd)` - copies the value from the GTE data register to a local variable
+- `swc2(ubyte rd, T* ptr)` - stores the value from memory pointed by `ptr` to the GTE data register. This is most efficient if `ptr` is **not** a local variable (i.e., an array element or a struct field)
+- `lwc2(ubyte rd, T* ptr)` - loads the from the GTE data register to memory pointed by `ptr`. This is most efficient if `ptr` is **not** a local variable (i.e., an array element or a struct field)
+- `gte_rtps()` - rotate-translate-perspective for a single vertex
+- `gte_rtpt()` - rotate-translate-perspective for a triangle
+- `gte_mvmva()` - 
 - `gte_dcpl()` -
 - `gte_dpcs()` -
 - `gte_dpct()` -
@@ -39,12 +39,12 @@ Basic commands:
 - `gte_gpf()` -
 - `gte_gpl()`- 
 
-GTE macros:
+Convenient GTE macros for common operations:
 
-- `gte_enable()` - 
-- `gte_set_matrix()` - 
-- `gte_set_vertex()` - 
-- `gte_get_vertex()` - 
+- `gte_enable()` - enables the GTE. Call this before other GTE intrinsics
+- `gte_set_matrix(short* m)` - copies 3x3 row-major rotation matrix from system memory pointed by `m` to GTE control registers R11R12, R13R21, R22R23, R31R32, R33. `m` should point to a buffer of 9 `short`s
+- `gte_set_vertex(short* v)` - copies an XYZ vertex from the system memory pointed by `v` to GTE data registers VXY0, VZ0, VXY1, VZ1, VXY2, VZ2. `v` should point to a buffer of 4 `shorts` (padding is required for correct alignment)
+- `gte_get_vertex(short* v)` - copies an XYZ vertex from GTE data registers VXY0, VZ0, VXY1, VZ1, VXY2, VZ2 to the system memory pointed by `v`. `v` should point to a buffer of 4 `shorts` (padding is required for correct alignment).
 
 Misc:
 

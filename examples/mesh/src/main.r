@@ -127,19 +127,19 @@ struct SVertex vcache[MAX_VERTS] @VertexCacheRegion;
 macro gte_upload_transform(tr)
 {
     // Upload translation
-    gte_ctc2(GTE_TRX, tr->tx);
-    gte_ctc2(GTE_TRY, tr->ty);
-    gte_ctc2(GTE_TRZ, tr->tz);
+    ctc2(GTE_TRX, tr->tx);
+    ctc2(GTE_TRY, tr->ty);
+    ctc2(GTE_TRZ, tr->tz);
     
     // Upload rotation matrix
     gte_set_matrix(tr->r);
     
     // Upload projection params
-    gte_ctc2(GTE_H,   tr->h);
-    gte_ctc2(GTE_OFX, tr->ofx);
-    gte_ctc2(GTE_OFY, tr->ofy);
-    gte_ctc2(GTE_DQA, tr->dqa);
-    gte_ctc2(GTE_DQB, tr->dqb);
+    ctc2(GTE_H,   tr->h);
+    ctc2(GTE_OFX, tr->ofx);
+    ctc2(GTE_OFY, tr->ofy);
+    ctc2(GTE_DQA, tr->dqa);
+    ctc2(GTE_DQB, tr->dqb);
 }
 
 /// Draws a PSM mesh with a given transformation.
@@ -355,7 +355,7 @@ void main()
     gpuInit(&gpu);
     
     gte_enable();
-    gte_ctc2(GTE_ZSF3, 0x555); // For AVSZ3
+    //ctc2(GTE_ZSF3, 0x555); // For AVSZ3
     
     // Read TIM data
     struct GpuTexture tex;
