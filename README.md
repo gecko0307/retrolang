@@ -4,9 +4,6 @@ The goal of this project is to build a PlayStation 1 development toolchain compl
 
 Retrolang tools are written entirely in [D language](https://dlang.org/).
 
-![Platformer](media/platformer.png)
-![3D scene](media/3d_scene.png)
-
 All provided software is experimental and is in alpha stage.
 
 ## What can you do with Retrolang
@@ -20,6 +17,11 @@ All provided software is experimental and is in alpha stage.
 - Load files from the CD-ROM
 - Access memory cards
 - Work with the BIOS.
+
+Demo screenshots:
+
+![Platformer](media/platformer.png)
+![3D scene](media/3d_scene.png)
 
 ## Rationale
 
