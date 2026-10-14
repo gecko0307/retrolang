@@ -34,10 +34,10 @@ EVENT=10
 STACK=801FFF00
 ```
 
-`BOOT` parameter must point to the executable file. It can be named arbitrarily, but Retrolang uses `PSX.EXE` for clarity. `STACK` parameter **must** be `801FFF00` unless you modify linker's defaults in RLC. There's currently no way to set custom stack address without rebuilding the compiler.
+`BOOT` parameter must point to the executable file. It can be named arbitrarily, but all examples in the Retrolang repository use `PSX.EXE` for clarity. `STACK` parameter **must** be `801FFF00` unless you modify linker's defaults in RLC. There's currently no way to set custom stack address without rebuilding the compiler.
 
 If there's no `SYSTEM.CNF` (or if `BOOT` parameter is not specified) then BIOS will try to load `PSX.EXE` with default stack address `801FFF00`.
 
 ## License File (*.dat)
 
-License file is necessary to run the CD on a real PlayStation. A modchipped console will skip checking the actual license data, but at least TMD model for the black bootup screen must be present. On licensed CDs it is a colorful 3D "PS" logo. Retrolang SDK cannot provide a license file containing copyrighted material by Sony, so instead it includes a [replacement](https://github.com/gecko0307/retrolang/blob/main/examples/licenses/default.dat) ("Poison 2" skull and bones model by mAlaexyz from Gamefreax TMD Collection #04). You can patch the BIN file with your own model using [PSX License Tool](https://github.com/jbreckmckye/psx-license-tool), but creating a compatible TMD is a challenging task in itself.
+License file is necessary to run the CD on a real PlayStation. A modchipped console will skip checking the actual license data, but at least TMD model for the black bootup screen must be present. On licensed CDs it is a colorful 3D "PS" logo. Retrolang SDK cannot provide a license file containing copyrighted material by Sony, so instead it includes a [replacement](https://github.com/gecko0307/retrolang/blob/main/examples/licenses/default.dat) ("Poison 2" skull and bones model by mAlaexyz from Gamefreax TMD Collection #04). You can also patch the BIN file with your own model using [PSX License Tool](https://github.com/jbreckmckye/psx-license-tool), but creating a compatible TMD is a challenging task in itself.
