@@ -18,7 +18,7 @@ All provided software is experimental and is in alpha stage.
 - Work with the GTE
 - Query the gamepad buttons and analog sticks
 - Load files from the CD-ROM
-- Access the memory card
+- Access memory cards
 - Work with the BIOS.
 
 ## Rationale
