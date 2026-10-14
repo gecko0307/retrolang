@@ -141,7 +141,7 @@ See [doc folder](/doc) for more details on the language.
 
 ## Retrolib Standard Library
 
-Retrolang provides a minimal set of optional low-level functionality that aid with writing PlayStation programs. It is partly a port of [PSXLib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
+Retrolang provides a minimal set of optional low-level functionality that aid with writing PlayStation programs. Retrolib is a successor of [PSXLib project](https://github.com/gecko0307/psxlib). Its files meant to be directly included to the main source file using `#include` directive.
 
 * `retrolib.ri` - includes entire library at once
 * `core.ri` - core definitions
