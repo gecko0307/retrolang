@@ -187,7 +187,7 @@ In the library:
 
 ## License
 
-RLC, PSXDISASM and Retrobuild are distributed under the Boost Software License, 1.0.
+RLC, PSXDISASM, Retrobuild and png2tim are distributed under the Boost Software License, 1.0.
 
 The standard library and all examples are distributed under Unlicense/Public Domain.
 
