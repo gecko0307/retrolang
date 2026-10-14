@@ -3,7 +3,8 @@ Retrolang 0.5.0 - TBD
 - **RLC**
   - `syscall` intrinsic
 - **Examples**
-  - Many new BIOS call macros in `bios.ri`.
+  - Many new BIOS call macros in `bios.ri`
+  - Memory card I/O example.
 
 Retrolang 0.4.0 - 14 Oct, 2026
 ------------------------------
