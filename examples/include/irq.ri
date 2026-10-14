@@ -31,7 +31,7 @@ For more information, please refer to <https://unlicense.org>
 int* I_MASK = 0x1F801074; // Interrupt mask register
 int* I_STAT = 0x1F801070; // Interrupt status register
 
-/// This is only needed if you don't call padInit, which is unlikely
+/// This is only needed if you don't call padInit, which is unlikely.
 void irqEnable()
 {
     int sr = mfc0(COP0_SR);

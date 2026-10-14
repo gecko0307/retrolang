@@ -24,10 +24,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
-#include "core.ri"
-#include "bios.ri"
-#include "pad.ri"
-#include "gpu.ri"
+#include "retrolib.ri"
 
 uchar tiles[] @("assets/tiles.tim");
 uchar character[] @("assets/character.tim");
