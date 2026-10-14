@@ -97,7 +97,7 @@ Constant initialization is supported only for global arrays.
 
 **Embedded files**: a global array can have an attribute `@("file.bin")` to embed a file to the executable.
 
-**External assembly**: a function with an attribute `@("file.s")` relies on external implementation in Retrolang assembly. The compiler still generates prologue/epilogue for such functions. Local data/jump labels can be used inside the assembly source. Globally visible assembly labels are not supported.
+**External assembly source**: a function with an attribute `@("file.s")` relies on external implementation in Retrolang assembly language. The compiler still generates prologue/epilogue for such functions. Local data/jump labels can be used inside the assembly source. Globally visible labels are not supported.
 
 **AST macros**: abstract, reusable expressions and statements. Retrolang supports expresson macros, parametrized expresson macros, list macros (tuples), and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
 
@@ -117,7 +117,7 @@ void main()
 }
 ```
 
-The same in Retrolang assembly:
+The same in Retrolang assembly language:
 
 ```asm
 .text
@@ -157,7 +157,7 @@ Usage (assuming you've copied the [include](/examples/include) folder to your pr
 
 `examples` directory contains a number of basic demos showcasing possibilities of RLC.
 
-- [asm](/examples/asm) - "Hello, World" program implemented in assembly
+- [asm](/examples/asm) - "Hello, World" program implemented in assembly language
 - [external_asm](/examples/external_asm) - external assembly function example (printing an argument to TTY and returning a value)
 - [pad](/examples/pad) - gamepad test, logs pressed buttons to TTY
 - [triangle](/examples/triangle) - classic colored triangle demo (direct rendering via GP0)
