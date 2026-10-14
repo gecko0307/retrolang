@@ -4,7 +4,7 @@
 
 The goal of this project is to build a PlayStation 1 development toolchain completely from scratch, without relying on GCC, LLVM, or other similar compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code.
 
-Retrolang tools are written entirely in [D language](https://dlang.org/). All provided software is experimental and is in alpha stage.
+Retrolang tools are written entirely in [D language](https://dlang.org/).
 
 What can you do with Retrolang (in more or less convenient ways):
 
@@ -20,6 +20,8 @@ Demo screenshots:
 
 ![Platformer](media/platformer.png)
 ![3D scene](media/3d_scene.png)
+
+All provided software is experimental and is in alpha stage.
 
 ## Rationale
 
