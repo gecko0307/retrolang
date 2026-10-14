@@ -9,13 +9,13 @@ macro A = 5;
 macro B = A * 10;
 ```
 
-They can take parateres:
+They can take parameters:
 
 ```c
 macro sqr(x) = x * x;
 ```
 
-Statement macro is a special parametrized function-like statement block that expands into inline code rather than a function call:
+Statement macro is a special parametrized function-like statement block that expands into inline code rather than a real function call:
 
 ```c
 macro printStr(str)
@@ -29,8 +29,7 @@ void main()
 }
 ```
 
-Unlike function templates in languages like C++ or D, the statement macro is untyped, returns no value, and possesses no runtime semantics; it serves purely as an abstract syntactic template for generating repetitive code. Its parameters are not final values ​​but expressions (AST nodes); expanding a macro deep-copies its body, replacing every reference to a parameter with a copy of the
-argument expression. An argument is re-evaluated at every place where it is used.
+Unlike function templates in languages like C++ or D, the statement macro is untyped, returns no value, and possesses no runtime semantics; it serves purely as an abstract syntactic construct for generating repetitive code. Its parameters are not final values ​​but expressions (AST nodes); expanding a macro deep-copies its body, replacing every reference to a parameter with a copy of the argument expression. An argument is re-evaluated at every place where it is used.
 
 ```c
 macro repeat(f, n)
