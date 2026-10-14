@@ -120,10 +120,11 @@ The same in Retrolang assembly:
 
 See [doc folder](/doc) for more details on the language.
 
-## Standard Library
+## Retrolib Standard Library
 
 Retrolang provides a minimal set of optional low-level functionality that aid with writing PlayStation programs. It is partly a port of [PSXLib project](https://github.com/gecko0307/psxlib). These files are meant to be directly included to the main source file using `#include` directive.
 
+* `retrolib.ri` - includes entire library at once
 * `core.ri` - core definitions
 * `bios.ri` - macros for some common BIOS calls
 * `gpu.ri` - GPU driver / graphics API
@@ -132,9 +133,7 @@ Retrolang provides a minimal set of optional low-level functionality that aid wi
 Usage (assuming you've copied the [include](/examples/include) folder to your project's source directory):
 
 ```c
-#include "include/core.ri"
-#include "include/pad.ri"
-#include "include/gpu.ri"
+#include "include/retrolib.ri"
 ```
 
 ## Examples Collection
@@ -183,7 +182,7 @@ In the library:
 
 - Matrix math
 - Sound
-- Memory cards
+- Memory cards support
 
 ## License
 
