@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="game.bin" cue_sheet="game.cue">
+	<track type="data">
+		<identifiers
+			system ="PLAYSTATION"
+			application ="PLAYSTATION"
+			volume ="GAME"
+			volume_set ="GAME"
+			publisher ="GECKO"
+			data_preparer ="MKPSXISO"
+		/>
+		<license file="../licenses/default.dat"/>
+		<directory_tree>
+			<file name="SYSTEM.CNF" type="data" source="iso/SYSTEM.CNF"/>
+			<file name="PSX.EXE" type="data" source="iso/PSX.EXE"/>
+			<dummy sectors="1024"/>
+		</directory_tree>
+	</track>
+</iso_project>

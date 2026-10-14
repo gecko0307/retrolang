@@ -28,6 +28,11 @@ For more information, please refer to <https://unlicense.org>
  * Macros for some common BIOS calls.
  */
 
+#define FREAD 1
+#define FWRITE 2
+#define FNBLOCK 4
+#define FCREATE 0x200
+
 // Call this after writing code to RAM
 macro flushCache()                  = bios_a(0x44);
 
@@ -50,8 +55,18 @@ macro putchar(c)                    = bios_a(0x3c, c);
 
 macro printf(fmt, a1=0, a2=0, a3=0) = bios_a(0x3f, fmt, a1, a2, a3);
 
+macro open(filename, access_mode)   = bios_b(0x32, filename, access_mode);
+macro lseek(fd, pos, seektype)      = bios_b(0x33, fd, pos, seektype);
+macro read(fd, buf, nbytes)         = bios_b(0x34, fd, buf, nbytes);
+macro write(fd, buf, n)             = bios_b(0x35, fd, buf, n);
+macro close(fd)                     = bios_b(0x36, fd);
+macro firstfile(pattern, entry)     = bios_b(0x42, pattern, entry);
+macro nextfile(entry)               = bios_b(0x43, entry);
+macro delete(filename)              = bios_b(0x45, filename);
+macro rename(f_old, f_new)          = bios_b(0x44, f_old, f_new);
+
 macro cd_init()                     = bios_a(0x54); //_96_init
-macro cd_open(filename)             = bios_b(0x32, filename, 1);
+macro cd_open(filename)             = bios_b(0x32, filename, FREAD);
 macro cd_lseek(fd, pos, seektype)   = bios_b(0x33, fd, pos, seektype);
 macro cd_read(fd, buf, nbytes)      = bios_b(0x34, fd, buf, nbytes);
 macro cd_write(fd, buf, n)          = bios_b(0x35, fd, buf, n);
@@ -69,7 +84,8 @@ macro event_enable(ev)              = bios_b(0x0c, ev);
 macro event_disable(ev)             = bios_b(0x0d, ev);
 macro event_deliver(cls, spec)      = bios_b(0x07, cls, spec);
 
-macro card_init(autoack)            = bios_b(0x4a, autoack);
+macro _bu_init()                    = bios_a(0x70);
+macro card_init()                   = bios_b(0x4a, 0);
 macro card_start()                  = bios_b(0x4b);
 macro card_stop()                   = bios_b(0x4c);
 
