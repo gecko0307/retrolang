@@ -1,11 +1,12 @@
-Retrolang 0.4.0 - TBD
----------------------
+Retrolang 0.4.0 - 14 Oct, 2026
+------------------------------
 - **RLC**
-  - Add necessary initialization for a correct full boot
-  - `mfc0`, `mtc0`
+  - Add necessary initialization for the correct full boot
+  - Update GTE API. New intrinsics `mfc0`, `mtc0`
 - **Examples**
   - New pad driver, analog sticks support
   - Functions to read files from the CD-ROM
+  - `irq.ri`, `retrolib.ri`
   - New DAT file for patching CD image system area.
 
 Retrolang 0.3.0 - 12 Oct, 2026
