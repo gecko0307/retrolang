@@ -28,72 +28,85 @@ For more information, please refer to <https://unlicense.org>
  * Memory card I/O test.
  */
 
-#include "core.ri"
-#include "bios.ri"
-#include "pad.ri"
+#include "retrolib.ri"
+#include "save.ri"
 
-#define MEMCARD_BLOCK_SIZE 8192
-char memcardBufferW[MEMCARD_BLOCK_SIZE];
-char memcardBufferR[MEMCARD_BLOCK_SIZE];
+#define DATA_SIZE 14
+
+uchar saveBuffer[DATA_SIZE];
+uchar loadBuffer[DATA_SIZE];
+
+uchar iconImage[] @("assets/icon.tim");
 
 void main()
 {
     padInit();
-    card_init();
-    card_start();
-    _bu_init();
+    saveInit();
     
-    // Initialize buffers with zeros
-    memset(memcardBufferW, 0, MEMCARD_BLOCK_SIZE);
-    memset(memcardBufferR, 0, MEMCARD_BLOCK_SIZE);
-    
-    char* blockName = "bu00:BASCUS-94163SAVE01";
-    
-    // Delete the old block, if it exists
-    delete(blockName);
-    
-    // Make a block header
-    memcardBufferW[0] = 'S';
-    memcardBufferW[1] = 'C';
-    memcardBufferW[2] = 0x11;   // 1 icon frame
-    memcardBufferW[3] = 1;      // blocks used
-    // 0x04: title, 64 bytes Shift-JIS, zero padded
-    memcpy(&memcardBufferW[0x04], "TEST SAVE", 9);
-    
-    // CLUT at 0x60: 16 entries, 16-bit little-endian, 15-bit color (R | G<<5 | B<<10 | STP<<15)
-    // Entry 0x0000 is fully transparent. Opaque black needs bit 15 set (0x8000).
-    // Write bytes rather than casting to ushort*, in case the buffer isn't 2-byte aligned.
-    memcardBufferW[0x60 + 2] = 0x1F;  // entry 1: red = 0x801F
-    memcardBufferW[0x60 + 3] = 0x80;
-    memcardBufferW[0x60 + 4] = 0xFF;  // entry 2: white = 0xFFFF
-    memcardBufferW[0x60 + 5] = 0xFF;
-
-    // Icon frame at 0x80: 16x16, 4bpp = 128 bytes. Two pixels per byte,
-    // low nibble is the left pixel.
-    // This will draw a red square with a white border.
-    memset(&memcardBufferW[0x80], 0x11, 128);        // all red (palette index 1)
-    memset(&memcardBufferW[0x80], 0x22, 8);          // top row white (index 2)
-    memset(&memcardBufferW[0x80 + 120], 0x22, 8);    // bottom row white
-    for (int y = 1; y < 15; y++)
+    // Read the icon TIM file
+    struct TimHeader* tim = (struct TimHeader*)iconImage;
+    char* p = (char*)tim;
+    p += sizeof(struct TimHeader);
+    struct TimData* clut = 0;
+    struct TimData* image = 0;
+    uchar* iconData = 0;
+    uchar* clutData = 0;
+    if ((tim->flags & 0x08) == 0)
     {
-        memcardBufferW[0x80 + y * 8]     = 0x12;  // leftmost pixel white
-        memcardBufferW[0x80 + y * 8 + 7] = 0x21;  // rightmost pixel white
+        // No CLUT present
+        image = (struct TimData*)p;
+        iconData = p + sizeof(struct TimData);
+    }
+    else
+    {
+        clut = (struct TimData*)p;
+        clutData = p + sizeof(struct TimData);
+        p += clut->size;
+        image = (struct TimData*)p;
+        iconData = p + sizeof(struct TimData);
     }
     
-    // Put data
-    memcpy(&memcardBufferW[0x200], "Hello, World!", 13);
+    // CLUT: 16 entries, 16-bit little-endian, 15-bit color.
+    // Icon frame: 16x16, 4bpp = 128 bytes.
+    saveSetIcon(clutData, iconData, 1);
     
-    // Write a test string to the memory card slot 1:
-    int fd = open(blockName, FCREATE | (1 << 16));
-    write(fd, memcardBufferW, MEMCARD_BLOCK_SIZE);
-    close(fd);
-    printf("Writing done!\n");
+    // Save to the memory card
+    memcpy(saveBuffer, "Hello, World!", DATA_SIZE);
+    saveBuffer[DATA_SIZE-1] = 0; // null-terminate
+    struct Save save;
+    save.slot = 0;
+    save.name = "RETROLANG";
+    save.blocks = 1;
+    save.data = &saveBuffer[0];
+    save.size = DATA_SIZE;
+    save.version = 1;
+    printf("Saved data: \"%s\"\n", save.data);
+    printf("Saving...\n");
+    int err = saveWrite(&save);
+    if (err == SAVE_OK)
+        printf("Done!\n");
+    else
+    {
+        printf("Error %d\n", err);
+        return;
+    }
     
-    // Read back
-    memset(memcardBufferR, 0, MEMCARD_BLOCK_SIZE);
-    fd = open(blockName, FREAD);
-    read(fd, memcardBufferR, MEMCARD_BLOCK_SIZE);
-    close(fd);
-    printf("Reading done!\n");
-    printf("%s\n", &memcardBufferR[0x200]); // prints the data from the block
+    // Load from the memory card
+    struct Save load;
+    load.slot = 0;
+    load.name = "RETROLANG";
+    load.data = &loadBuffer[0];
+    load.size = DATA_SIZE;
+    load.version = 1;
+    printf("Loading...\n");
+    err = saveRead(&load);
+    if (err == SAVE_OK)
+        printf("Done!\n");
+    else
+    {
+        printf("Error %d\n", err);
+        return;
+    }
+    
+    printf("Loaded data: \"%s\"\n", load.data);
 }
