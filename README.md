@@ -182,6 +182,7 @@ What is not implemented yet in the language:
 In the library:
 
 - Matrix math
+- TMD models support
 - Sound
 - Memory cards support
 
