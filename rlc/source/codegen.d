@@ -1750,6 +1750,9 @@ class CodeGen
     // TODO: COP0 intrinsics
     string[] intrinsics = [
         "nop",
+        
+        "syscall",
+        
         "cop0", "cop2",
         "mfc0", "mtc0",
         "mfc2", "cfc2",
@@ -1780,6 +1783,25 @@ class CodeGen
     {
         switch (e.name)
         {
+            case "syscall":
+            {
+                checkArgs(e, 1);
+                long num = 0;
+                if (!constEval(e.args[0], num))
+                    throw err(e.file, e.line, e.name ~ "() needs a constant function number");
+                Val d = dest0(want);
+                bool saveA0 = d.r != A0;
+                bool saveV0 = d.r != V0;
+                Reg t0, t1;
+                if (saveA0) { t0 = allocTemp(); move(t0, A0); }
+                if (saveV0) { t1 = allocTemp(); move(t1, V0); }
+                li(A0, num); // BIOS reads the number from $a0
+                emit(Op.SYSCALL, makeImm(cast(int)num), makeNone, makeNone);
+                if (saveA0) { move(A0, t0); release(Val(t0, true)); }
+                if (d.r != V0) move(d.r, V0);
+                if (saveV0) { move(V0, t1); release(Val(t1, true)); }
+                return d;
+            }
             case "mfc0":
             case "cfc0":
             {
