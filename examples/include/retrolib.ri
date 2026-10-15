@@ -37,3 +37,4 @@ For more information, please refer to <https://unlicense.org>
 #include "irq.ri"
 #include "pad.ri"
 #include "gpu.ri"
+#include "spu.ri"
