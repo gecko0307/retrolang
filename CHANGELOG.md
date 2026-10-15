@@ -3,6 +3,7 @@ Retrolang 0.5.0 - TBD
 - **RLC**
   - Assembler reimplementation
   - `syscall` intrinsic
+  - Improved escape characters parsing
 - **Examples**
   - Many new BIOS call macros in `bios.ri`
   - Memory card I/O example
