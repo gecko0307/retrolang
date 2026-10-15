@@ -40,7 +40,7 @@ import ir;
 import psxexe;
 import memmap;
 import utils;
-import assembler;
+import assembler2;
 import compiler;
 import linker;
 import memchecker;

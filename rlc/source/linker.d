@@ -163,7 +163,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
         writefln("Code size: %s byte(s)", codeSize);
     
     if (verbose)
-        writeln("\nData entries:");
+        writeln("\nData labels:");
     
     // Generate absolute addresses for data labels
     uint[string] dataLabelAddrs;
@@ -189,7 +189,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
     }
     
     if (verbose)
-        writeln("\nSections:");
+        writeln("\nCode labels:");
     
     foreach(name, instrIndex; ass.sections)
     {
@@ -313,7 +313,10 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
         writefln("[0x%08X] DATA\n", dataStartAddr);
     
     if (verbose)
-        writefln("Stack: 0x%08X", STACK_ADDR);
+    {
+        writefln("Load address:  0x%08X", LOAD_ADDR);
+        writefln("Stack address: 0x%08X", STACK_ADDR);
+    }
     
     code ~= data;
     

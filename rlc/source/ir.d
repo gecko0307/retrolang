@@ -118,13 +118,30 @@ string gteControlRegToString(Reg r)
     return format("$%s", r);
 }
 
+enum RelocKind
+{
+    /// Full absolute address (li, j, jal) or branch offset
+    None,
+    
+    /// %hi(label): upper 16 bits, adjusted for the sign of %lo
+    Hi,
+    
+    /// %lo(label): lower 16 bits (signed)
+    Lo
+}
+
 struct AsmOperand
 {
     Reg reg;
     long imm;
     string label;
     AsmOperandType type;
+    
+    /// Label: constant addend, e.g. label+8
     long offset;
+    
+    /// Label: how the address is converted
+    RelocKind reloc;
     
     string toString()
     {
@@ -252,10 +269,18 @@ struct AsmInstr
     size_t offset; // physical offset from the start of the code
 }
 
+struct DataReloc
+{
+    size_t offset; // byte offset inside the entry
+    string label;
+    long addend;
+}
+
 struct AsmDataEntry
 {
     string label;
     ubyte[] data;
+    DataReloc[] relocs;
 }
 
 struct RegionAllocation
