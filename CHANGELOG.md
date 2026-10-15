@@ -1,10 +1,12 @@
 Retrolang 0.5.0 - TBD
 ---------------------
 - **RLC**
+  - Assembler reimplementation
   - `syscall` intrinsic
 - **Examples**
   - Many new BIOS call macros in `bios.ri`
-  - Memory card I/O example.
+  - Memory card I/O example
+  - Noise playback example.
 
 Retrolang 0.4.0 - 14 Oct, 2026
 ------------------------------
