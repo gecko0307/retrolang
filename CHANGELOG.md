@@ -4,8 +4,10 @@ Retrolang 0.5.0 - TBD
   - Assembler reimplementation
   - `syscall` intrinsic
   - Improved escape characters parsing
-- **Examples**
+- **Retrolib**
   - Many new BIOS call macros in `bios.ri`
+  - Begin SPU support implementation in Retrolib
+- **Examples**
   - Memory card I/O example
   - Noise playback example.
 
@@ -14,10 +16,11 @@ Retrolang 0.4.0 - 14 Oct, 2026
 - **RLC**
   - Add necessary initialization for the correct full boot
   - Update GTE API. New intrinsics `mfc0`, `mtc0`
-- **Examples**
+- **Retrolib**
   - New pad driver, analog sticks support
   - Functions to read files from the CD-ROM
   - `irq.ri`, `retrolib.ri`
+- **Examples**
   - New DAT file for patching CD image system area.
 
 Retrolang 0.3.0 - 12 Oct, 2026
@@ -26,11 +29,12 @@ Retrolang 0.3.0 - 12 Oct, 2026
   - AST macros support
   - Static memory allocator
   - File-initialized arrays now use the normal array syntax: `uchar texture[] @("texture.tim");`
-- **Examples**
-  - New example - a platform game
+- **Retrolib**
   - `gpu.ri`: data packing macros `GP0_PACK_COORDS`, `GP0_PACK_UV`, `GP0_PACK_UV_DATA`
   - `bios.ri`
   - New constants in `core.ri`
+- **Examples**
+  - New example - a platform game
   - All examples are now Retrobuild projects.
 
 Retrolang 0.2.0 - 10 Oct, 2026
@@ -43,7 +47,7 @@ Retrolang 0.2.0 - 10 Oct, 2026
 - **png2tim**
   - New tool - PNG to TIM converter
 - **Examples**
-  - Optimize mesh example. Rewrite the rendering function using new GTE intrinsic system, add backface culling, transformed vertex caching and other improvements.
+  - Optimized mesh example. Rewrite the rendering function using new GTE intrinsic system, add backface culling, transformed vertex caching and other improvements.
 
 Retrolang 0.1.0 - 7 Oct, 2026
 -----------------------------
