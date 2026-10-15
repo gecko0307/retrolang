@@ -145,7 +145,8 @@ Retrolang provides a minimal set of optional low-level functionality that aid wi
 * `core.ri` - core definitions
 * `bios.ri` - macros for some common BIOS calls
 * `gpu.ri` - GPU driver / graphics API
-* `pad.ri` - gamepad driver.
+* `pad.ri` - gamepad driver
+* `pcsx.ri` - PCSX-Redux API.
 
 Usage (assuming you've copied the [include](/examples/include) folder to your project's source directory):
 
@@ -190,6 +191,10 @@ or
 ```
 duckstation -fastboot -- %~dp0/iso/PSX.EXE
 ```
+
+## PCSX-Redux MIPS API
+
+Retrolang includes work-in-progress support for [PCSX-Redux](https://github.com/grumpycoders/pcsx-redux) binary API that is described [here](https://pcsx-redux.consoledev.net/mips_api/). It allows PlayStation programs to communicate with the emulator for debugging purposes.
 
 ## TODO
 

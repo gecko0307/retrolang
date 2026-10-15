@@ -1,0 +1,53 @@
+/*
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the software
+to the public domain. We make this dedication for the benefit of the
+public at large and to the detriment of our heirs and successors.
+We intend this dedication to be an overt act of relinquishment in 
+perpetuity of all present and future rights to this software under
+copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+*/
+
+/**
+ * PCSX-Redux debug API (WIP).
+ * https://pcsx-redux.consoledev.net/mips_api/
+ */
+
+int* SBUS_DEV8_CTRL = 0x1F80101C;
+
+char** PCSX_MESSAGE = 0x1f802084;
+
+/**
+ * PCSX-Redux API needs DEV8/EXP2 (1f802000 to 1f80207f),
+ * which holds the hardware register for the BIOS POST status,
+ * to be expanded to 1f8020ff.
+ */
+void pcsx_init()
+{
+    int size = *SBUS_DEV8_CTRL;
+    while (size < 0x80000)
+        size++;
+    *SBUS_DEV8_CTRL = size;
+}
+
+/// Create a UI dialog displaying msg.
+macro pcsx_message(msg)
+{
+    *PCSX_MESSAGE = msg;
+}
