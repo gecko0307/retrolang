@@ -29,7 +29,8 @@ module utils;
 
 import std.bitmanip;
 import std.string;
-import std.conv: parse;
+import std.ascii: isDigit, isHexDigit;
+import std.conv: to;
 
 ushort hi16(uint w)
 {
@@ -86,7 +87,11 @@ long parseInt(string s)
         digits = digits[1..$];
     }
 
-    long value = parse!long(digits, base);
+    if (digits.length == 0)
+        throw new Exception("Empty numeric literal");
+
+    // to!long (unlike parse!long) rejects trailing garbage such as "12ab"
+    long value = to!long(digits, base);
     return negative ? -value : value;
 }
 
@@ -107,7 +112,41 @@ ubyte[] parseEscapes(string s)
                 case 't': result ~= cast(ubyte)'\t'; break;
                 case '\\': result ~= cast(ubyte)'\\'; break;
                 case '"': result ~= cast(ubyte)'"'; break;
-                case '0': result ~= cast(ubyte)0; break;
+                case 'a': result ~= cast(ubyte)7; break;
+                case 'b': result ~= cast(ubyte)8; break;
+                case 'f': result ~= cast(ubyte)12; break;
+                case 'v': result ~= cast(ubyte)11; break;
+                case 'x':
+                {
+                    // \xH or \xHH
+                    uint v = 0;
+                    int n = 0;
+                    while (n < 2 && i + 1 < s.length && isHexDigit(s[i + 1]))
+                    {
+                        i++;
+                        v = v * 16 + cast(uint)(isDigit(s[i]) ? s[i] - '0' : (s[i] | 0x20) - 'a' + 10);
+                        n++;
+                    }
+                    if (n == 0)
+                        result ~= cast(ubyte)'x';
+                    else
+                        result ~= cast(ubyte)v;
+                    break;
+                }
+                case '0': .. case '7':
+                {
+                    // \0, \12, \377 (up to 3 octal digits)
+                    uint v = s[i] - '0';
+                    int n = 1;
+                    while (n < 3 && i + 1 < s.length && s[i + 1] >= '0' && s[i + 1] <= '7')
+                    {
+                        i++;
+                        v = v * 8 + (s[i] - '0');
+                        n++;
+                    }
+                    result ~= cast(ubyte)v;
+                    break;
+                }
                 default:
                     result ~= cast(ubyte)s[i];
             }
