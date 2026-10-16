@@ -67,8 +67,12 @@ void cdReadResponse()
 void cdAck()
 {
     *CD_INDEX = 1;
-    *CD_REG3 = 0x5F; // ack INT1-5 + clear parameter FIFO
-    *I_STAT = ~4;    // clear the CDROM bit in I_STAT (0 = clear)
+    int currentIrq = *CD_REG3 & 7;
+    if (currentIrq > 0)
+    {
+        *CD_REG3 = currentIrq;
+    }
+    *I_STAT = ~4; // clear the CDROM bit in I_STAT (0 = clear)
 }
 
 /// Throws away any interrupts that are waiting
@@ -79,6 +83,7 @@ void cdDrain()
     {
         cdReadResponse();
         cdAck();
+        for (int i = 0; i < 50; i++) {}
         guard++;
     }
 }
@@ -121,18 +126,21 @@ int cdCommand(int cmd, int param, int hasParam)
 ///
 void cdInit()
 {
-    // We poll the controller ourselves, so keep its IRQ away from the BIOS
-    // handlers. If you later read files from the disc via the BIOS, set
-    // bit 2 of I_MASK again: *IRQ_MASK |= 4;
-    *I_MASK = *I_MASK & ~4;
-
     *CD_INDEX = 1;
-    *CD_REG2 = 0x1F;                   // enable INT1..INT5 flags
+    *CD_REG2 = 0x1F; // enable INT1..INT5 flags
     cdDrain();
 
-    cdCommand(0x0C, 0, 0);             // Demute
-    cdCommand(0x0E, 0x03, 1);          // Setmode: CD-DA on + auto-pause at track end
+    cdCommand(0x0C, 0, 0); // Demute
+    for (int i = 0; i < 5000; i++) {}
+    
+    cdCommand(0x0E, 0x03, 1); // Setmode: CD-DA on + auto-pause at track end
+    for (int i = 0; i < 5000; i++) {}
 
+    cdSetVolume(127);
+    cdLoopTrack = 0;
+    cdPaused = 0;
+    cdGrace = 0;
+    
     cdSetVolume(127);
     cdLoopTrack = 0;
     cdPaused = 0;
@@ -159,9 +167,9 @@ void cdSetVolume(int vol)
 void cdStartTrack(int track)
 {
     int bcd = ((track / 10) << 4) | (track - (track / 10) * 10);
-    cdCommand(0x03, bcd, 1);           // Play <track in BCD>
+    cdCommand(0x03, bcd, 1); // Play <track in BCD>
     cdPaused = 0;
-    cdGrace = 60;                      // give the drive time to seek before polling
+    cdGrace = 60; // give the drive time to seek before polling
 }
 
 /// Plays a track once. Track 1 is the data track; music starts at track 2.
@@ -189,7 +197,7 @@ void cdPause()
 void cdResume()
 {
     cdPaused = 0;
-    cdCommand(0x03, 0, 0);             // Play without a track: continue from here
+    cdCommand(0x03, 0, 0); // Play without a track: continue from here
     cdGrace = 60;
 }
 
@@ -213,6 +221,7 @@ int cdIsPlaying()
  * Call once per frame. Restarts the looped track when it has ended.
  * The drive is only asked every 10 calls.
  */
+/*
 void cdUpdate()
 {
     if (cdLoopTrack == 0) return;
@@ -228,3 +237,4 @@ void cdUpdate()
     if (!cdIsPlaying())
         cdStartTrack(cdLoopTrack);
 }
+*/
