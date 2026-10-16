@@ -5,13 +5,13 @@ Retrolang 0.5.0 - 16 Oct, 2026
   - `syscall` intrinsic
   - Improved escape characters parsing
 - **Retrolib**
-  - `pcsx.ri`, a binding to [PCSX-Redux API](https://pcsx-redux.consoledev.net/mips_api/)
+  - `spu.ri` - a simple SPU driver / sound API
+  - `pcsx.ri` - a binding to [PCSX-Redux API](https://pcsx-redux.consoledev.net/mips_api/)
   - Many new BIOS call macros in `bios.ri`
-  - Begin SPU support implementation in Retrolib
   - Fix `padInit` when booting via FreePSXBoot
 - **Examples**
   - Memory card I/O example
-  - Noise playback example.
+  - Sound playback examples.
 
 Retrolang 0.4.0 - 14 Oct, 2026
 ------------------------------
