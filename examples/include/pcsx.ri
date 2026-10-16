@@ -29,9 +29,23 @@ For more information, please refer to <https://unlicense.org>
  * https://pcsx-redux.consoledev.net/mips_api/
  */
 
-int* SBUS_DEV8_CTRL = 0x1F80101C;
+int* SBUS_DEV0_ADDR  = 0x1F801000;
+int* SBUS_DEV8_ADDR  = 0x1F801004;
+int* SBUS_DEV0_CTRL  = 0x1F801008;
+int* SBUS_DEV1_CTRL  = 0x1F80100C;
+int* SBUS_DEV2_CTRL  = 0x1F801010;
+int* SBUS_DEV4_CTRL  = 0x1F801014;
+int* SBUS_DEV5_CTRL  = 0x1F801018;
+int* SBUS_DEV8_CTRL  = 0x1F80101C;
+int* SBUS_COM_CTRL   = 0x1F801020;
 
-char** PCSX_MESSAGE = 0x1f802084;
+// PCSX MMIO
+char*  PCSX_IO          = 0x1F802080;
+char*  PCSX_BREAK       = 0x1F802081;
+uchar* PCSX_EXECSLOT    = 0x1F802081;
+short* PCSX_EXIT        = 0x1F802082;
+char** PCSX_MESSAGE     = 0x1F802084;
+char*  PCSX_CHECKKERNEL = 0x1F802088;
 
 /**
  * PCSX-Redux API needs DEV8/EXP2 (1f802000 to 1f80207f),
@@ -46,8 +60,86 @@ void pcsx_init()
     *SBUS_DEV8_CTRL = size;
 }
 
+/// Prints ASCII character with code c to emulator's stdout.
+macro pcsx_putc(c)
+{
+    *PCSX_IO = c;
+}
+
+/// Breaks execution.
+macro pcsx_debugbreak()
+{
+    *PCSX_BREAK = 0;
+}
+
+/**
+ * Executes Lua function at PCSX.execSlots[slot].
+ * The slot value can be between 1 and 255, as a slot value of 0 is pcsx_debugbreak().
+ * If no Lua function exists within a slot, nothing happens.
+ */
+macro pcsx_execSlot(slot)
+{
+    *PCSX_EXECSLOT = slot;
+}
+
+/**
+ * When the emulator was started with -testmode, exit the emulator and forward code as exit code.
+ * Otherwise, log the exit code and pause emulation.
+ */
+macro pcsx_exit(code)
+{
+    *PCSX_EXIT = code;
+}
+
 /// Create a UI dialog displaying msg.
 macro pcsx_message(msg)
 {
     *PCSX_MESSAGE = msg;
 }
+
+/// Enable or disable kernel checking.
+macro pcsx_checkKernel(enable)
+{
+    *PCSX_CHECKKERNEL = enable;
+}
+
+/// Returns 1 if kernel checking is enabled.
+macro pcsx_isCheckingKernel(enable) = (*PCSX_CHECKKERNEL != 0);
+
+/// Returns 1 if code is running in PCSX-Redux.
+macro pcsx_present() = (*(uint*)PCSX_IO == 0x58534350);
+
+/*
+// TODO
+static __inline__ void pcsx_initMsan() { *((volatile char* const)0x1f802089) = 0; }
+static __inline__ void pcsx_resetMsan() { *((volatile char* const)0x1f802089) = 1; }
+static __inline__ void* pcsx_msanAlloc(uint32_t size) {
+    register uint32_t a0 asm("a0") = size;
+    void* ret;
+    __asm__ volatile("lw %0, 0x208c(%1)" : "=r"(ret) : "r"(0x1f800000), "r"(a0));
+    return ret;
+}
+static __inline__ void pcsx_msanFree(void* ptr) { *((void* volatile* const)0x1f80208c) = ptr; }
+static __inline__ void* pcsx_msanRealloc(void* ptr, uint32_t size) {
+    register void* a0 asm("a0") = ptr;
+    register uint32_t a1 asm("a1") = size;
+    void* ret;
+    __asm__ volatile("lw %0, 0x2090(%1)" : "=r"(ret) : "r"(0x1f800000), "r"(a0), "r"(a1));
+    return ret;
+}
+static __inline__ void pcsx_msanSetChainPtr(void* headerAddr, void* ptrToNext, uint32_t wordCount) {
+    register void* a0 asm("a0") = ptrToNext;
+    register uint32_t a1 asm("a1") = wordCount;
+    __asm__ volatile("sw %0, 0x2094(%1)" : : "r"(headerAddr), "r"(0x1f800000), "r"(a0), "r"(a1) : "memory");
+}
+static __inline__ void* pcsx_msanGetChainPtr(void* headerAddr) {
+    register void* a0 asm("a0") = headerAddr;
+    void* ret;
+    __asm__ volatile("lw %0, 0x2094(%1)" : "=r"(ret) : "r"(0x1f800000), "r"(a0));
+    return ret;
+}
+
+static __inline__ void pcsx_registerHeapMetadata(const void* metadata) {
+    *((void* volatile* const)0x1f8020a0) = (void*)metadata;
+}
+*/
