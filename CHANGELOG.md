@@ -1,7 +1,7 @@
 Retrolang 0.5.0 - TBD
 ---------------------
 - **RLC**
-  - Assembler reimplementation
+  - Assembler reimplementation, full-featured relocations support
   - `syscall` intrinsic
   - Improved escape characters parsing
 - **Retrolib**
