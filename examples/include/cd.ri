@@ -1,0 +1,230 @@
+/*
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the software
+to the public domain. We make this dedication for the benefit of the
+public at large and to the detriment of our heirs and successors.
+We intend this dedication to be an overt act of relinquishment in 
+perpetuity of all present and future rights to this software under
+copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+*/
+
+/*
+ * CD audio driver.
+ *
+ * Depends on core.ri
+ */
+
+// CD registers
+uchar* CD_INDEX = 0x1F801800; // read: status, write: register index (0-3)
+uchar* CD_REG1  = 0x1F801801; // idx0 write: command | read: response FIFO
+uchar* CD_REG2  = 0x1F801802; // idx0 write: parameter | idx1 write: IRQ enable
+uchar* CD_REG3  = 0x1F801803; // idx1 read: IRQ flags, write: IRQ ack
+
+// Internal state
+int cdLastStat;     // stat byte of the last response
+int cdLoopTrack;    // track to restart when it ends, 0 = no looping
+int cdPaused;
+int cdGrace;        // cdUpdate() calls to wait before checking the drive again
+
+/// Pending interrupt type: 0 = none, 1..5 = INT1..INT5
+int cdIntPending()
+{
+    *CD_INDEX = 1;
+    return *CD_REG3 & 7;
+}
+
+/// Reads the whole response FIFO, keeps the first byte (stat) in cdLastStat
+void cdReadResponse()
+{
+    int first = 1;
+    while (*CD_INDEX & 0x20) // response FIFO not empty
+    {
+        int b = *CD_REG1;
+        if (first)
+        {
+            cdLastStat = b;
+            first = 0;
+        }
+    }
+}
+
+void cdAck()
+{
+    *CD_INDEX = 1;
+    *CD_REG3 = 0x5F; // ack INT1-5 + clear parameter FIFO
+    *I_STAT = ~4;    // clear the CDROM bit in I_STAT (0 = clear)
+}
+
+/// Throws away any interrupts that are waiting
+void cdDrain()
+{
+    int guard = 0;
+    while (cdIntPending() && guard < 16)
+    {
+        cdReadResponse();
+        cdAck();
+        guard++;
+    }
+}
+
+/**
+ * Sends one command (with an optional single parameter) and waits for its
+ * first response. Returns the stat byte, or -1 on error or timeout.
+ * Other interrupts that arrive in the meantime (INT1/2/4) are discarded.
+ */
+int cdCommand(int cmd, int param, int hasParam)
+{
+    cdDrain();
+
+    int t = 0;
+    while ((*CD_INDEX & 0x80) && t < 100000) t++; // wait while controller is busy
+
+    *CD_INDEX = 0;
+    if (hasParam) *CD_REG2 = param;
+    *CD_REG1 = cmd;
+
+    t = 0;
+    while (t < 2000000)
+    {
+        int n = cdIntPending();
+        if (n)
+        {
+            cdReadResponse();
+            cdAck();
+            if (n == 3) return cdLastStat; // INT3: command acknowledged
+            if (n == 5) return -1;         // INT5: error
+        }
+        else
+        {
+            t++;
+        }
+    }
+    return -1;
+}
+
+///
+void cdInit()
+{
+    // We poll the controller ourselves, so keep its IRQ away from the BIOS
+    // handlers. If you later read files from the disc via the BIOS, set
+    // bit 2 of I_MASK again: *IRQ_MASK |= 4;
+    *I_MASK = *I_MASK & ~4;
+
+    *CD_INDEX = 1;
+    *CD_REG2 = 0x1F;                   // enable INT1..INT5 flags
+    cdDrain();
+
+    cdCommand(0x0C, 0, 0);             // Demute
+    cdCommand(0x0E, 0x03, 1);          // Setmode: CD-DA on + auto-pause at track end
+
+    cdSetVolume(127);
+    cdLoopTrack = 0;
+    cdPaused = 0;
+    cdGrace = 0;
+}
+
+/// 0..127
+void cdSetVolume(int vol)
+{
+    if (vol < 0) vol = 0;
+    if (vol > 127) vol = 127;
+    int lvl = (vol * 0x80) / 127;      // 0x80 = 100%
+
+    *CD_INDEX = 2;
+    *CD_REG2 = lvl;                    // CD left  -> SPU left
+    *CD_REG3 = 0;                      // CD left  -> SPU right
+    *CD_INDEX = 3;
+    *CD_REG1 = lvl;                    // CD right -> SPU right
+    *CD_REG2 = 0;                      // CD right -> SPU left
+    *CD_REG3 = 0x20;                   // apply
+}
+
+/// Starts a track from its beginning (no looping bookkeeping)
+void cdStartTrack(int track)
+{
+    int bcd = ((track / 10) << 4) | (track - (track / 10) * 10);
+    cdCommand(0x03, bcd, 1);           // Play <track in BCD>
+    cdPaused = 0;
+    cdGrace = 60;                      // give the drive time to seek before polling
+}
+
+/// Plays a track once. Track 1 is the data track; music starts at track 2.
+void cdPlay(int track)
+{
+    cdLoopTrack = 0;
+    cdStartTrack(track);
+}
+
+/// Plays a track and restarts it whenever it ends (needs cdUpdate() each frame)
+void cdPlayLoop(int track)
+{
+    cdLoopTrack = track;
+    cdStartTrack(track);
+}
+
+/// Pause keeps the disc spinning, so cdResume() continues almost instantly
+void cdPause()
+{
+    cdPaused = 1;
+    cdCommand(0x09, 0, 0);
+}
+
+///
+void cdResume()
+{
+    cdPaused = 0;
+    cdCommand(0x03, 0, 0);             // Play without a track: continue from here
+    cdGrace = 60;
+}
+
+// Stops playback and spins the disc down
+void cdStop()
+{
+    cdLoopTrack = 0;
+    cdPaused = 0;
+    cdCommand(0x08, 0, 0);
+}
+
+/// Is the drive playing (or seeking to start playing)?
+int cdIsPlaying()
+{
+    int s = cdCommand(0x01, 0, 0);     // Getstat
+    if (s < 0) return 0;
+    return (s & 0xC0) != 0;            // bit 7 = playing, bit 6 = seeking
+}
+
+/**
+ * Call once per frame. Restarts the looped track when it has ended.
+ * The drive is only asked every 10 calls.
+ */
+void cdUpdate()
+{
+    if (cdLoopTrack == 0) return;
+    if (cdPaused) return;
+
+    if (cdGrace > 0)
+    {
+        cdGrace--;
+        return;
+    }
+
+    cdGrace = 10;
+    if (!cdIsPlaying())
+        cdStartTrack(cdLoopTrack);
+}

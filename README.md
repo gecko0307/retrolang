@@ -14,6 +14,7 @@ What can you do with Retrolang (in more or less convenient ways):
 - Query the gamepad buttons and analog sticks
 - Load files from the CD-ROM
 - Play VAG sounds
+- Play CDDA tracks
 - Access memory cards
 - Work with the BIOS.
 
@@ -148,6 +149,7 @@ Retrolang provides a minimal set of optional low-level functionality that aid wi
 * `pad.ri` - gamepad driver
 * `gpu.ri` - GPU driver / graphics API
 * `spu.ri` - SPU driver / sound API
+* `cd.ri` - CD audio API
 * `pcsx.ri` - PCSX-Redux API.
 
 Usage (assuming you've copied the [include](/examples/include) folder to your project's source directory):
