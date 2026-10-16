@@ -30,17 +30,15 @@ For more information, please refer to <https://unlicense.org>
  * Depends on core.ri
  */
 
-// CD registers
 uchar* CD_INDEX = 0x1F801800; // read: status, write: register index (0-3)
 uchar* CD_REG1  = 0x1F801801; // idx0 write: command | read: response FIFO
 uchar* CD_REG2  = 0x1F801802; // idx0 write: parameter | idx1 write: IRQ enable
 uchar* CD_REG3  = 0x1F801803; // idx1 read: IRQ flags, write: IRQ ack
 
 // Internal state
-int cdLastStat;     // stat byte of the last response
-int cdLoopTrack;    // track to restart when it ends, 0 = no looping
+int cdLastStat;
+int cdLoopTrack;
 int cdPaused;
-int cdGrace;        // cdUpdate() calls to wait before checking the drive again
 
 /// Pending interrupt type: 0 = none, 1..5 = INT1..INT5
 int cdIntPending()
@@ -64,6 +62,7 @@ void cdReadResponse()
     }
 }
 
+///
 void cdAck()
 {
     *CD_INDEX = 1;
@@ -83,7 +82,7 @@ void cdDrain()
     {
         cdReadResponse();
         cdAck();
-        for (int i = 0; i < 50; i++) {}
+        for (int i = 0; i < 50; i++) {} 
         guard++;
     }
 }
@@ -95,56 +94,40 @@ void cdDrain()
  */
 int cdCommand(int cmd, int param, int hasParam)
 {
-    cdDrain();
-
-    int t = 0;
-    while ((*CD_INDEX & 0x80) && t < 100000) t++; // wait while controller is busy
+    int timeout = 0;
+    while ((*CD_INDEX & 0x80) && timeout < 50000)
+    {
+        // wait while controller is busy
+        for (int i = 0; i < 10; i++) {} 
+        timeout++;
+    }
 
     *CD_INDEX = 0;
-    if (hasParam) *CD_REG2 = param;
+    if (hasParam)
+    {
+        *CD_REG2 = param;
+        for (int i = 0; i < 50; i++) {}
+    }
     *CD_REG1 = cmd;
 
-    t = 0;
-    while (t < 2000000)
+    timeout = 0;
+    while (timeout < 250000)
     {
+        for (int i = 0; i < 20; i++) {} 
+        
         int n = cdIntPending();
-        if (n)
+        if (n > 0)
         {
             cdReadResponse();
             cdAck();
+            
             if (n == 3) return cdLastStat; // INT3: command acknowledged
             if (n == 5) return -1;         // INT5: error
         }
-        else
-        {
-            t++;
-        }
+        timeout++;
     }
-    return -1;
-}
 
-///
-void cdInit()
-{
-    *CD_INDEX = 1;
-    *CD_REG2 = 0x1F; // enable INT1..INT5 flags
-    cdDrain();
-
-    cdCommand(0x0C, 0, 0); // Demute
-    for (int i = 0; i < 5000; i++) {}
-    
-    cdCommand(0x0E, 0x03, 1); // Setmode: CD-DA on + auto-pause at track end
-    for (int i = 0; i < 5000; i++) {}
-
-    cdSetVolume(127);
-    cdLoopTrack = 0;
-    cdPaused = 0;
-    cdGrace = 0;
-    
-    cdSetVolume(127);
-    cdLoopTrack = 0;
-    cdPaused = 0;
-    cdGrace = 0;
+    return -1; 
 }
 
 /// 0..127
@@ -152,24 +135,41 @@ void cdSetVolume(int vol)
 {
     if (vol < 0) vol = 0;
     if (vol > 127) vol = 127;
-    int lvl = (vol * 0x80) / 127;      // 0x80 = 100%
+    int lvl = (vol * 0x80) / 127;
 
     *CD_INDEX = 2;
-    *CD_REG2 = lvl;                    // CD left  -> SPU left
-    *CD_REG3 = 0;                      // CD left  -> SPU right
+    *CD_REG2 = lvl;
+    *CD_REG3 = 0;
     *CD_INDEX = 3;
-    *CD_REG1 = lvl;                    // CD right -> SPU right
-    *CD_REG2 = 0;                      // CD right -> SPU left
-    *CD_REG3 = 0x20;                   // apply
+    *CD_REG1 = lvl;
+    *CD_REG2 = 0;
+    *CD_REG3 = 0x20;
+}
+
+///
+void cdInit()
+{
+    *CD_INDEX = 1;
+    *CD_REG2 = 0x1F; 
+    cdDrain();
+
+    cdCommand(0x0C, 0, 0); 
+    for (int i = 0; i < 10000; i++) {}
+
+    cdCommand(0x0E, 0x03, 1); 
+    for (int i = 0; i < 10000; i++) {}
+
+    cdSetVolume(127);
+    cdLoopTrack = 0;
+    cdPaused = 0;
 }
 
 /// Starts a track from its beginning (no looping bookkeeping)
 void cdStartTrack(int track)
 {
     int bcd = ((track / 10) << 4) | (track - (track / 10) * 10);
-    cdCommand(0x03, bcd, 1); // Play <track in BCD>
+    cdCommand(0x03, bcd, 1); 
     cdPaused = 0;
-    cdGrace = 60; // give the drive time to seek before polling
 }
 
 /// Plays a track once. Track 1 is the data track; music starts at track 2.
@@ -190,15 +190,14 @@ void cdPlayLoop(int track)
 void cdPause()
 {
     cdPaused = 1;
-    cdCommand(0x09, 0, 0);
+    cdCommand(0x09, 0, 0); 
 }
 
 ///
 void cdResume()
 {
     cdPaused = 0;
-    cdCommand(0x03, 0, 0); // Play without a track: continue from here
-    cdGrace = 60;
+    cdCommand(0x03, 0, 0); 
 }
 
 // Stops playback and spins the disc down
@@ -206,35 +205,26 @@ void cdStop()
 {
     cdLoopTrack = 0;
     cdPaused = 0;
-    cdCommand(0x08, 0, 0);
-}
-
-/// Is the drive playing (or seeking to start playing)?
-int cdIsPlaying()
-{
-    int s = cdCommand(0x01, 0, 0);     // Getstat
-    if (s < 0) return 0;
-    return (s & 0xC0) != 0;            // bit 7 = playing, bit 6 = seeking
+    cdCommand(0x08, 0, 0); 
 }
 
 /**
  * Call once per frame. Restarts the looped track when it has ended.
- * The drive is only asked every 10 calls.
  */
-/*
 void cdUpdate()
 {
-    if (cdLoopTrack == 0) return;
-    if (cdPaused) return;
-
-    if (cdGrace > 0)
+    int irqType = cdIntPending();
+    if (irqType > 0)
     {
-        cdGrace--;
-        return;
-    }
+        cdReadResponse();
+        cdAck();
 
-    cdGrace = 10;
-    if (!cdIsPlaying())
-        cdStartTrack(cdLoopTrack);
+        if (irqType == 4) 
+        {
+            if (cdLoopTrack > 0 && !cdPaused)
+            {
+                cdStartTrack(cdLoopTrack);
+            }
+        }
+    }
 }
-*/
