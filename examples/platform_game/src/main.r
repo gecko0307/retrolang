@@ -185,9 +185,7 @@ void main()
                 jumpAccel = 3;
                 jumpAccelTimer = 0;
                 canJump = 0;
-                
-                if (!spuSoundPlaying(sndJump))
-                    spuPlay(sndJump, 0x3FFF);
+                spuPlay(sndJump, 0x3FFF);
             }
         }
         else
