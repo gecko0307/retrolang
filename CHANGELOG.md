@@ -5,6 +5,7 @@ Retrolang 0.5.0 - TBD
   - `syscall` intrinsic
   - Improved escape characters parsing
 - **Retrolib**
+  - `pcsx.ri`, a binding to [PCSX-Redux API](https://pcsx-redux.consoledev.net/mips_api/)
   - Many new BIOS call macros in `bios.ri`
   - Begin SPU support implementation in Retrolib
 - **Examples**
