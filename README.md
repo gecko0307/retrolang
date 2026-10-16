@@ -29,12 +29,12 @@ Retrolang is a result of 10+ years of tinkering with the console, different SDKs
 
 Main philosophy of the project: PSX programming doesn't require a full-fledged C with all of its baggage. A subset is sufficient. What's really needed are platform-specific language capabilities, as well as a simple, readable and easily hackable standard library. Popular C toolchains also tend to be bulky; Retrolang produces tiny executables that can run via [FreePSXBoot](https://github.com/brad-lin/FreePSXBoot).
 
+Unlike C, Retrolang is a language with **predictable semantics**. The compiler translates your program verbatim, without optimizations and unexpected changes behind your back, which is important for bare-metal programming. For example, it doesn't implicitly inline functions and optimize memory access. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
+
 Project goals:
 - Provide a convenient domain-specific language as a trade-off between C and assembly for hobby R3000 programming;
 - Provide modern, open, self-contained x86_64 replacements for legacy tools;
 - Provide a clean-room SDK that doesn't depend on a single byte of proprietary software.
-
-unlike C, Retrolang is a language with **predictable semantics**. The compiler translates your program verbatim, without optimizations and unexpected changes behind your back, which is important for bare-metal programming. For example, it doesn't implicitly inline functions and optimize memory access. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
 
 ## RLC
 
