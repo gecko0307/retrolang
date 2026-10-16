@@ -107,7 +107,8 @@ void spuUploadADPCM(uchar* vag_data, uint byte_size, uint spu_dest_addr)
     *SPU_CNT_MODE = 0x0004;            // step by 2
 
     *SPU_SPUCNT = 0xC020;              // DMA write mode
-    while ((*SPU_SPUSTAT & 0x0030) != 0x0020) nop();
+    //while ((*SPU_SPUSTAT & 0x0030) != 0x0020) nop();
+    for (int i = 0; i < 150; i++) nop();
 
     *DMA4_MADR = (uint)vag_data & 0x1FFFFC;
 
@@ -116,7 +117,9 @@ void spuUploadADPCM(uchar* vag_data, uint byte_size, uint spu_dest_addr)
     *DMA4_CHCR = 0x01000201;
 
     while (*DMA4_CHCR & (1 << 24)) nop();
-    while (*SPU_SPUSTAT & (1 << 10)) nop();
+    
+    //while (*SPU_SPUSTAT & (1 << 10)) nop();
+    for (int i = 0; i < 200; i++) nop(); 
 
     *SPU_SPUCNT = 0xC000;              // back to normal
     for (int i = 0; i < 100; i++) nop();
@@ -280,15 +283,20 @@ void spuPlayVoice(int sound, int voice, int volL, int volR)
     ushort* r = (ushort*)(SPU_VOICE_BASE + voice * 16);
     uint rate = sndRate[sound];
 
+    spuKeyOff(voice); 
+    
+    ushort dummy0 = *SPU_ENDX0;
+    ushort dummy1 = *SPU_ENDX1;
+
     r[0] = spuScaleVolume(volL);
     r[1] = spuScaleVolume(volR);
-    r[2] = (rate << 12) / 44100;       // 0x1000 = 44100 Hz
+    r[2] = (rate << 12) / 44100;
     r[3] = sndAddr[sound] / 8;
     r[4] = 0x00FF;
     r[5] = 0x0000;
 
     voiceSound[voice] = sound;
-    spuKeyOn(voice);                   // KON restarts from the start address
+    spuKeyOn(voice);
 }
 
 /**
