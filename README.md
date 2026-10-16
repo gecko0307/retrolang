@@ -144,8 +144,9 @@ Retrolang provides a minimal set of optional low-level functionality that aid wi
 * `retrolib.ri` - includes entire library at once
 * `core.ri` - core definitions
 * `bios.ri` - macros for some common BIOS calls
-* `gpu.ri` - GPU driver / graphics API
 * `pad.ri` - gamepad driver
+* `gpu.ri` - GPU driver / graphics API
+* `spu.ri` - SPU driver / sound API (WIP)
 * `pcsx.ri` - PCSX-Redux API.
 
 Usage (assuming you've copied the [include](/examples/include) folder to your project's source directory):
