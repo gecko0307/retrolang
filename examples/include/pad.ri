@@ -133,6 +133,10 @@ int sioXfer(int b)
     while ((sioGet16(JOY_STAT) & 2) == 0 && t < 100000)
         // wait for RX byte
         t++;
+    if ((sioGet16(JOY_STAT) & 2) == 0)
+    {
+        return -1;
+    }
     int r = sioGet8(JOY_DATA);                // RX
     for (int d = 0; d < 100; d++) { }         // let the pad ACK before the next byte
     return r;
@@ -142,7 +146,11 @@ void sioSend(int *c)
 {
     sioSet16(JOY_CTRL, 0x0003);               // TXEN + DTR (select port 1)
     for (int i = 0; i < 9; i++)
-        c[i] = sioXfer(c[i]);                 // reply overwrites the sent byte
+    {
+        int r = sioXfer(c[i]);
+        if (r < 0) break;
+        c[i] = r;                             // reply overwrites the sent byte
+    }
     sioSet16(JOY_CTRL, 0x0000);               // deselect
     for (int d = 0; d < 20000; d++) { }       // gap between commands
 }
@@ -174,21 +182,23 @@ int _stick_dirs;        // PAD_LEFT/RIGHT/UP/DOWN bits derived from the left sti
 
 void padInit()
 {
-    // Force analog
-    sioSet16(JOY_MODE, 0x000D);
-    sioSet16(JOY_BAUD, 0x0088);
-    setCmd(_cmd_enter, 0x43, 0x01, 0x00);     // 01 43 00 01 00  enter config
-    setCmd(_cmd_mode,  0x44, 0x01, 0x03);     // 01 44 00 01 03  analog + lock
-    setCmd(_cmd_exit,  0x43, 0x00, 0x5A);     // 01 43 00 00 5A  exit config
-    sioSend(_cmd_enter);
-    sioSend(_cmd_mode);
-    sioSend(_cmd_exit);
-    
     _pad_buf1[0] = -1; // status byte 0xFF = "not updated yet"
     _pad_buf2[0] = -1;
     _pad_data = -1;
 
     bios_b(0x12, _pad_buf1, 34, _pad_buf2, 34); // InitPad2
+    _pad_buf1[0] = -1;
+    bios_b(0x13, 0, 0, 0, 0); // StartPad2
+    bios_b(0x14, 0, 0, 0, 0); // StopPad2
+    sioSet16(JOY_MODE, 0x000D);
+    sioSet16(JOY_BAUD, 0x0088);
+    setCmd(_cmd_enter, 0x43, 0x01, 0x00); // enter config
+    setCmd(_cmd_mode,  0x44, 0x01, 0x03); // analog + lock
+    setCmd(_cmd_exit,  0x43, 0x00, 0x5A); // exit config
+    sioSend(_cmd_enter);
+    sioSend(_cmd_mode);
+    sioSend(_cmd_exit);
+    _pad_buf1[0] = -1;
     bios_b(0x13, 0, 0, 0, 0); // StartPad2
 }
 

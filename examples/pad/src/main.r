@@ -39,6 +39,11 @@ void main()
     {
         padWaitSync();
         int pad1 = padRead1();
+        int axisX = padAxis(_pad_lx);
+        int axisY = padAxis(_pad_ly);
+
+        if (axisX != 0) printf("Left x-axis: %d\n", axisX);
+        if (axisY != 0) printf("Left y-axis: %d\n", axisY);
 
              if (pad1 & PAD_UP)       printf("UP\n");
         else if (pad1 & PAD_DOWN)     printf("DOWN\n");
