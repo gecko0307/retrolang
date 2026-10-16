@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 */
 
 /**
- * MIPS-I assembler v2.
+ * Retrolang MIPS-I assembler v2.
  *
  * Line format:
  *
@@ -84,7 +84,7 @@ DEALINGS IN THE SOFTWARE.
  * If used in a broad context (e.g., with a compiler), a unique `labelPrefix` should be provided
  * to avoid label collisions across multiple files.
  */
-module assembler2;
+module assembler;
 
 import std.string;
 import std.array: appender;

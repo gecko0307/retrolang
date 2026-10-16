@@ -40,7 +40,7 @@ import parser;
 import utils;
 import mips;
 import ir;
-import assembler2;
+import assembler;
 import memmap: STACK_ADDR;
 
 /*
