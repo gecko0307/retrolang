@@ -34,6 +34,8 @@ Project goals:
 - Provide modern, open, self-contained x86_64 replacements for legacy tools;
 - Provide a clean-room SDK that doesn't depend on a single byte of proprietary software.
 
+unlike C, Retrolang is a language with **predictable semantics**. The compiler translates your program verbatim, without optimizations and unexpected changes behind your back, which is important for bare-metal programming. For example, it doesn't implicitly inline functions and optimize memory access. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
+
 ## RLC
 
 The main tool is RLC, the Retrolang Compiler. It combines an assembler, compiler, and a linker in a single program and directly outputs `PSX.EXE`.
@@ -51,8 +53,6 @@ Assembling command is similar (RLC treats *.s file as an assembly source):
 ```
 rlc -o PSX.EXE src/main.s
 ```
-
-RLC translates your program verbatim, without optimizations and unexpected changes behind your back. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
 
 ## PSXDISASM
 

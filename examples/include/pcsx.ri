@@ -110,36 +110,65 @@ macro pcsx_isCheckingKernel(enable) = (*PCSX_CHECKKERNEL != 0);
 macro pcsx_present() = (*(uint*)PCSX_IO == 0x58534350);
 
 /*
-// TODO
-static __inline__ void pcsx_initMsan() { *((volatile char* const)0x1f802089) = 0; }
-static __inline__ void pcsx_resetMsan() { *((volatile char* const)0x1f802089) = 1; }
-static __inline__ void* pcsx_msanAlloc(uint32_t size) {
-    register uint32_t a0 asm("a0") = size;
-    void* ret;
-    __asm__ volatile("lw %0, 0x208c(%1)" : "=r"(ret) : "r"(0x1f800000), "r"(a0));
-    return ret;
-}
-static __inline__ void pcsx_msanFree(void* ptr) { *((void* volatile* const)0x1f80208c) = ptr; }
-static __inline__ void* pcsx_msanRealloc(void* ptr, uint32_t size) {
-    register void* a0 asm("a0") = ptr;
-    register uint32_t a1 asm("a1") = size;
-    void* ret;
-    __asm__ volatile("lw %0, 0x2090(%1)" : "=r"(ret) : "r"(0x1f800000), "r"(a0), "r"(a1));
-    return ret;
-}
-static __inline__ void pcsx_msanSetChainPtr(void* headerAddr, void* ptrToNext, uint32_t wordCount) {
-    register void* a0 asm("a0") = ptrToNext;
-    register uint32_t a1 asm("a1") = wordCount;
-    __asm__ volatile("sw %0, 0x2094(%1)" : : "r"(headerAddr), "r"(0x1f800000), "r"(a0), "r"(a1) : "memory");
-}
-static __inline__ void* pcsx_msanGetChainPtr(void* headerAddr) {
-    register void* a0 asm("a0") = headerAddr;
-    void* ret;
-    __asm__ volatile("lw %0, 0x2094(%1)" : "=r"(ret) : "r"(0x1f800000), "r"(a0));
-    return ret;
+ * Memory sanitizer
+ */
+
+char* PCSX_MSAN_CTRL      = 0x1F802089;
+char* PCSX_MSAN_HEAP_META = 0x1F8020A0;
+int*  PCSX_MSAN_ALLOC     = 0x1F80208C; // read = alloc, write = free
+int*  PCSX_MSAN_REALLOC   = 0x1F802090;
+int*  PCSX_MSAN_CHAIN     = 0x1F802094;
+
+/// Initialize memory sanitizer system.
+macro pcsx_initMsan()
+{
+    *PCSX_MSAN_CTRL = 0;
 }
 
-static __inline__ void pcsx_registerHeapMetadata(const void* metadata) {
-    *((void* volatile* const)0x1f8020a0) = (void*)metadata;
+/// Reset memory sanitizer system.
+macro pcsx_resetMsan()
+{
+    *PCSX_MSAN_CTRL = 1;
 }
-*/
+
+/// Allocates memory with memory sanitizer.
+void* pcsx_msanAlloc(uint size)
+{
+    return *(void**)PCSX_MSAN_ALLOC;
+}
+
+/// Frees memory with memory sanitizer.
+void pcsx_msanFree(void* ptr)
+{
+    *(void**)PCSX_MSAN_ALLOC = ptr;
+}
+
+/// Reallocates memory with memory sanitizer.
+void* pcsx_msanRealloc(void* ptr, uint size)
+{
+    return *(void**)PCSX_MSAN_REALLOC;
+}
+
+///
+void pcsx_msanSetChainPtrRaw(void* ptrToNext, uint wordCount, void* headerAddr)
+{
+    *(void**)PCSX_MSAN_CHAIN = headerAddr;
+}
+
+///
+void pcsx_msanSetChainPtr(void* headerAddr, void* ptrToNext, uint wordCount)
+{
+    pcsx_msanSetChainPtrRaw(ptrToNext, wordCount, headerAddr);
+}
+
+///
+void* pcsx_msanGetChainPtr(void* headerAddr)
+{
+    return *(void**)PCSX_MSAN_CHAIN;
+}
+
+/// Register the address of the PSYQo heap metadata, which is used by the PSYQo heap viewer.
+macro pcsx_registerHeapMetadata(metadata)
+{
+    *(void*)PCSX_MSAN_HEAP_META = metadata;
+}
