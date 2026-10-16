@@ -24,11 +24,18 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+ushort* SPU_SPUCNT   = 0x1F801DAA; // SPU Control
+ushort* SPU_SPUSTAT  = 0x1F801DAE; // SPU Status (Read-only)
+ushort* SPU_DA_ADDR  = 0x1F801DA6; // SPU RAM Transfer Start Address
+ushort* SPU_DA_DATA  = 0x1F801DA8; // SPU RAM Data Transfer FIFO
+ushort* SPU_CNT_MODE = 0x1F801DAC; // SPU RAM Data Transfer Control
+
 ushort* SPU_V0_VOL_L = 0x1F801C00;
 ushort* SPU_V0_VOL_R = 0x1F801C02;
 ushort* SPU_V0_START = 0x1F801C06;
 ushort* SPU_V0_ADSR1 = 0x1F801C08;
 ushort* SPU_V0_ADSR2 = 0x1F801C0A;
+ushort* SPU_V0_PITCH = 0x1F801C04;
 
 ushort* SPU_MVOL_L   = 0x1F801D80;
 ushort* SPU_MVOL_R   = 0x1F801D82;
@@ -36,3 +43,51 @@ ushort* SPU_MVOL_R   = 0x1F801D82;
 ushort* SPU_KON0     = 0x1F801D88;
 ushort* SPU_NON0     = 0x1F801D94;
 ushort* SPU_CTRL     = 0x1F801DAA;
+
+ushort* SPU_KOFF0    = 0x1F801D8C;
+
+ushort* SPU_ENDX     = 0x1F801D9C; // voices 0-15 "reached end" flags
+
+// DMA Controller Registers (Channel 4 is SPU)
+uint* DMA4_MADR = 0x1F8010C0; // DMA4 Main RAM Address
+uint* DMA4_BCR  = 0x1F8010C4; // DMA4 Block Control (Size)
+uint* DMA4_CHCR = 0x1F8010C8; // DMA4 Channel Control
+
+// Global DMA Registers
+uint* DMA_DPCR  = 0x1F8010F0; // DMA Control Register
+
+void spuInit()
+{
+    // Enable SPU, unmute, configure noise clock
+    *SPU_CTRL = 0xC000;
+
+    // Master volume
+    *SPU_MVOL_L = 0x3FFF;
+    *SPU_MVOL_R = 0x3FFF;
+}
+
+void loadVag(uchar* vag_data, uint byte_size, ushort spu_dest_addr)
+{
+    *DMA_DPCR |= 0x00080000;           // enable DMA4
+
+    *SPU_SPUCNT = 0xC000;              // stop any transfer
+    for (int i = 0; i < 100; i++) nop();
+
+    *SPU_DA_ADDR  = spu_dest_addr / 8;
+    *SPU_CNT_MODE = 0x0004;            // step by 2
+
+    *SPU_SPUCNT = 0xC020;              // DMA write mode
+    while ((*SPU_SPUSTAT & 0x0030) != 0x0020) nop();
+
+    *DMA4_MADR = (uint)vag_data & 0x1FFFFC;
+
+    uint blocks = (byte_size + 63) / 64;   // round UP
+    *DMA4_BCR  = 0x10 | (blocks << 16);
+    *DMA4_CHCR = 0x01000201;
+
+    while (*DMA4_CHCR & (1 << 24)) nop();
+    while (*SPU_SPUSTAT & (1 << 10)) nop();
+
+    *SPU_SPUCNT = 0xC000;              // back to normal
+    for (int i = 0; i < 100; i++) nop();
+}
