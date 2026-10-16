@@ -55,32 +55,6 @@ For more information, please refer to <https://unlicense.org>
 #define PAD_LEFT     0x8000
 
 /*
- * Old pad API
- */
-/*
-int _pad_buf;
-int _pad_data = 0xffffffff;
-
-void padInit()
-{
-    bios_b(0x15, 0x20000001, &_pad_buf, 0, 0);
-}
-
-int padRead1()
-{
-    return (~_pad_data) & 0xFFFF;
-}
-
-void padWaitSync()
-{
-    int* p = &_pad_buf;
-    *p = 0x0000;
-    while (*p == 0x0000) {}
-    _pad_data = *p;
-}
-*/
-
-/*
  * SIO
  */
 

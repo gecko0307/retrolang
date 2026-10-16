@@ -8,6 +8,7 @@ Retrolang provides a minimal set of low-level functionality that aid with writin
 * `pad.ri` - gamepad driver
 * `gpu.ri` - GPU driver / graphics API
 * `spu.ri` - SPU driver / sound API
+* `cd.ri` - CD audio API
 * `pcsx.ri` - PCSX-Redux API.
 
 Usage (assuming you've copied the `include` folder to your project's source directory):
