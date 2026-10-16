@@ -152,6 +152,14 @@ int spuScaleVolume(int vol)
 
 void spuInit()
 {
+    /*
+    TODO for CD audio support:
+    - Write 0xC001 to SPU_SPUCNT instead of 0xC000 (also in spuUpload).
+    - Set the CD input volume registers:
+       *(ushort*)0x1F801DB0 = 0x7FFF; (left)
+       *(ushort*)0x1F801DB2 = 0x7FFF; (right)
+    */
+    
     *SPU_SPUCNT = 0xC000; // enable + unmute
     *SPU_MVOL_L = 0x3FFF;
     *SPU_MVOL_R = 0x3FFF;
