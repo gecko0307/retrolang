@@ -169,7 +169,8 @@ Usage (assuming you've copied the [include](/examples/include) folder to your pr
 - [platform_game](/examples/platform_game) - 2D platform game
 - [mesh](/examples/mesh) - walkable 3D scene with a first person camera
 - [memcard](/examples/memcard) - memory card reading and writing
-- [noise](/examples/noise) - minimal sound example: noise playback.
+- [noise](/examples/noise) - minimal sound example: noise playback
+- [vag](/examples/vag) - VAG sound playback example.
 
 All examples support building with Retrobuild. RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository. Optionally, to build a CD-ROM image, mkpsxiso must be available system-wide or locally as `/mkpsxiso/mkpsxiso.exe` in the repository.
 
@@ -208,7 +209,8 @@ In the library:
 
 - Matrix math
 - TMD models support
-- Sound
+- CD audio support
+- MDEC support
 
 ## License
 
