@@ -1,3 +1,8 @@
+Retrolang 0.6.0 - TBD
+---------------------
+- **Retrolib**
+  - Bugfixes in `spu.ri`.
+
 Retrolang 0.5.0 - 16 Oct, 2026
 ------------------------------
 - **RLC**

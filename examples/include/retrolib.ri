@@ -38,3 +38,4 @@ For more information, please refer to <https://unlicense.org>
 #include "pad.ri"
 #include "gpu.ri"
 #include "spu.ri"
+//#include "cd.ri"

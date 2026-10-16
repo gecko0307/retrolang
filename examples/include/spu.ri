@@ -26,23 +26,52 @@ For more information, please refer to <https://unlicense.org>
 
 /*
  * Simple SPU sound API.
+ *
+ * Depends on core.ri
  */
 
 // SPU registers
-ushort* SPU_MVOL_L   = 0x1F801D80;
-ushort* SPU_MVOL_R   = 0x1F801D82;
-ushort* SPU_KON0     = 0x1F801D88; // voices 0-15
-ushort* SPU_KON1     = 0x1F801D8A; // voices 16-23
-ushort* SPU_KOFF0    = 0x1F801D8C;
-ushort* SPU_KOFF1    = 0x1F801D8E;
-ushort* SPU_NON0     = 0x1F801D94; // noise mode
-ushort* SPU_NON1     = 0x1F801D96;
-ushort* SPU_ENDX0    = 0x1F801D9C; // "reached end" flags, voices 0-15
-ushort* SPU_ENDX1    = 0x1F801D9E; // voices 16-23
-ushort* SPU_DA_ADDR  = 0x1F801DA6; // SPU RAM transfer address (8-byte units)
-ushort* SPU_SPUCNT   = 0x1F801DAA; // SPU control
-ushort* SPU_CNT_MODE = 0x1F801DAC; // SPU RAM transfer control
-ushort* SPU_SPUSTAT  = 0x1F801DAE; // SPU status
+
+ushort* SPU_REVERB_BA = 0x1F801DA2; // Sound RAM reverb work area base address
+ushort* SPU_IRQ       = 0x1F801DA4; // Sound RAM IRQ address
+ushort* SPU_DA_ADDR   = 0x1F801DA6; // SPU RAM transfer address (8-byte units)
+ushort* SPU_SPUCNT    = 0x1F801DAA; // SPU control
+ushort* SPU_CNT_MODE  = 0x1F801DAC; // SPU RAM transfer control
+ushort* SPU_SPUSTAT   = 0x1F801DAE; // SPU status
+ushort* SPU_CDVOL_L   = 0x1F801DB0; // CD audio input volume (left)
+ushort* SPU_CDVOL_R   = 0x1F801DB2; // CD audio input volume (right)
+
+// Master volume
+ushort* SPU_MVOL_L = 0x1F801D80;
+ushort* SPU_MVOL_R = 0x1F801D82;
+
+// Reverb volume
+ushort* SPU_EVOL_L = 0x1F801D84;
+ushort* SPU_EVOL_R = 0x1F801D86;
+
+// "Key on" mode flags
+ushort* SPU_KEY_ON0 = 0x1F801D88; // voices 0-15
+ushort* SPU_KEY_ON1 = 0x1F801D8A; // voices 16-23
+
+// "Key off" mode flags
+ushort* SPU_KEY_OFF0 = 0x1F801D8C; // voices 0-15
+ushort* SPU_KEY_OFF1 = 0x1F801D8E; // voices 16-23
+
+// FM mode flags
+ushort* SPU_FM_ON0 = 0x1F801D90; // voices 0-15
+ushort* SPU_FM_ON1 = 0x1F801D92; // voices 16-23
+
+// Noise mode flags
+ushort* SPU_NOISE_ON0 = 0x1F801D94; // voices 0-15
+ushort* SPU_NOISE_ON1 = 0x1F801D96; // voices 16-23
+
+// Reverb mode flags
+ushort* SPU_REVERB_ON0 = 0x1F801D98; // voices 0-15
+ushort* SPU_REVERB_ON1 = 0x1F801D9A; // voices 16-23
+
+// "Reached end" flags
+ushort* SPU_ENDX0 = 0x1F801D9C; // voices 0-15
+ushort* SPU_ENDX1 = 0x1F801D9E; // voices 16-23
 
 /**
  * Voice n registers start at 0x1F801C00 + n * 16, as ushort offsets:
@@ -98,21 +127,21 @@ uint swapEndian(uint val)
  */
 void spuUploadADPCM(uchar* vag_data, uint byte_size, uint spu_dest_addr)
 {
-    *dmaDpcr |= 0x00080000;           // enable DMA4
+    *dmaDpcr |= 0x00080000; // enable DMA4
 
-    *SPU_SPUCNT = 0xC000;              // stop any transfer
+    *SPU_SPUCNT = 0xC001; // stop any transfer
     for (int i = 0; i < 100; i++) nop();
 
     *SPU_DA_ADDR  = spu_dest_addr / 8;
-    *SPU_CNT_MODE = 0x0004;            // step by 2
+    *SPU_CNT_MODE = 0x0004;  // step by 2
 
-    *SPU_SPUCNT = 0xC020;              // DMA write mode
+    *SPU_SPUCNT = 0xC021; // DMA write mode
     //while ((*SPU_SPUSTAT & 0x0030) != 0x0020) nop();
     for (int i = 0; i < 150; i++) nop();
 
     *DMA4_MADR = (uint)vag_data & 0x1FFFFC;
 
-    uint blocks = (byte_size + 63) / 64;   // round UP to 64-byte blocks
+    uint blocks = (byte_size + 63) / 64; // round UP to 64-byte blocks
     *DMA4_BCR  = 0x10 | (blocks << 16);
     *DMA4_CHCR = 0x01000201;
 
@@ -121,20 +150,20 @@ void spuUploadADPCM(uchar* vag_data, uint byte_size, uint spu_dest_addr)
     //while (*SPU_SPUSTAT & (1 << 10)) nop();
     for (int i = 0; i < 200; i++) nop(); 
 
-    *SPU_SPUCNT = 0xC000;              // back to normal
+    *SPU_SPUCNT = 0xC001; // back to normal
     for (int i = 0; i < 100; i++) nop();
 }
 
 void spuKeyOn(int voice)
 {
-    if (voice < 16) *SPU_KON0 = 1 << voice;
-    else            *SPU_KON1 = 1 << (voice - 16);
+    if (voice < 16) *SPU_KEY_ON0 = 1 << voice;
+    else            *SPU_KEY_ON1 = 1 << (voice - 16);
 }
 
 void spuKeyOff(int voice)
 {
-    if (voice < 16) *SPU_KOFF0 = 1 << voice;
-    else            *SPU_KOFF1 = 1 << (voice - 16);
+    if (voice < 16) *SPU_KEY_OFF0 = 1 << voice;
+    else            *SPU_KEY_OFF1 = 1 << (voice - 16);
 }
 
 int spuEndReached(int voice)
@@ -155,35 +184,49 @@ int spuScaleVolume(int vol)
 
 void spuInit()
 {
-    /*
-    TODO for CD audio support:
-    - Write 0xC001 to SPU_SPUCNT instead of 0xC000 (also in spuUpload).
-    - Set the CD input volume registers:
-       *(ushort*)0x1F801DB0 = 0x7FFF; (left)
-       *(ushort*)0x1F801DB2 = 0x7FFF; (right)
-    */
+    // Clear the SPU
+    *SPU_SPUCNT = 0x0000;
+    *SPU_MVOL_L = 0;
+    *SPU_MVOL_R = 0;
+    *SPU_EVOL_L = 0;
+    *SPU_EVOL_R = 0;
+    *SPU_FM_ON0 = 0;
+    *SPU_FM_ON1 = 0; 
+    *SPU_REVERB_ON0 = 0;
+    *SPU_REVERB_ON1 = 0;
+    *SPU_NOISE_ON0 = 0;
+    *SPU_NOISE_ON1 = 0; 
     
-    *SPU_SPUCNT = 0xC000; // enable + unmute
+    // Initialize
+    *SPU_SPUCNT = 0xC001;
     *SPU_MVOL_L = 0x3FFF;
     *SPU_MVOL_R = 0x3FFF;
+    *SPU_CDVOL_L = 0x7FFF;
+    *SPU_CDVOL_R = 0x7FFF;
 
     *dmaDpcr |= 0x00080000;
 
     // all voices off, noise off, volume 0
-    *SPU_KOFF0 = 0xFFFF;
-    *SPU_KOFF1 = 0x00FF;
-    *SPU_NON0  = 0;
-    *SPU_NON1  = 0;
+    *SPU_KEY_OFF0 = 0xFFFF;
+    *SPU_KEY_OFF1 = 0x00FF;
+    *SPU_NOISE_ON0 = 0;
+    *SPU_NOISE_ON1 = 0;
 
     for (int v = 0; v < 24; v++)
     {
         ushort* r = (ushort*)(SPU_VOICE_BASE + v * 16);
         r[0] = 0;
         r[1] = 0;
-        r[4] = 0x00FF; // ADSR: instant attack, full sustain
-        r[5] = 0x0000;
+        r[2] = 0;
+        r[3] = 0;
+        r[4] = 0;
+        r[5] = 0;
+        r[6] = 0;
         voiceSound[v] = -1;
     }
+    
+    ushort dummy0 = *SPU_ENDX0;
+    ushort dummy1 = *SPU_ENDX1;
 
     spuNextAddr = 0x1000;
     sndCount = 0;
@@ -332,8 +375,8 @@ void spuStopSound(int sound)
 
 void spuStopAll()
 {
-    *SPU_KOFF0 = 0xFFFF;
-    *SPU_KOFF1 = 0x00FF;
+    *SPU_KEY_OFF0 = 0xFFFF;
+    *SPU_KEY_OFF1 = 0x00FF;
     for (int v = 0; v < 24; v++)
         voiceSound[v] = -1;
 }
