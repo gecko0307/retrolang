@@ -1,5 +1,5 @@
-Retrolang 0.5.0 - TBD
----------------------
+Retrolang 0.5.0 - 16 Oct, 2026
+------------------------------
 - **RLC**
   - Assembler reimplementation, full-featured relocations support
   - `syscall` intrinsic
@@ -8,6 +8,7 @@ Retrolang 0.5.0 - TBD
   - `pcsx.ri`, a binding to [PCSX-Redux API](https://pcsx-redux.consoledev.net/mips_api/)
   - Many new BIOS call macros in `bios.ri`
   - Begin SPU support implementation in Retrolib
+  - Fix `padInit` when booting via FreePSXBoot
 - **Examples**
   - Memory card I/O example
   - Noise playback example.
