@@ -61,7 +61,12 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             case Op.MTLO:    ins.code = [opMtlo(ins.operand1.reg)]; break;
             case Op.MTHI:    ins.code = [opMthi(ins.operand1.reg)]; break;
             
-            case Op.LI:      ins.code = opLi(ins.operand1.reg, ins.operand2.imm); break; // li can expand to more than one word!
+            case Op.LI:
+                // Labels resolve into PS-X EXE addresses, which need two words.
+                ins.code = ins.operand2.type == AsmOperandType.Label
+                    ? opLi(ins.operand1.reg, LOAD_ADDR)
+                    : opLi(ins.operand1.reg, ins.operand2.imm);
+                break;
             case Op.MOVE:    ins.code = [opMove(ins.operand1.reg, ins.operand2.reg)]; break;
             case Op.CLEAR:   ins.code = [opClear(ins.operand1.reg)]; break;
             case Op.NEG:     ins.code = [opNeg(ins.operand1.reg, ins.operand2.reg)]; break;
@@ -170,10 +175,12 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
     ubyte[] data;
     uint dataStartAddr = relocate(codeSize);
     uint offset = dataStartAddr;
+    size_t[] dataEntryOffsets;
     
     foreach(i, entry; ass.dataEntries)
     {
         dataLabelAddrs[entry.label] = offset;
+        dataEntryOffsets ~= data.length;
         uint size = cast(uint)entry.data.length;
         uint alignedSize = size.aligned(4);
         if (verbose)
@@ -200,6 +207,27 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
         dataLabelAddrs[name] = globalOffset;
     }
 
+    // Relocations
+    foreach(i, entry; ass.dataEntries)
+    {
+        foreach(reloc; entry.relocs)
+        {
+            auto p = reloc.label in dataLabelAddrs;
+            if (p is null)
+            {
+                writefln("Error: undefined label \"%s\"", reloc.label);
+                return false;
+            }
+
+            uint value = cast(uint)(cast(long)*p + reloc.addend);
+            size_t dataOffset = dataEntryOffsets[i] + reloc.offset;
+            data[dataOffset + 0] = cast(ubyte)value;
+            data[dataOffset + 1] = cast(ubyte)(value >> 8);
+            data[dataOffset + 2] = cast(ubyte)(value >> 16);
+            data[dataOffset + 3] = cast(ubyte)(value >> 24);
+        }
+    }
+
     // Generate machine code
     if (verbose)
         writeln("\nProgram code:");
@@ -214,7 +242,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             {
                 if (ins.operand2.label in dataLabelAddrs)
                 {
-                    ins.operand2.imm = dataLabelAddrs[ins.operand2.label];
+                    ins.operand2.imm = cast(long)dataLabelAddrs[ins.operand2.label] + ins.operand2.offset;
                     ins.operand2.type = AsmOperandType.Imm;
                 }
                 else
@@ -231,7 +259,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             {
                 if (ins.operand1.label in dataLabelAddrs)
                 {
-                    ins.operand1.imm = dataLabelAddrs[ins.operand1.label];
+                    ins.operand1.imm = cast(long)dataLabelAddrs[ins.operand1.label] + ins.operand1.offset;
                     ins.operand1.type = AsmOperandType.Imm;
                 }
                 else
@@ -248,7 +276,7 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
             {
                 if (ins.operand1.label in dataLabelAddrs)
                 {
-                    ins.operand1.imm = dataLabelAddrs[ins.operand1.label];
+                    ins.operand1.imm = cast(long)dataLabelAddrs[ins.operand1.label] + ins.operand1.offset;
                     ins.operand1.type = AsmOperandType.Imm;
                 }
                 else
@@ -270,6 +298,17 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
                     ? opBeq(ins.operand1.reg, ins.operand2.reg, off)
                     : opBne(ins.operand1.reg, ins.operand2.reg, off)];
             }
+            code ~= enc(ins.code);
+        }
+        else if (ins.op == Op.WORD && ins.operand1.type == AsmOperandType.Label)
+        {
+            auto p = ins.operand1.label in dataLabelAddrs;
+            if (p is null)
+            {
+                writefln("Error: undefined label \"%s\"", ins.operand1.label);
+                return false;
+            }
+            ins.code[0] = cast(uint)(cast(long)*p + ins.operand1.offset);
             code ~= enc(ins.code);
         }
         else if (ins.op == Op.BLEZ || ins.op == Op.BGTZ || ins.op == Op.BGEZ ||
@@ -297,6 +336,22 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
         }
         else
         {
+            long immediate = 0;
+            bool hasRelocation = false;
+            if (!resolveImmediateRelocation(dataLabelAddrs, ins.operand1, immediate, hasRelocation) ||
+                !resolveImmediateRelocation(dataLabelAddrs, ins.operand2, immediate, hasRelocation) ||
+                !resolveImmediateRelocation(dataLabelAddrs, ins.operand3, immediate, hasRelocation))
+                return false;
+            if (hasRelocation)
+            {
+                if (ins.code.length == 0)
+                {
+                    writefln("Error: instruction %s is not implemented in the linker (line %s)", ins.op, ins.line);
+                    return false;
+                }
+                ins.code[0] = (ins.code[0] & 0xFFFF0000) | (cast(uint)immediate & 0xFFFF);
+            }
+
             if (ins.code.length == 0)
             {
                 writefln("Error: instruction %s is not implemented in the linker (line %s)", ins.op, ins.line);
@@ -338,7 +393,8 @@ bool resolveBranch(uint[string] dataLabelAddrs, ref AsmInstr ins, ref AsmOperand
         return false;
     }
 
-    int words = (cast(int)*p - (cast(int)relocate(ins.offset) + 4)) / 4;
+    int targetAddress = cast(int)(cast(long)*p + target.offset);
+    int words = (targetAddress - (cast(int)relocate(ins.offset) + 4)) / 4;
     if (words < short.min || words > short.max)
     {
         writefln("Error: branch to \"%s\" is out of range (%s instructions)", target.label, words);
@@ -348,5 +404,37 @@ bool resolveBranch(uint[string] dataLabelAddrs, ref AsmInstr ins, ref AsmOperand
     off = cast(short)words;
     target.imm = off;
     target.type = AsmOperandType.Imm;
+    return true;
+}
+
+bool resolveImmediateRelocation(
+    uint[string] dataLabelAddrs,
+    ref AsmOperand operand,
+    ref long immediate,
+    ref bool hasRelocation)
+{
+    if (operand.type != AsmOperandType.Label)
+        return true;
+    if (operand.reloc == RelocKind.None)
+    {
+        writefln("Error: unsupported label operand \"%s\"", operand.label);
+        return false;
+    }
+
+    auto p = operand.label in dataLabelAddrs;
+    if (p is null)
+    {
+        writefln("Error: undefined label \"%s\"", operand.label);
+        return false;
+    }
+
+    long value = cast(long)*p + operand.offset;
+    if (operand.reloc == RelocKind.Hi)
+        immediate = ((value + 0x8000) >> 16) & 0xFFFF;
+    else
+        immediate = cast(short)value;
+    operand.imm = immediate;
+    operand.type = AsmOperandType.Imm;
+    hasRelocation = true;
     return true;
 }

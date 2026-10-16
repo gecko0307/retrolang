@@ -45,15 +45,66 @@ Data declarations are written in `.data` and use a label followed by a colon:
 Supported immediate forms include:
 
 - literal numbers, for example `10` or `0x003f`
-- label references prefixed with a dot, such as `.msg`
+- label references, with or without a leading dot, such as `msg` or `.msg`
+- constant expressions, including arithmetic, shifts, and bitwise operators
 
 Examples:
 
 ```asm
-li $a0, .msg
-j .loop
-bne $t0, $t1, .done
+li $a0, msg
+j loop
+bne $t0, $t1, done
 ```
+
+Label expressions may add or subtract a constant, for example `buffer+4` or `buffer-8`. A label cannot be combined with another label or used in a multiplication or bitwise expression. Names defined with `.equ` are constants and are evaluated during assembly.
+
+## Relocations
+
+A relocation is a symbolic value that cannot be encoded correctly until the linker knows the final address of its label. The assembler keeps the label and any constant addend in the intermediate representation; it does not guess an address or emit a runtime relocation table. During linking, Retrolang lays out the instructions and data, assigns absolute addresses, then patches the affected instruction fields and data bytes before writing the PS-X EXE.
+
+Data follows the assembled code, and each data entry is padded to a four-byte boundary. Consequently, adding or removing instructions can change data addresses. The linker accounts for instruction expansion (including label-based `li`) before resolving references.
+
+### Full-address references
+
+These forms use the absolute address of a label, including its optional addend:
+
+- `li` and `la` load the full 32-bit address. A label-based form expands to two machine instructions for a PS-X EXE address.
+- `j` and `jal` encode a label as a jump target. MIPS jump instructions require a four-byte-aligned target in the same 256 MiB region as the instruction following the jump.
+- `.word label` stores the full 32-bit address in a word. It is supported in both `.text` and `.data`; data words are written little-endian.
+
+For example, `li $a0, message+4` loads the address four bytes past `message`. The same addend rule applies to jump targets and `.word` references.
+
+### Branch references
+
+A branch label is not an absolute address in the instruction. The linker calculates a signed word displacement relative to the instruction after the branch:
+
+`offset = (target_address - (branch_address + 4)) / 4`
+
+The result must fit in a signed 16-bit immediate, from `-32768` through `32767` words. A numeric branch operand is already a raw word displacement and is not treated as a label relocation. Branch targets and addends should be four-byte aligned.
+
+### `%hi` and `%lo`
+
+An instruction immediate is only 16 bits wide, so a full address used by an instruction such as `lui`, `addiu`, or a load/store offset must be split into two halves. Use `%hi(expression)` and `%lo(expression)` to request those halves:
+
+```asm
+lui   $t0, %hi(object+4)
+addiu $t0, $t0, %lo(object+4)
+```
+
+Both operators apply the addend before splitting the address. `%lo` is interpreted as a signed 16-bit value. `%hi` is adjusted for that sign extension, using the GNU-style rule:
+
+`hi = ((A + 0x8000) >> 16) & 0xffff`
+
+For example, if `object+4` resolves to `0x80018000`, `%hi` produces `0x8002` and `%lo` produces the encoded low bits `0x8000`, interpreted by `addiu` as `-32768`. Adding the halves gives the original address. This adjusted `%hi` convention is intended for a sign-extending low immediate such as `addiu` or a memory offset. `ori` zero-extends its immediate, so do not substitute it for `addiu` in this pair when the low half is at least `0x8000`; use `li` when a straightforward full-address load is preferable.
+
+The same relocation forms are accepted in 16-bit instruction immediate slots, including `lui` and memory offsets. For a memory instruction with a base register, write the low relocation explicitly, for example `lw $t0, %lo(object)($at)`. A label without `%hi` or `%lo` cannot be used directly as an ordinary 16-bit immediate. The convenient absolute-address form `lw $t0, object` is expanded by the assembler into a high-half load followed by a low-half memory access.
+
+### Relocation limits
+
+- `%hi` and `%lo` are not accepted in `j`, `jal`, branch operands, or `.word` values.
+- `.byte` and `.half` accept constants, not label relocations. Use `.word` for a stored address.
+- Label references must resolve to a code or data label in the linked assembly. Undefined labels are linker errors.
+- A branch outside the signed 16-bit word range is rejected by the linker.
 
 ## Registers
 
