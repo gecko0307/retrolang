@@ -13,6 +13,7 @@ What can you do with Retrolang (in more or less convenient ways):
 - Work with the GTE
 - Query the gamepad buttons and analog sticks
 - Load files from the CD-ROM
+- Play VAG sounds
 - Access memory cards
 - Work with the BIOS.
 
