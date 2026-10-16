@@ -260,7 +260,9 @@ int spuVoicePlaying(int voice)
     int s = voiceSound[voice];
     if (s < 0) return 0;
     if (sndLoops[s]) return 1; // looping sounds play until stopped
-    if (spuEndReached(voice))
+    ushort* r = (ushort*)(SPU_VOICE_BASE + voice * 16);
+    ushort current_adsr_vol = r[6];
+    if (current_adsr_vol == 0)
     {
         voiceSound[voice] = -1;
         return 0;
@@ -283,17 +285,15 @@ void spuPlayVoice(int sound, int voice, int volL, int volR)
     ushort* r = (ushort*)(SPU_VOICE_BASE + voice * 16);
     uint rate = sndRate[sound];
 
-    spuKeyOff(voice); 
-    
-    ushort dummy0 = *SPU_ENDX0;
-    ushort dummy1 = *SPU_ENDX1;
+    spuKeyOff(voice);
 
     r[0] = spuScaleVolume(volL);
     r[1] = spuScaleVolume(volR);
     r[2] = (rate << 12) / 44100;
     r[3] = sndAddr[sound] / 8;
-    r[4] = 0x00FF;
+    r[4] = 0x00FF; 
     r[5] = 0x0000;
+    r[6] = 0x7FFF;
 
     voiceSound[voice] = sound;
     spuKeyOn(voice);
