@@ -28,6 +28,7 @@ For more information, please refer to <https://unlicense.org>
 
 uchar tiles[] @("assets/tiles.tim");
 uchar character[] @("assets/character.tim");
+uchar vagJump[] @("assets/jump.vag");
 
 struct GpuSettings gpu;
 
@@ -127,6 +128,8 @@ void main()
     gpu.colorDepth = COLORDEPTH_15BIT;
     gpuInit(&gpu);
     
+    spuInit();
+    
     struct GpuTexture tilesTex;
     gpuTextureInit((struct TimHeader*)tiles, &tilesTex);
     gpuTextureUpload(&tilesTex);
@@ -149,6 +152,8 @@ void main()
     charSprite.v = 0;
     charSprite.color = COLOR_NEUTRAL;
     charSprite.texture = &characterTex;
+    
+    int sndJump = spuLoadVag(vagJump);
     
     int chx = 16;
     int chy = 100;
@@ -180,6 +185,9 @@ void main()
                 jumpAccel = 3;
                 jumpAccelTimer = 0;
                 canJump = 0;
+                
+                if (!spuSoundPlaying(sndJump))
+                    spuPlay(sndJump, 0x3FFF);
             }
         }
         else

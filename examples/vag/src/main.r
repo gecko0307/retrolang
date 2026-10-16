@@ -1,6 +1,4 @@
-#include "bios.ri"
-#include "pad.ri"
-#include "spu.ri"
+#include "retrolib.ri"
 
 uchar vagFile[] @("assets/camera.vag");
 

@@ -146,7 +146,7 @@ Retrolang provides a minimal set of optional low-level functionality that aid wi
 * `bios.ri` - macros for some common BIOS calls
 * `pad.ri` - gamepad driver
 * `gpu.ri` - GPU driver / graphics API
-* `spu.ri` - SPU driver / sound API (WIP)
+* `spu.ri` - SPU driver / sound API
 * `pcsx.ri` - PCSX-Redux API.
 
 Usage (assuming you've copied the [include](/examples/include) folder to your project's source directory):
@@ -180,6 +180,7 @@ Provided examples rely on the following third-party tools:
 
 - [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso) to build CD-ROM images
 - [PSX License Tool](https://github.com/jbreckmckye/psx-license-tool) to patch BIN files with your own license data
+- [psxavenc](https://github.com/WonderfulToolchain/psxavenc) to convert WAV files to VAG format
 - [Blender](https://blender.org) to export meshes to PSM format.
 
 For running examples on the PC, we recommend [DuckStation](https://www.duckstation.org/), a fast and feature-rich PlayStation emulator for Windows, Linux and Mac. To run an image (or directly `PSX.EXE` if you don't build an image), use the following command:

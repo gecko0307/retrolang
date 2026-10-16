@@ -28,9 +28,6 @@ For more information, please refer to <https://unlicense.org>
  * GPU driver.
  */
 
-#define DMA_DPCR            0x1f8010f0
-#define DMA_DICR            0x1f8010f4
-
 #define DMA_CH2_MADR        0x1f8010a0
 #define DMA_CH2_BCR         0x1f8010a4
 #define DMA_CH2_CHCR        0x1f8010a8
@@ -276,7 +273,6 @@ int* gp0 = GPU_PORT_GP0;
 int* gp1 = GPU_PORT_GP1;
 
 // DMA ports
-int* dmaDpcr  = DMA_DPCR;     // DMA control (channel enables / priorities)
 int* dma2Madr = DMA_CH2_MADR; // channel 2: base address
 int* dma2Bcr  = DMA_CH2_BCR;  // channel 2: block control
 int* dma2Chcr = DMA_CH2_CHCR; // channel 2: channel control

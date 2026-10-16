@@ -1,0 +1,1 @@
+psxavenc -t vag -f 22050 jump.wav jump.vag

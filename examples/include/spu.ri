@@ -49,13 +49,12 @@ ushort* SPU_SPUSTAT  = 0x1F801DAE; // SPU status
  *   [0] vol L   [1] vol R   [2] pitch   [3] start addr (8-byte units)
  *   [4] ADSR1   [5] ADSR2
  */
-int SPU_VOICE_BASE = 0x1F801C00;
+#define SPU_VOICE_BASE 0x1F801C00
 
 // DMA channel 4
 uint* DMA4_MADR = 0x1F8010C0;
 uint* DMA4_BCR  = 0x1F8010C4;
 uint* DMA4_CHCR = 0x1F8010C8;
-uint* DMA_DPCR  = 0x1F8010F0;
 
 // Internal state
 
@@ -99,7 +98,7 @@ uint swapEndian(uint val)
  */
 void spuUploadADPCM(uchar* vag_data, uint byte_size, uint spu_dest_addr)
 {
-    *DMA_DPCR |= 0x00080000;           // enable DMA4
+    *dmaDpcr |= 0x00080000;           // enable DMA4
 
     *SPU_SPUCNT = 0xC000;              // stop any transfer
     for (int i = 0; i < 100; i++) nop();
@@ -157,7 +156,7 @@ void spuInit()
     *SPU_MVOL_L = 0x3FFF;
     *SPU_MVOL_R = 0x3FFF;
 
-    *DMA_DPCR |= 0x00080000;
+    *dmaDpcr |= 0x00080000;
 
     // all voices off, noise off, volume 0
     *SPU_KOFF0 = 0xFFFF;
