@@ -28,7 +28,9 @@ For more information, please refer to <https://unlicense.org>
 
 uchar tiles[] @("assets/tiles.tim");
 uchar character[] @("assets/character.tim");
+uchar fontImage[] @("assets/font.tim");
 uchar vagJump[] @("assets/jump.vag");
+uchar vagPickup[] @("assets/pickup.vag");
 
 struct GpuSettings gpu;
 
@@ -37,7 +39,6 @@ struct GpuSettings gpu;
 
 struct Tile
 {
-    struct GpuTexture* texture;
     ushort x;
     ushort y;
     uchar u;
@@ -45,16 +46,18 @@ struct Tile
     ushort __padding;
 };
 
+struct GpuTexture tilesTexture;
+
 void drawTile(struct Tile* tile, int z)
 {
     int* p = gpuAllocZ(5, z);
     if (p == 0) return;
-    uint u = tile->texture->px + tile->u;
-    uint v = tile->texture->py + tile->v;
-    p[0] = GP0_SPRITE2 | tile->texture->tpage;
+    uint u = tilesTexture.px + tile->u;
+    uint v = tilesTexture.py + tile->v;
+    p[0] = GP0_SPRITE2 | tilesTexture.tpage;
     p[1] = GP0_SPRITE_TEX_RAW | COLOR_NEUTRAL;
     p[2] = GP0_PACK_COORDS(tile->x, tile->y);
-    p[3] = GP0_PACK_UV_DATA(u, v, (uint)tile->texture->clutId);
+    p[3] = GP0_PACK_UV_DATA(u, v, (uint)tilesTexture.clutId);
     p[4] = GP0_PACK_COORDS(TILE_WIDTH, TILE_HEIGHT);
 }
 
@@ -85,6 +88,32 @@ uchar levelTiles[20 * 16] = {
 #define LEVEL_WIDTH 20
 #define LEVEL_HEIGHT 16
 
+struct Pickup
+{
+    uint value;
+    ushort x;
+    ushort y;
+    uchar u;
+    uchar v;
+    ushort active;
+};
+
+void drawPickup(struct Pickup* pickup, int z)
+{
+    int* p = gpuAllocZ(5, z);
+    if (p == 0) return;
+    uint u = tilesTexture.px + pickup->u;
+    uint v = tilesTexture.py + pickup->v;
+    p[0] = GP0_SPRITE2 | tilesTexture.tpage;
+    p[1] = GP0_SPRITE_TEX_RAW | COLOR_NEUTRAL;
+    p[2] = GP0_PACK_COORDS(pickup->x, pickup->y);
+    p[3] = GP0_PACK_UV_DATA(u, v, (uint)tilesTexture.clutId);
+    p[4] = GP0_PACK_COORDS(TILE_WIDTH, TILE_HEIGHT);
+}
+
+struct Pickup pickups[3];
+int numPickups = 3;
+
 #define CHARACTER_WIDTH 14
 #define CHARACTER_HEIGHT 16
 
@@ -111,6 +140,48 @@ int boxHitsSolid(int left, int top)
     return 0;
 }
 
+#define CH_WIDTH 10
+#define CH_HEIGHT 12
+#define CH_KERNING -2
+
+void drawText(struct GpuTexture* fontAtlas, int x, int y, char* text)
+{
+    int startX = x;
+    while (*text != 0)
+    {
+        char ch = *text++;
+        if (ch == '\n')
+        {
+            x = startX;
+            y += CH_HEIGHT;
+            continue;
+        }
+        
+        uint u = fontAtlas->px + (ch & 15) * CH_WIDTH;
+        uint v = fontAtlas->py + (ch >> 4) * CH_HEIGHT;
+        int* p = gpuAllocZ(5, 0);
+        p[0] = GP0_SPRITE2 | fontAtlas->tpage;
+        p[1] = GP0_SPRITE_TEX_RAW;
+        p[2] = GP0_PACK_COORDS(x, y);
+        p[3] = GP0_PACK_UV_DATA(u, v, (uint)fontAtlas->clutId);
+        p[4] = (CH_HEIGHT << 16) | CH_WIDTH;
+        
+        x += CH_WIDTH + CH_KERNING;
+    }
+}
+
+void intToStr(char* buf, int len, int value)
+{
+    int pos = len;
+    int a = value;
+    while(pos > 0)
+    {
+        pos--;
+        buf[pos] = '0' + (a % 10);
+        a /= 10;
+    }
+}
+
 void main()
 {
     padInit();
@@ -130,16 +201,35 @@ void main()
     
     spuInit();
     
-    struct GpuTexture tilesTex;
-    gpuTextureInit((struct TimHeader*)tiles, &tilesTex);
-    gpuTextureUpload(&tilesTex);
+    gpuTextureInit((struct TimHeader*)tiles, &tilesTexture);
+    gpuTextureUpload(&tilesTexture);
     
     struct Tile tile;
     tile.x = 0;
     tile.y = 0;
     tile.u = 0;
     tile.v = 0;
-    tile.texture = &tilesTex;
+    
+    pickups[0].value = 10;
+    pickups[0].x = 1 * 16;
+    pickups[0].y = 12 * 16;
+    pickups[0].u = 96;
+    pickups[0].v = 192;
+    pickups[0].active = true;
+    
+    pickups[1].value = 10;
+    pickups[1].x = 18 * 16;
+    pickups[1].y = 5 * 16;
+    pickups[1].u = 96;
+    pickups[1].v = 192;
+    pickups[1].active = true;
+    
+    pickups[2].value = 10;
+    pickups[2].x = 10 * 16;
+    pickups[2].y = 13 * 16;
+    pickups[2].u = 96;
+    pickups[2].v = 192;
+    pickups[2].active = true;
     
     struct GpuTexture characterTex;
     gpuTextureInit((struct TimHeader*)character, &characterTex);
@@ -153,7 +243,14 @@ void main()
     charSprite.color = COLOR_NEUTRAL;
     charSprite.texture = &characterTex;
     
+    struct GpuTexture font;
+    gpuTextureInit((struct TimHeader*)fontImage, &font);
+    gpuTextureUpload(&font);
+    
     int sndJump = spuLoadVag(vagJump);
+    int sndPickup = spuLoadVag(vagPickup);
+    int jumpVoice = -1;
+    int pickupVoice = -1;
     
     int chx = 16;
     int chy = 100;
@@ -167,6 +264,9 @@ void main()
     int onGround = 0;
     
     int animCounter = 0;
+    
+    char* scoreStr = "00000000";
+    int score = 0;
     
     while(1)
     {
@@ -185,7 +285,9 @@ void main()
                 jumpAccel = 3;
                 jumpAccelTimer = 0;
                 canJump = 0;
-                spuPlay(sndJump, 0x3FFF);
+                if (jumpVoice = -1)
+                    spuStop(jumpVoice);
+                jumpVoice = spuPlay(sndJump, 0x3FFF);
             }
         }
         else
@@ -318,14 +420,38 @@ void main()
                 tile.y = y * TILE_HEIGHT;
                 tile.u = (t >> 4)  * TILE_WIDTH;
                 tile.v = (t & 0xf) * TILE_HEIGHT;
-                drawTile(&tile, 1);
+                drawTile(&tile, 2);
             }
         }
+        
+        int chCenterX = chx + 8;
+        int chCenterY = chy + 8;
+        for (int i = 0; i < numPickups; i++)
+        {
+            struct Pickup* pickup = &pickups[i];
+            if (!pickup->active)
+                continue;
+            if (chCenterX >= (pickup->x + 4) && chCenterX <= (pickup->x + 12) &&
+                chCenterY >= (pickup->y + 4) && chCenterY <= (pickup->y + 12))
+            {
+                pickup->active = 0;
+                score += pickup->value;
+                if (pickupVoice = -1)
+                    spuStop(pickupVoice);
+                pickupVoice = spuPlay(sndPickup, 0x3FFF);
+            }
+            
+            if (pickup->active)
+                drawPickup(pickup, 1);
+        }
+        
         charSprite.x = chx - 3;
         charSprite.y = chy - 2;
         charSprite.u = chu;
         charSprite.v = chv;
         gpuSortSprite2(&charSprite, 0);
+        intToStr(scoreStr, 8, score);
+        drawText(&font, 5, 5, scoreStr);
         gpuEndFrame();
     }
 }

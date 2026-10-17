@@ -32,8 +32,6 @@ For more information, please refer to <https://unlicense.org>
 
 struct GpuSettings gpu;
 
-struct GpuSprite2 __charSprite;
-
 #define CH_WIDTH 10
 #define CH_HEIGHT 12
 #define CH_KERNING -2
