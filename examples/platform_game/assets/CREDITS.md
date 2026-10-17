@@ -6,3 +6,6 @@ https://opengameart.org/content/arcade-platformer-assets
 
 `jump.wav` is from 8-bit Platformer SFX pack by MoxieCat:
 https://opengameart.org/content/8-bit-platformer-sfx-0
+
+`pickup.wav` is from 8-Bit Sound Effects Library by Little Robot Sound Factory:
+https://opengameart.org/content/8-bit-sound-effects-library
