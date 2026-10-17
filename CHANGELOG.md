@@ -2,7 +2,9 @@ Retrolang 0.6.0 - TBD
 ---------------------
 - **Retrolib**
   - `cd.ri` - CD audio API
-  - Bugfixes in `spu.ri`.
+  - Bugfixes in `spu.ri`
+- **Examples**
+  - Updated platformer example.
 
 Retrolang 0.5.0 - 16 Oct, 2026
 ------------------------------
