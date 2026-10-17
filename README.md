@@ -213,7 +213,7 @@ In the library:
 
 - Matrix math
 - TMD models support
-- CD audio support
+- XA support
 - MDEC support
 
 ## License
