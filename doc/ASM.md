@@ -106,33 +106,6 @@ The same relocation forms are accepted in 16-bit instruction immediate slots, in
 - Label references must resolve to a code or data label in the linked assembly. Undefined labels are linker errors.
 - A branch outside the signed 16-bit word range is rejected by the linker.
 
-## Inline assembly in Retrolang
-
-Retrolang functions can contain an `asm` block. Its body uses the same line-based syntax,
-instructions, pseudoinstructions, directives, and comments as an `.s` file:
-
-```c
-void addOne(int value)
-{
-    asm
-    {
-        addiu value, value, 1
-    }
-}
-```
-
-An identifier matching a Retrolang variable in the current scope is replaced by its storage
-operand. Register-allocated locals and parameters become their assigned MIPS register;
-stack locals become `offset($sp)` memory operands; globals become their assembler data label.
-Use normal MIPS instructions to load or store memory-backed variables. Prefixing a name with
-`@` forces Retrolang variable substitution, which is useful when it would otherwise look like
-an assembler symbol, for example `lw $t0, @buffer`.
-
-Labels declared inside each block are automatically prefixed so separate blocks can reuse
-label names. Global data labels and function labels referenced by the block are not prefixed.
-Inline assembler has no compiler-managed register clobber list: code that modifies registers
-used for Retrolang variables must account for those changes.
-
 ## Registers
 
 Register syntax is the conventional `$name` form, but the parser also accepts bare numeric register IDs.

@@ -77,7 +77,7 @@ Identifiers can contain letters, digits and underscores (`_`), and cannot start 
 ```
 int short char void uint ushort uchar unsigned
 struct sizeof macro
-if else while do for return break continue
+if else while do for return break continue asm
 ```
 
 The names of the compiler built-ins (`bios_a`, `bios_b`, `bios_c`, `nop` and the `gte_*` intrinsics) are also taken. Do not use them as function names.
@@ -497,3 +497,21 @@ void main()
     bios_a(0x3F, "dot = %d\n", dot(&points[1], &points[2]));   // 10
 }
 ```
+
+### Inline Assembly
+
+Retrolang functions can contain an `asm` block. Its body uses the same line-based syntax, instructions, pseudoinstructions, directives, and comments as an `.s` file:
+
+```c
+void addOne(int value)
+{
+    asm
+    {
+        addiu value, value, 1
+    }
+}
+```
+
+An identifier matching a Retrolang variable in the current scope is replaced by its storage operand. Register-allocated locals and parameters become their assigned MIPS register; stack locals become `offset($sp)` memory operands; globals become their assembler data label. Use normal MIPS instructions to load or store memory-backed variables. Prefixing a name with `@` forces Retrolang variable substitution, which is useful when it would otherwise look like an assembler symbol, for example `lw $t0, @buffer`.
+
+Labels declared inside each block are automatically prefixed so separate blocks can reuse label names. Global data labels and function labels referenced by the block are not prefixed. Inline assembler has no compiler-managed register clobber list: code that modifies registers used for Retrolang variables must account for those changes.
