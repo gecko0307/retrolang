@@ -18,12 +18,17 @@ What can you do with Retrolang (in more or less convenient ways):
 - Access memory cards
 - Work with the BIOS.
 
-Demo screenshots:
+All provided software is experimental and is in alpha stage.
+
+## Screenshots
+
+Platformer game example:
 
 ![Platformer](media/platformer.png)
-![3D scene](media/3d_scene.png)
 
-All provided software is experimental and is in alpha stage.
+3D rendering example:
+
+![3D scene](media/3d_scene.png)
 
 ## Rationale
 
