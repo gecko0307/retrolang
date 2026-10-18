@@ -456,9 +456,34 @@ The compiler is a single-pass, non-optimizing code generator. Knowing its habits
 
 ## 15. Limitations
 
-Not available: floating point types, 64-bit integers, `typedef`, `enum`, `union`, bit-fields, `const`/`static`/`extern`/`volatile`, `switch`, `goto`, the comma operator, function pointers, multi-dimensional arrays, array parameters, `sizeof(expression)`, struct initializers, local array initializers, struct values as arguments, results or expressions, user-defined variadic functions, `#if`/`#ifdef` and function-like `#define` (use `macro`).
+Not available:
 
-Limits: 4 parameters and 4 call arguments; 8 register locals (the rest go to the stack); a stack frame under 32000 bytes; global arrays up to 4000000 elements.
+- floating point types
+- 64-bit integers
+- `typedef`
+- `enum`
+- `union`
+- bit-fields
+- `const`, `static`, `extern`, `volatile`
+- `switch`
+- `goto`
+- the comma operator
+- function pointers
+- multi-dimensional arrays
+- array parameters
+- `sizeof(expression)`
+- struct initializers
+- local array initializers
+- passing structs by value
+- user-defined variadic functions
+- `#if`/`#ifdef`
+- function-like `#define` (use `macro`).
+
+Limits:
+- 4 parameters and 4 call arguments
+- 8 register locals (the rest go to the stack)
+- a stack frame under 32000 bytes
+- global arrays up to 4000000 elements.
 
 ---
 
