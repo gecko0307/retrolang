@@ -75,7 +75,7 @@ Build automation system. With Retrobuild, you don't have to call the compiler di
 
 ## The Language
 
-Retrolang is a very basic curly-bracket procedural language inspired by C, but designed to run in extremely memory-constrained environments.
+Retrolang can be called "C from an alternate universe". It is a simple curly-bracket procedural language inspired by C, but based on a different architectural decisions and designed to run in extremely memory-constrained environments.
 
 **Primitive types**: `int`, `short`, `char`, `uint`, `ushort`, `uchar`, `void`, and pointers to them. Pointers compare as unsigned. Literals above `0x7FFFFFFF`, or with a 'u' suffix, are unsigned. Like C, `uchar`/`ushort` promote to (signed) `int` in arithmetic; only `uint` makes `/`, `%`, `>>` and comparisons unsigned. C-style type casts are supported.
 
