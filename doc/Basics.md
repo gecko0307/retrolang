@@ -58,7 +58,7 @@ import "game/player.r";
 
 RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. Each imported file is compiled once as part of the same bundle. Imports are loaded before the importing file, so structs and other declarations needed by the importer are available. The path is resolved relative to the importing file, then through `--include` directories. Cyclic imports are errors.
 
-AST macros and `#define` directives are not exported between modules; use `#include` for shared definitions.
+Modules are lexically and syntactically independent, and the preprocessor state is local to each module. For this reason, AST macros and `#define` directives are not exported between modules; use `#include "file.ri"` for shared definitions.
 
 A program must define `main()`. It is started from a small stub that sets up the stack pointer. If `main` returns, the CPU spins in an endless loop.
 
