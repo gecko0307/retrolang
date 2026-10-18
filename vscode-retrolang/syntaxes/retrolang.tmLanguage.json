@@ -1,0 +1,209 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Retrolang",
+  "scopeName": "source.retrolang",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#preprocessor"
+    },
+    {
+      "include": "#inline-assembly"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#characters"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#macro-declaration"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#attributes"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.retrolang",
+          "begin": "//",
+          "end": "$"
+        },
+        {
+          "name": "comment.block.retrolang",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "preprocessor": {
+      "name": "meta.preprocessor.retrolang",
+      "begin": "^\\s*(#)\\s*(include|define|undef)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.directive.retrolang"
+        },
+        "2": {
+          "name": "keyword.control.directive.retrolang"
+        }
+      },
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#numbers"
+        },
+        {
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b",
+          "name": "entity.name.constant.retrolang"
+        }
+      ]
+    },
+    "inline-assembly": {
+      "name": "meta.embedded.block.retrolang-assembly",
+      "begin": "\\b(asm)\\s*(\\{)",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.other.asm.retrolang"
+        },
+        "2": {
+          "name": "punctuation.section.block.begin.retrolang"
+        }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.block.end.retrolang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.retrolang-assembly"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.retrolang",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.retrolang"
+        }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.retrolang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#escapes"
+        }
+      ]
+    },
+    "characters": {
+      "name": "string.quoted.single.retrolang",
+      "begin": "'",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.begin.retrolang"
+        }
+      },
+      "end": "'",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.retrolang"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#escapes"
+        }
+      ]
+    },
+    "escapes": {
+      "patterns": [
+        {
+          "match": "\\\\(?:[\\\\\"'nrt0]|x[0-9A-Fa-f]{2})",
+          "name": "constant.character.escape.retrolang"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "match": "\\b0[xX][0-9A-Fa-f]+[uU]?\\b",
+          "name": "constant.numeric.integer.hexadecimal.retrolang"
+        },
+        {
+          "match": "\\b0[bB][01]+[uU]?\\b",
+          "name": "constant.numeric.integer.binary.retrolang"
+        },
+        {
+          "match": "\\b[0-9]+[uU]?\\b",
+          "name": "constant.numeric.integer.decimal.retrolang"
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.retrolang",
+      "match": "\\b(?:if|else|while|do|for|return|break|continue|import)\\b"
+    },
+    "types": {
+      "name": "storage.type.retrolang",
+      "match": "\\b(?:int|short|char|void|uint|ushort|uchar|unsigned|struct|sizeof)\\b"
+    },
+    "constants": {
+      "name": "constant.language.retrolang",
+      "match": "\\b(?:NULL|TRUE|FALSE)\\b"
+    },
+    "macro-declaration": {
+      "match": "(\\bmacro\\s+)([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "storage.type.macro.retrolang"
+        },
+        "2": {
+          "name": "entity.name.function.macro.retrolang"
+        }
+      }
+    },
+    "functions": {
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()",
+      "name": "entity.name.function.retrolang"
+    },
+    "attributes": {
+      "match": "@(?=\\s*(?:\\(|\"))",
+      "name": "punctuation.definition.attribute.retrolang"
+    },
+    "operators": {
+      "match": ">>=|<<=|==|!=|<=|>=|&&|\\|\\||\\+\\+|--|\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|<<|>>|->|[+*/%&|^~!<>=?:.-]",
+      "name": "keyword.operator.retrolang"
+    }
+  }
+}

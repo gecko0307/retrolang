@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Retrolang Assembly",
+  "scopeName": "source.retrolang-assembly",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#directives"
+    },
+    {
+      "include": "#registers"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#instructions"
+    },
+    {
+      "include": "#labels"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "match": "(?://|#|;).*",
+          "name": "comment.line.retrolang-assembly"
+        },
+        {
+          "name": "comment.block.retrolang-assembly",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.retrolang-assembly",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.retrolang-assembly"
+        }
+      ]
+    },
+    "directives": {
+      "match": "^\\s*(\\.[A-Za-z][A-Za-z0-9_.]*)",
+      "captures": {
+        "1": {
+          "name": "keyword.directive.retrolang-assembly"
+        }
+      }
+    },
+    "registers": {
+      "patterns": [
+        {
+          "match": "\\$(?:zero|at|v[01]|a[0-3]|t[0-9]|s[0-7]|k[01]|gp|sp|fp|ra|[0-9]+|[fF][0-9]+|[Cc][0-9]+)\\b",
+          "name": "variable.language.register.retrolang-assembly"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "match": "\\b0[xX][0-9A-Fa-f]+\\b",
+          "name": "constant.numeric.integer.hexadecimal.retrolang-assembly"
+        },
+        {
+          "match": "\\b-?[0-9]+\\b",
+          "name": "constant.numeric.integer.decimal.retrolang-assembly"
+        }
+      ]
+    },
+    "instructions": {
+      "match": "\\b(?:add|addi|addiu|addu|and|andi|beq|bgez|bgtz|blez|bltz|bne|div|divu|j|jal|jalr|jr|lb|lbu|lh|lhu|lui|lw|lwl|lwr|mfc0|mfc2|mfhi|mflo|mtc0|mtc2|mthi|mtlo|mult|multu|nor|or|ori|sb|sh|sll|sllv|slt|slti|sltiu|sltu|sra|srav|srl|srlv|sub|subu|sw|swl|swr|syscall|xor|xori|nop|gte_[A-Za-z0-9_]+|nclip|avsz3|avsz4|dpcs|dpct|intpl|mvmva|ncds|ncdt|ncs|nct|op|rtps|rtpt)\\b",
+      "name": "keyword.instruction.retrolang-assembly"
+    },
+    "labels": {
+      "match": "\\b[A-Za-z_.$][A-Za-z0-9_.$]*(?=\\s*:)",
+      "name": "entity.name.label.retrolang-assembly"
+    }
+  }
+}

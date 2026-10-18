@@ -1,0 +1,53 @@
+{
+  "name": "retrolang-language",
+  "displayName": "Retrolang Language Support",
+  "description": "Syntax highlighting for Retrolang and Retrolang assembly.",
+  "version": "0.1.0",
+  "publisher": "gecko0307",
+  "license": "BSL-1.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "retrolang",
+        "aliases": [
+          "Retrolang",
+          "retrolang"
+        ],
+        "extensions": [
+          ".r",
+          ".ri"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "retrolang-assembly",
+        "aliases": [
+          "Retrolang Assembly",
+          "retrolang-assembly"
+        ],
+        "extensions": [
+          ".s"
+        ],
+        "configuration": "./assembly-language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "retrolang",
+        "scopeName": "source.retrolang",
+        "path": "./syntaxes/retrolang.tmLanguage.json"
+      },
+      {
+        "language": "retrolang-assembly",
+        "scopeName": "source.retrolang-assembly",
+        "path": "./syntaxes/retrolang-assembly.tmLanguage.json"
+      }
+    ]
+  }
+}

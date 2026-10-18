@@ -12,6 +12,8 @@ Retrolang 0.7.0 - TBD
 - **Retrolib**
   - Retrolib now uses modules + includes. Each module can be added to the program separately as needed, or the entire library can be added using `#include "retrolib.ri"`
   - `save.r` + `save.ri` - memory card API.
+- **Misc**
+  - VSCode extension.
 
 Retrolang 0.6.0 - 18 Oct, 2026
 ------------------------------
