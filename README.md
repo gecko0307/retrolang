@@ -100,13 +100,13 @@ Constant initialization is supported only for global arrays.
 
 **BIOS intrinsics**: `bios_a(n, ...)`, `bios_b(n, ...)`, `bios_c(n, ...)` through the `A0h`/`B0h`/`C0h` vectors with up to 3 further arguments. `n` is a function number which is passed in `$t1` register.
 
-**GTE intrinsics**: `gte_enable`, `gte_ctc2`, `gte_mtc2`, `gte_rtpt` and others.
+**Coprocessor intrinsics**: `gte_enable`, `ctc2`, `mtc2`, `gte_rtpt` and others.
 
 **Embedded files**: a global array can have an attribute `@("file.bin")` to embed a file to the executable.
 
 **Inline assembly**: functions can contain `asm` blocks with Retrolang assembly language code.
 
-**AST macros**: abstract, reusable expressions and statements. Retrolang supports expresson macros, parametrized expresson macros, list macros (tuples), and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
+**AST macros**: abstract reusable expressions and statements. Retrolang supports expresson macros, parametrized expresson macros, list macros (tuples), and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
 
 **Static allocator**: a global array can be placed in an arbitrary region of available RAM using the region attribute: `@(0x80180000, 1024)`. Regions work like static arenas: the compiler automatically bumps offset for a new allocation that shares the region base address with existing allocation. List macros can be used to identify regions. Base addresses must be given in KSEG0.
 
