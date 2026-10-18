@@ -11,7 +11,7 @@ iso_xml = "iso.xml"
 cue = "game.cue"
 
 # Extra arguments forwarded to rlc
-rlc_args = ["-i=../include/"]
+rlc_args = ["-i=../../retrolib/"]
 
 [tools]
 # Explicit tool paths (highest priority in discovery)
