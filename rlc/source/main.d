@@ -79,8 +79,8 @@ int main(string[] args)
     {
         auto helpInformation = getopt(
             args,
-            "include|i", "Path-list of directories to search for include files", &includeDirsStr,
-            "data|d",    "Path-list of directories to search for embedded data files", &dataDirsStr,
+            "include|i", "List of semicolon-separated directories to search for include files", &includeDirsStr,
+            "data|d",    "List of semicolon-separated directories to search for embedded data files", &dataDirsStr,
             "output|o",  "Output file name (default is PSX.EXE)", &outputFile,
             "map",       "Write a linker symbol map to the specified file",
             &mapFile,

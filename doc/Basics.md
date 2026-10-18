@@ -34,8 +34,8 @@ rlc [options] <input_file>
 
 | Option | Meaning |
 |---|---|
-| `-i`, `--include` <dirs> | OS-native path-list of directories to search for include files (`;` on Windows, `:` elsewhere) |
-| `-d`, `--data` <dirs> | OS-native path-list of directories to search for embedded data files (`;` on Windows, `:` elsewhere) |
+| `-i`, `--include` <dirs> | list of directories to search for include files (separated with `;`) |
+| `-d`, `--data` <dirs> | list of directories to search for embedded data files (separated with `;`) |
 | `-o`, `--output <file>` | Output file name (default `PSX.EXE`) |
 | `--region <name>` | PS-X EXE region: `japan`, `europe` (default), or `north-america` |
 | `--map <file>` | Write a linker map with code/data symbols and addresses |
