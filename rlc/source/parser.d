@@ -901,6 +901,14 @@ class Parser
     {
         Token t = peek();
 
+        if (t.kind == TK.AsmBlock)
+        {
+            next();
+            auto s = new Stmt(SK.Asm, t.file, t.line);
+            s.asmCode = t.text;
+            return s;
+        }
+
         if (isSym("{"))
             return parseBlock();
 

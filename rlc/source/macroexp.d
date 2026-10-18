@@ -164,6 +164,7 @@ Stmt cloneStmt(Stmt s, MacroSubst ctx)
         n.stmts ~= cloneStmt(c, ctx);
     n.scoped = s.scoped;
     n.e = cloneExpr(s.e, ctx);
+    n.asmCode = s.asmCode;
     n.step = cloneExpr(s.step, ctx);
     n.forInit = cloneStmt(s.forInit, ctx);
     n.thenS = cloneStmt(s.thenS, ctx);

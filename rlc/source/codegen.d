@@ -28,9 +28,11 @@ DEALINGS IN THE SOFTWARE.
 module codegen;
 
 import std.algorithm: canFind;
+import std.ascii: isAlpha, isAlphaNum, isWhite;
 import std.format: format;
 import std.file: read, readText, exists;
 import std.path;
+import std.string: startsWith, toLower, splitLines, strip;
 
 import error;
 import lexer;
@@ -2149,6 +2151,12 @@ class CodeGen
                 break;
             }
 
+            case SK.Asm:
+            {
+                genInlineAsm(s);
+                break;
+            }
+
             case SK.Break:
             {
                 if (breakStack.length == 0)
@@ -2168,6 +2176,267 @@ class CodeGen
             default:
                 break;
         }
+    }
+
+    string inlineVarOperand(string name)
+    {
+        Var v;
+        bool found = false;
+        foreach_reverse (ref sc; scopes)
+        {
+            if (auto p = name in sc)
+            {
+                v = *p;
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            if (auto p = name in globals)
+            {
+                v = *p;
+                found = true;
+            }
+        }
+        if (!found)
+            return "";
+
+        final switch (v.st)
+        {
+            case Storage.InReg:
+                return "$" ~ regToString(v.reg).toLower;
+            case Storage.InStack:
+                return format("%s($sp)", v.offset);
+            case Storage.InGlobal:
+                return v.label;
+            case Storage.InRegion:
+                return format("0x%X", v.allocation.address);
+        }
+    }
+
+    bool[string] inlineAsmLabels(string code)
+    {
+        bool[string] labels;
+        foreach (lineText; code.splitLines)
+        {
+            string line = lineText.strip;
+            while (line.length > 0)
+            {
+                if (!(isAlpha(line[0]) || line[0] == '_' || line[0] == '.'))
+                    break;
+                size_t end = 1;
+                while (end < line.length
+                    && (isAlphaNum(line[end]) || line[end] == '_' || line[end] == '.' || line[end] == '$'))
+                    end++;
+                size_t afterName = end;
+                while (afterName < line.length && isWhite(line[afterName]))
+                    afterName++;
+                if (afterName >= line.length || line[afterName] != ':')
+                    break;
+                labels[line[0 .. end]] = true;
+                line = line[afterName + 1 .. $].strip;
+            }
+        }
+        return labels;
+    }
+
+    string rewriteInlineAsmVars(string code, Stmt s, bool[string] labels)
+    {
+        string result;
+        size_t i = 0;
+        bool lineHasContent = false;
+        bool inLineComment = false;
+        bool inBlockComment = false;
+        bool labelColonExpected = false;
+        char quote = 0;
+
+        while (i < code.length)
+        {
+            char c = code[i];
+            if (c == '\n')
+            {
+                result ~= c;
+                lineHasContent = false;
+                inLineComment = false;
+                labelColonExpected = false;
+                i++;
+                continue;
+            }
+            if (inLineComment)
+            {
+                result ~= c;
+                i++;
+                continue;
+            }
+            if (inBlockComment)
+            {
+                if (c == '*' && i + 1 < code.length && code[i + 1] == '/')
+                {
+                    result ~= "*/";
+                    inBlockComment = false;
+                    i += 2;
+                }
+                else
+                {
+                    result ~= c;
+                    i++;
+                }
+                continue;
+            }
+            if (quote)
+            {
+                result ~= c;
+                if (c == '\\' && i + 1 < code.length)
+                {
+                    result ~= code[i + 1];
+                    i += 2;
+                }
+                else
+                {
+                    if (c == quote)
+                        quote = 0;
+                    i++;
+                }
+                continue;
+            }
+            if (c == '"' || c == '\'')
+            {
+                quote = c;
+                result ~= c;
+                i++;
+                continue;
+            }
+            if (c == ';' || c == '#'
+                || (c == '/' && i + 1 < code.length && code[i + 1] == '/'))
+            {
+                inLineComment = true;
+                result ~= c;
+                i++;
+                continue;
+            }
+            if (c == '/' && i + 1 < code.length && code[i + 1] == '*')
+            {
+                inBlockComment = true;
+                result ~= "/*";
+                i += 2;
+                continue;
+            }
+
+            if (c >= '0' && c <= '9')
+            {
+                size_t end = i + 1;
+                while (end < code.length
+                    && (isAlphaNum(code[end]) || code[end] == '_'))
+                    end++;
+                result ~= code[i .. end];
+                lineHasContent = true;
+                i = end;
+                continue;
+            }
+
+            bool explicitVar = c == '@' && i + 1 < code.length
+                && (isAlpha(code[i + 1]) || code[i + 1] == '_');
+            size_t nameStart = explicitVar ? i + 1 : i;
+            if (isAlpha(code[nameStart]) || code[nameStart] == '_')
+            {
+                size_t end = nameStart + 1;
+                while (end < code.length && (isAlphaNum(code[end]) || code[end] == '_'))
+                    end++;
+                string name = code[nameStart .. end];
+                string operand = inlineVarOperand(name);
+
+                if (explicitVar)
+                {
+                    if (operand.length == 0)
+                        throw err(s.file, s.line, format("unknown variable \"%s\" in asm block", name));
+                    result ~= operand;
+                    lineHasContent = true;
+                    i = end;
+                    continue;
+                }
+
+                size_t afterName = end;
+                while (afterName < code.length && isWhite(code[afterName]) && code[afterName] != '\n')
+                    afterName++;
+                bool label = afterName < code.length && code[afterName] == ':';
+                labelColonExpected = label;
+                bool protectedName = (i > 0 && (code[i - 1] == '$' || code[i - 1] == '.' || code[i - 1] == '%'))
+                    || name in labels;
+                if (operand.length > 0 && !lineHasContent && !label)
+                    protectedName = true; // mnemonic / directive name
+
+                if (operand.length > 0 && !protectedName && !label)
+                    result ~= operand;
+                else
+                    result ~= code[i .. end];
+
+                if (!label)
+                    lineHasContent = true;
+                i = end;
+                continue;
+            }
+
+            result ~= c;
+            if (c == ':' && labelColonExpected)
+                labelColonExpected = false;
+            else if (!isWhite(c))
+                lineHasContent = true;
+            i++;
+        }
+        return result;
+    }
+
+    void unprefixExternalLabels(ref AsmOperand operand, string prefix, bool[string] localLabels)
+    {
+        if (operand.type == AsmOperandType.Label
+            && operand.label.startsWith(prefix)
+            && operand.label !in localLabels)
+            operand.label = operand.label[prefix.length .. $];
+    }
+
+    void genInlineAsm(Stmt s)
+    {
+        string prefix = format("__rlc_inline_%s_", labelCounter++);
+        string code;
+        foreach (i; 1 .. s.line)
+            code ~= '\n';
+        bool[string] labels = inlineAsmLabels(s.asmCode);
+        code ~= rewriteInlineAsmVars(s.asmCode, s, labels);
+
+        size_t start = cur.length;
+        Assembly inlineAssembly = assemble(code, s.file, prefix, start);
+
+        bool[string] localLabels;
+        foreach (name; inlineAssembly.sections.keys)
+            localLabels[name] = true;
+        foreach (entry; inlineAssembly.dataEntries)
+        {
+            if (entry.label.length)
+                localLabels[entry.label] = true;
+        }
+        foreach (ref instr; inlineAssembly.instructions)
+        {
+            if (instr.op == Op.JAL || instr.op == Op.JALR)
+                hasCall = true;
+            unprefixExternalLabels(instr.operand1, prefix, localLabels);
+            unprefixExternalLabels(instr.operand2, prefix, localLabels);
+            unprefixExternalLabels(instr.operand3, prefix, localLabels);
+        }
+        foreach (ref entry; inlineAssembly.dataEntries)
+        {
+            foreach (ref reloc; entry.relocs)
+            {
+                if (reloc.label.startsWith(prefix) && reloc.label !in localLabels)
+                    reloc.label = reloc.label[prefix.length .. $];
+            }
+        }
+
+        foreach (name, index; inlineAssembly.sections)
+            curLbls ~= Lbl(name, index - start);
+        cur ~= inlineAssembly.instructions;
+        ass.dataEntries ~= inlineAssembly.dataEntries;
+        td = 0;
     }
 
     void genDecl(Stmt s)

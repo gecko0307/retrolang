@@ -40,6 +40,7 @@ enum TK
     Ident,
     Num,
     Str,
+    AsmBlock,
     Sym
 }
 
@@ -78,7 +79,7 @@ bool isReserved(string s)
 {
     return inList(s, [
         "int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned",
-        "struct", "sizeof", "macro",
+        "struct", "sizeof", "macro", "asm",
         "if", "else", "while", "do", "for", "return", "break", "continue"
     ]);
 }
@@ -141,7 +142,104 @@ private Token[] lexRaw(string src, string file)
             size_t s = i;
             while (i < src.length && (isAlphaNum(src[i]) || src[i] == '_'))
                 i++;
-            toks ~= Token(TK.Ident, src[s .. i], 0, line);
+            string ident = src[s .. i];
+            if (ident == "asm")
+            {
+                size_t open = i;
+                while (open < src.length && isWhite(src[open]))
+                    open++;
+                if (open < src.length && src[open] == '{')
+                {
+                    int openLine = line;
+                    foreach (ch; src[i .. open])
+                    {
+                        if (ch == '\n')
+                            openLine++;
+                    }
+                    int asmLine = openLine;
+
+                    size_t bodyStart = open + 1;
+                    size_t j = bodyStart;
+                    int depth = 1;
+                    char quote = 0;
+                    bool lineComment = false;
+                    bool blockComment = false;
+
+                    while (j < src.length && depth > 0)
+                    {
+                        char ch = src[j];
+                        if (ch == '\n')
+                        {
+                            if (lineComment)
+                                lineComment = false;
+                            openLine++;
+                            j++;
+                            continue;
+                        }
+                        if (lineComment)
+                        {
+                            j++;
+                            continue;
+                        }
+                        if (blockComment)
+                        {
+                            if (ch == '*' && j + 1 < src.length && src[j + 1] == '/')
+                            {
+                                blockComment = false;
+                                j += 2;
+                            }
+                            else
+                                j++;
+                            continue;
+                        }
+                        if (quote)
+                        {
+                            if (ch == '\\' && j + 1 < src.length)
+                                j += 2;
+                            else
+                            {
+                                if (ch == quote)
+                                    quote = 0;
+                                j++;
+                            }
+                            continue;
+                        }
+                        if (ch == '"' || ch == '\'')
+                        {
+                            quote = ch;
+                            j++;
+                            continue;
+                        }
+                        if ((ch == ';' || ch == '#')
+                            || (ch == '/' && j + 1 < src.length && src[j + 1] == '/'))
+                        {
+                            lineComment = true;
+                            j += (ch == '/') ? 2 : 1;
+                            continue;
+                        }
+                        if (ch == '/' && j + 1 < src.length && src[j + 1] == '*')
+                        {
+                            blockComment = true;
+                            j += 2;
+                            continue;
+                        }
+                        if (ch == '{')
+                            depth++;
+                        else if (ch == '}')
+                            depth--;
+                        j++;
+                    }
+
+                    if (depth != 0)
+                        throw err(file, line, "unterminated asm block");
+
+                    toks ~= Token(TK.AsmBlock, src[bodyStart .. j - 1], 0, asmLine);
+                    line = openLine;
+                    i = j;
+                    continue;
+                }
+            }
+            toks ~= Token(TK.Ident, ident, 0, line);
             continue;
         }
 

@@ -88,6 +88,7 @@ enum SK
     DoWhile,
     For,
     Return,
+    Asm,
     Break,
     Continue,
     Empty
@@ -102,6 +103,7 @@ class Stmt
     Stmt[] stmts;           // Block
     bool scoped = true;     // Block: opens a new scope?
     Expr e;                 // condition / expression / return value / declaration initializer
+    string asmCode;         // Asm
     Expr step;              // For
     Stmt forInit;           // For
     Stmt thenS;             // If / loop body
