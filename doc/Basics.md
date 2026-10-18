@@ -154,7 +154,7 @@ There is no `long`, `float`, `bool`, `enum`, `union` or `typedef`.
 
 **Alignment**: the CPU raises an exception on unaligned `short`/`int` access, and the compiler adds no checks. Be careful when casting a `char*` to an `int*`. Required alignment for `short` is 2 bytes, for `int` - 4 bytes.
 
-**Type system is weak.** Integers and pointers convert freely, and pointer types are not checked against each other. The compiler checks things it cannot compile: dereferencing a non-pointer, bad member access, wrong argument counts, and so on.
+**Type system is intentionally weak.** Integers and pointers convert freely, and pointer types are not checked against each other. The compiler checks things it cannot compile: dereferencing a non-pointer, bad member access, wrong argument counts, and so on.
 
 ---
 
