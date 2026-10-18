@@ -1,6 +1,7 @@
 Retrolang 0.7.0 - TBD
 ---------------------
 - **RLC**
+  - Modules support based on the [unity-build](https://en.wikipedia.org/wiki/Unity_build) method
   - Inline assembly support (`asm` statement blocks)
   - External assembly support was removed because it is redundant now
   - Ternary operator support: `<condition> ? <result_if_true> : <result_if_false>`
@@ -9,7 +10,8 @@ Retrolang 0.7.0 - TBD
   - EXE region selection: `--region japan|europe|north-america`. Europe remains the default
   - Linker map: `--map <file>` for sorted code/data symbol addresses and image sizes
 - **Retrolib**
-  - `save.ri` - memory card API.
+  - Retrolib now uses modules + includes. Each module can be added to the program separately as needed, or the entire library can be added using `#include "retrolib.ri"`
+  - `save.r` + `save.ri` - memory card API.
 
 Retrolang 0.6.0 - 18 Oct, 2026
 ------------------------------
