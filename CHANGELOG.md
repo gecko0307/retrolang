@@ -1,5 +1,5 @@
-Retrolang 0.6.0 - TBD
----------------------
+Retrolang 0.6.0 - 18 Oct, 2026
+------------------------------
 - **Retrolib**
   - `cd.ri` - CD audio API
   - Bugfixes in `spu.ri`
