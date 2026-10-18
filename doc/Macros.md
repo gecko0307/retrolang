@@ -72,11 +72,13 @@ Defaults can use other macros.
 List macros can be used to store compile-time expression lists (tuples):
 
 ```c
+#include "retrolib.ri"
+
 macro MemRegion = (0x80050000, 2048);
  
 void show(uint addr, int size)
 {
-    bios_a(0x3F, "region 0x%08x size %d\n", addr, size);
+    printf("region 0x%08x size %d\n", addr, size);
 }
 
 void main()

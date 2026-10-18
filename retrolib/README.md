@@ -1,6 +1,6 @@
 # Retrolib Standard Library
 
-Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs. These files are meant to be directly included to the main source file using `#include` directive.
+Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs.
 
 * `retrolib.ri` - includes entire library at once (recommended)
 * `core.ri` - core definitions

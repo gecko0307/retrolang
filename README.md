@@ -146,22 +146,23 @@ See [doc folder](/doc) for more details on the language.
 
 ## Retrolib Standard Library
 
-Retrolang provides a minimal set of optional low-level functionality that aid with writing PlayStation programs. Retrolib is a successor of [PSXLib project](https://github.com/gecko0307/psxlib). Its files meant to be directly included to the main source file using `#include` directive.
+Retrolang provides a minimal set of optional low-level functionality that aid with writing PlayStation programs. Retrolib is a successor of [PSXLib project](https://github.com/gecko0307/psxlib).
 
-* `retrolib.ri` - includes entire library at once
+* `retrolib.ri` - imports entire library at once (recommended)
 * `core.ri` - core definitions
 * `bios.ri` - macros for some common BIOS calls
-* `pad.ri` - gamepad driver
-* `gpu.ri` - GPU driver / graphics API
-* `spu.ri` - SPU driver / sound API
-* `cd.ri` - CD audio API
-* `save.ri` - memory card API
-* `pcsx.ri` - PCSX-Redux API.
+* `dma.r` - DMA API
+* `pad.r` + `pad.ri` - gamepad driver
+* `gpu.r` + `gpu.ri` - GPU driver / graphics API
+* `spu.r` + `spu.ri` - SPU driver / sound API
+* `cd.r` - CD audio API
+* `save.r` + `save.ri` - memry card save/load API
+* `pcsx.r` + `pcsx.ri` - PCSX-Redux API.
 
-Usage (assuming you've copied the [include](/examples/include) folder to your project's source directory):
+Usage (assuming you've pointed RLC to `retrolib` as an include directory):
 
 ```c
-#include "include/retrolib.ri"
+#include "retrolib.ri"
 ```
 
 ## Examples Collection
@@ -178,7 +179,6 @@ Usage (assuming you've copied the [include](/examples/include) folder to your pr
 - [platform_game](/examples/platform_game) - 2D platform game
 - [mesh](/examples/mesh) - walkable 3D scene with a first person camera
 - [memcard](/examples/memcard) - memory card reading and writing
-- [noise](/examples/noise) - minimal sound example: noise playback
 - [vag](/examples/vag) - VAG sound playback example.
 
 All examples support building with Retrobuild. RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository. Optionally, to build a CD-ROM image, mkpsxiso must be available system-wide or locally as `/mkpsxiso/mkpsxiso.exe` in the repository.

@@ -56,7 +56,9 @@ import "math.r";
 import "game/player.r";
 ```
 
-Each imported file is compiled once as part of the same program. Imports are loaded before the importing file, so structs and other declarations needed by the importer are available. The path is resolved relative to the importing file, then through `--include` directories. Cyclic imports are errors. Modules share one global namespace; function prototypes can declare interfaces between them. AST macros and `#define` macros are not exported between modules; use `#include` for shared macro definitions and headers.
+Each imported file is compiled once as part of the same program. Imports are loaded before the importing file, so structs and other declarations needed by the importer are available. The path is resolved relative to the importing file, then through `--include` directories. Cyclic imports are errors.
+
+AST macros and `#define` directives are not exported between modules; use `#include` for shared definitions.
 
 A program must define `main()`. It is started from a small stub that sets up the stack pointer. If `main` returns, the CPU spins in an endless loop.
 
@@ -477,6 +479,8 @@ and always name the file and line of the offending source, including inside incl
 ### Recursion
 
 ```c
+#include "retrolib.ri"
+
 int fib(int n)
 {
     if (n < 2)
@@ -486,13 +490,15 @@ int fib(int n)
 
 void main()
 {
-    bios_a(0x3F, "fib(10) = %d\n", fib(10));   // 55
+    printf("fib(10) = %d\n", fib(10)); // 55
 }
 ```
 
 ### Pointers and strings
 
 ```c
+#include "retrolib.ri"
+
 int length(char* s)
 {
     int n = 0;
@@ -503,13 +509,15 @@ int length(char* s)
 
 void main()
 {
-    bios_a(0x3F, "%d\n", length("Retrolang"));   // 9
+    printf("%d\n", length("Retrolang")); // 9
 }
 ```
 
 ### Structs
 
 ```c
+#include "retrolib.ri"
+
 struct Vec
 {
     int x;
@@ -530,6 +538,6 @@ void main()
         points[i].x = i;
         points[i].y = i * 2;
     }
-    bios_a(0x3F, "dot = %d\n", dot(&points[1], &points[2]));   // 10
+    printf("dot = %d\n", dot(&points[1], &points[2])); // 10
 }
 ```
