@@ -53,8 +53,6 @@ Usage:
 rlc -o PSX.EXE src/main.r
 ```
 
-RLC builds all source modules together in one pass; it does not produce object files or support incremental builds. Use top-level `import "file.r";` declarations to organize a program across source files. Modules compile once, dependency-first, into the same program and global namespace. Use C-like `#include`s for textual inclusion, especially shared headers and macros; `.ri` is the recommended extension for included files.
-
 Assembling command is similar (RLC treats *.s file as an assembly source):
 
 ```
@@ -98,7 +96,7 @@ Constant initialization is supported only for global arrays.
 
 **Program entry point**: `main()`, started from a small stub that sets `$sp`.
 
-**Modules**: RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. The `import "file.r"` directive adds a module into the bundle, ensuring each module is parsed only once. AST macros and `#define` directives are not exported between modules; use `#include "file.ri"` for shared definitions.
+**Modules**: RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. RLC builds all source modules together in one pass; it does not produce object files or support incremental builds. The `import "file.r"` directive adds a module into the bundle, ensuring each module is parsed only once. AST macros and `#define` directives are not exported between modules; use `#include "file.ri"` for shared definitions.
 
 **BIOS intrinsics**: `bios_a(n, ...)`, `bios_b(n, ...)`, `bios_c(n, ...)` through the `A0h`/`B0h`/`C0h` vectors with up to 3 further arguments. `n` is a function number which is passed in `$t1` register.
 
@@ -217,7 +215,6 @@ Retrolang includes work-in-progress support for [PCSX-Redux](https://github.com/
 What is not implemented yet in the language:
 
 - Stack arguments
-- Modules
 
 In the library:
 
