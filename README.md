@@ -120,9 +120,11 @@ Constant initialization is supported only for global arrays.
 **Example program:**
 
 ```c
+#include "retrolib.ri"
+
 void main()
 {
-    bios_a(0x3F, "Hello, World!\n");
+    printf("Hello, World!\n");
 }
 ```
 
