@@ -56,7 +56,7 @@ import "math.r";
 import "game/player.r";
 ```
 
-Each imported file is compiled once as part of the same program. Imports are loaded before the importing file, so structs and other declarations needed by the importer are available. The path is resolved relative to the importing file, then through `--include` directories. Cyclic imports are errors.
+RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. Each imported file is compiled once as part of the same bundle. Imports are loaded before the importing file, so structs and other declarations needed by the importer are available. The path is resolved relative to the importing file, then through `--include` directories. Cyclic imports are errors.
 
 AST macros and `#define` directives are not exported between modules; use `#include` for shared definitions.
 

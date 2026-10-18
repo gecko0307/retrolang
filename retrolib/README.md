@@ -2,7 +2,7 @@
 
 Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs.
 
-* `retrolib.ri` - includes entire library at once (recommended)
+* `retrolib.ri` - imports entire library at once (recommended)
 * `core.ri` - core definitions
 * `bios.ri` - macros for some common BIOS calls
 * `dma.r` - DMA API
