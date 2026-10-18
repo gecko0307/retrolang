@@ -1,8 +1,8 @@
 # Retrolang Language Reference
 
-Retrolang is a minimalistic C-like system language for MIPS R3000 / PlayStation 1. The compiler, `rlc`, translates a `.r` source file directly into a PS-X EXE. It has no runtime library, no heap and no optimizer: what you write is, nearly statement for statement, what the CPU executes.
+Retrolang is a minimalistic C-like system programming language for MIPS R3000 / PlayStation 1. The compiler, `rlc`, translates a `.r` source file directly into a PS-X EXE. It has no runtime library, no heap and no optimizer: what you write is, nearly statement for statement, what the CPU executes. Retrolang provides direct access to PlayStation's RAM, hardware registers and coprocessors.
 
-This document covers the core language. See the separate documents for advanced features like macros, GTE intrinsics and external assembly.
+This document covers the core language. See the separate documents for advanced features like macros, GTE intrinsics and the built-in assembler.
 
 ## Contents
 
@@ -16,12 +16,13 @@ This document covers the core language. See the separate documents for advanced 
 8. [Expressions](#8-expressions)
 9. [Structs](#9-structs)
 10. [BIOS calls](#10-bios-calls)
-11. [Hardware access](#11-hardware-access)
-12. [Memory layout and calling convention](#12-memory-layout-and-calling-convention)
-13. [Code generation notes](#13-code-generation-notes)
-14. [Limitations](#14-limitations)
-15. [Errors](#15-errors)
-16. [Examples](#16-examples)
+11. [Inline Assembly](#11-inline-assembly)
+12. [Hardware access](#11-hardware-access)
+13. [Memory layout and calling convention](#12-memory-layout-and-calling-convention)
+14. [Code generation notes](#13-code-generation-notes)
+15. [Limitations](#14-limitations)
+16. [Errors](#15-errors)
+17. [Examples](#16-examples)
 
 ---
 
@@ -220,7 +221,6 @@ void log_value(char* label, int v);   // prototype
 - Only named global functions can be called. There are no function pointers.
 - A `void` function cannot `return` a value. Flowing off the end of a non-`void` function returns whatever is in `$v0`.
 - `main` may be declared `void` or `int`.
-- A function body can be implemented in assembly with `@("file.s")` attribute (see ASM.md).
 
 ---
 
@@ -358,7 +358,27 @@ bios_a(0x3F, "x = %d, name = %s\n", x, name);   // printf
 
 ---
 
-## 11. Hardware access
+## 11. Inline Assembly
+
+Retrolang functions can contain an `asm` block. Its body uses the same line-based syntax, instructions, pseudoinstructions, directives, and comments as an `.s` file:
+
+```c
+void addOne(int value)
+{
+    asm
+    {
+        addiu value, value, 1
+    }
+}
+```
+
+An identifier matching a Retrolang variable in the current scope is replaced by its storage operand. Register-allocated locals and parameters become their assigned MIPS register; stack locals become `offset($sp)` memory operands; globals become their assembler data label. Use normal MIPS instructions to load or store memory-backed variables. Prefixing a name with `@` forces Retrolang variable substitution, which is useful when it would otherwise look like an assembler symbol, for example `lw $t0, @buffer`.
+
+Labels declared inside each block are automatically prefixed so separate blocks can reuse label names. Global data labels and function labels referenced by the block are not prefixed. Inline assembler has no compiler-managed register clobber list: code that modifies registers used for Retrolang variables must account for those changes.
+
+---
+
+## 12. Hardware access
 
 There are no `volatile` or `extern` keywords. Because the compiler performs every load and store you write, memory-mapped registers can be accessed with plain pointers:
 
@@ -376,7 +396,7 @@ For the COP0 and COP2 (GTE) operations, use the dedicated intrinsics (see GTE In
 
 ---
 
-## 12. Memory layout and calling convention
+## 13. Memory layout and calling convention
 
 PSX-EXE file layout is the following:
 
@@ -403,7 +423,7 @@ Symbols in the generated code are `f_<name>` for functions, `g_<name>` for globa
 
 ---
 
-## 13. Code generation notes
+## 14. Code generation notes
 
 The compiler is a single-pass, non-optimizing code generator. Knowing its habits helps with performance-critical code:
 
@@ -416,7 +436,7 @@ The compiler is a single-pass, non-optimizing code generator. Knowing its habits
 
 ---
 
-## 14. Limitations
+## 15. Limitations
 
 Not available: floating point types, 64-bit integers, `typedef`, `enum`, `union`, bit-fields, `const`/`static`/`extern`/`volatile`, `switch`, `goto`, the `?:` and comma operators, function pointers, multi-dimensional arrays, array parameters, `sizeof(expression)`, struct initializers, local array initializers, struct values as arguments, results or expressions, user-defined variadic functions, `#if`/`#ifdef` and function-like `#define` (use `macro`).
 
@@ -424,7 +444,7 @@ Limits: 4 parameters and 4 call arguments; 8 register locals (the rest go to the
 
 ---
 
-## 15. Errors
+## 16. Errors
 
 Diagnostics use the form
 
@@ -436,7 +456,7 @@ and always name the file and line of the offending source, including inside incl
 
 ---
 
-## 16. Examples
+## 17. Examples
 
 ### Recursion
 
@@ -497,21 +517,3 @@ void main()
     bios_a(0x3F, "dot = %d\n", dot(&points[1], &points[2]));   // 10
 }
 ```
-
-### Inline Assembly
-
-Retrolang functions can contain an `asm` block. Its body uses the same line-based syntax, instructions, pseudoinstructions, directives, and comments as an `.s` file:
-
-```c
-void addOne(int value)
-{
-    asm
-    {
-        addiu value, value, 1
-    }
-}
-```
-
-An identifier matching a Retrolang variable in the current scope is replaced by its storage operand. Register-allocated locals and parameters become their assigned MIPS register; stack locals become `offset($sp)` memory operands; globals become their assembler data label. Use normal MIPS instructions to load or store memory-backed variables. Prefixing a name with `@` forces Retrolang variable substitution, which is useful when it would otherwise look like an assembler symbol, for example `lw $t0, @buffer`.
-
-Labels declared inside each block are automatically prefixed so separate blocks can reuse label names. Global data labels and function labels referenced by the block are not prefixed. Inline assembler has no compiler-managed register clobber list: code that modifies registers used for Retrolang variables must account for those changes.

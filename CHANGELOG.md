@@ -1,7 +1,10 @@
 Retrolang 0.7.0 - TBD
 ---------------------
 - **RLC**
-  - Inline assembly support.
+  - Inline assembly support
+  - External assembly support was removed because it is redundant now
+- **Retrolib**
+  - `save.ri` - memory card API.
 
 Retrolang 0.6.0 - 18 Oct, 2026
 ------------------------------

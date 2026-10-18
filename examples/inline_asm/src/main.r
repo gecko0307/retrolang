@@ -25,10 +25,27 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /**
- * External assembly test
+ * Inline assembly test
  */
 
-int printNum(int x) @("printNum.s");
+int printNum(int x)
+{
+    asm
+    {
+      .text
+        move $t0, x
+        li   $a0, msg
+        move $a1, $t0
+        li   $t1, 0x003f
+        li   $t2, 0x00a0
+        jalr  $t2
+        nop
+        li   $v0, 0x01
+        
+      .data
+        msg: .asciiz "printNum(%d)\n"
+    }
+}
 
 void main()
 {

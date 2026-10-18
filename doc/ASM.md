@@ -127,17 +127,17 @@ General-purpose registers:
 
 COP0 registers:
 
-- `BPC`      - breakpoint on execute (R/W)
-- `BDA`      - breakpoint on data access (R/W)
-- `JUMPDEST` - randomly memorized jump address (R)
-- `DCIC`     - breakpoint control (R/W)
-- `BADVADDR` - bad virtual address (R)
-- `BDAM`     - data access breakpoint mask (R/W)
-- `BPCM`     - execute breakpoint mask (R/W)
-- `SR`       - system status (R/W)
-- `CAUSE`    - the most recently recognised exception (R)
-- `EPC`      - return address from trap (R)
-- `PRID`     - processor ID (R)
+- `$BPC`      - breakpoint on execute (R/W)
+- `$BDA`      - breakpoint on data access (R/W)
+- `$JUMPDEST` - randomly memorized jump address (R)
+- `$DCIC`     - breakpoint control (R/W)
+- `$BADVADDR` - bad virtual address (R)
+- `$BDAM`     - data access breakpoint mask (R/W)
+- `$BPCM`     - execute breakpoint mask (R/W)
+- `$SR`       - system status (R/W)
+- `$CAUSE`    - the most recently recognised exception (R)
+- `$EPC`      - return address from trap (R)
+- `$PRID`     - processor ID (R)
 
 COP2 (GTE) data registers:
 

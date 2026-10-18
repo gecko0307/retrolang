@@ -29,7 +29,6 @@ For more information, please refer to <https://unlicense.org>
  */
 
 #include "retrolib.ri"
-#include "save.ri"
 
 #define DATA_SIZE 14
 

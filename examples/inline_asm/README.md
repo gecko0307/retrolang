@@ -1,5 +1,5 @@
-# External Assembler Example
+# Inline Assembly Example
 
-A program that calls a function implemented in assembly.
+A program that implements a function in assembly language.
 
 Run `retrobuild` to compile `iso/PSX.EXE` and build a CD-ROM image (requires [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso)).
