@@ -172,7 +172,7 @@ Usage (assuming you've pointed RLC to `retrolib` as an include directory):
 `examples` directory contains a number of basic demos showcasing possibilities of RLC.
 
 - [asm](/examples/asm) - "Hello, World" program implemented in assembly language
-- [external_asm](/examples/external_asm) - external assembly function example (printing an argument to TTY and returning a value)
+- [inline_asm](/examples/inline_asm) - assembly function example (printing an argument to TTY and returning a value)
 - [pad](/examples/pad) - gamepad test, logs pressed buttons to TTY
 - [triangle](/examples/triangle) - classic colored triangle demo (direct rendering via GP0)
 - [dma](/examples/dma) - classic colored triangle demo (queued rendering via command buffer)
