@@ -34,6 +34,7 @@ import std.bitmanip;
 import std.path;
 import std.getopt;
 import std.format;
+import std.string: toLower;
 
 import mips;
 import ir;
@@ -61,6 +62,7 @@ version(Windows)
 }
 
 enum DefaultOutputFile = "PSX.EXE";
+enum PathListSeparator = ';';
 
 int main(string[] args)
 {
@@ -69,15 +71,21 @@ int main(string[] args)
     string includeDirsStr = "";
     string dataDirsStr = "";
     string outputFile = DefaultOutputFile;
+    string mapFile = "";
+    string regionName = "europe";
     bool verbose = false;
     
     try
     {
         auto helpInformation = getopt(
             args,
-            "include|i", "Colon-separated list of directories to search for include files", &includeDirsStr,
-            "data|d",    "Colon-separated list of directories to search for embedded data files", &dataDirsStr,
+            "include|i", "Path-list of directories to search for include files", &includeDirsStr,
+            "data|d",    "Path-list of directories to search for embedded data files", &dataDirsStr,
             "output|o",  "Output file name (default is PSX.EXE)", &outputFile,
+            "map",       "Write a linker symbol map to the specified file",
+            &mapFile,
+            "region",    "PS-X EXE region: japan, europe, or north-america",
+            &regionName,
             "verbose|v", "Print more information during the build", &verbose
         );
 
@@ -99,12 +107,27 @@ int main(string[] args)
         return 1;
     }
     
-    string[] includeDirs = includeDirsStr.split(':');
-    string[] dataDirs = dataDirsStr.split(':');
+    string[] includeDirs = includeDirsStr.length
+        ? includeDirsStr.split(PathListSeparator)
+        : [];
+    string[] dataDirs = dataDirsStr.length
+        ? dataDirsStr.split(PathListSeparator)
+        : [];
 
+    PsxExeRegion region;
+    switch (regionName.toLower())
+    {
+        case "japan": region = PsxExeRegion.Japan; break;
+        case "europe": region = PsxExeRegion.Europe; break;
+        case "north-america": region = PsxExeRegion.NorthAmerica; break;
+        default:
+            printError(format("unknown PS-X EXE region \"%s\"; expected japan, europe, or north-america", regionName));
+            return 1;
+    }
+
+    // Read main source file
     string filename = args[1];
     string sourceCode;
-
     try
     {
         sourceCode = readText(filename);
@@ -115,7 +138,7 @@ int main(string[] args)
         return 1;
     }
 
-    // Compilation
+    // Compile/assemble
     Assembly ass;
     string ext = extension(filename);
     if (ext == ".r")
@@ -123,7 +146,7 @@ int main(string[] args)
         printInfo("Compiling \"%s\"...", filename);
         try
         {
-            ass = compile(sourceCode, filename, includeDirs);
+            ass = compile(sourceCode, filename, includeDirs, dataDirs);
         }
         catch (Exception e)
         {
@@ -152,11 +175,11 @@ int main(string[] args)
 
     printInfo("Linking...");
     ubyte[] exeCode;
-    if (!link(ass, verbose, exeCode)) return 1;
+    string mapText;
+    if (!link(ass, verbose, exeCode, mapText, mapFile.length > 0)) return 1;
     
     // Generate PS-X EXE
-    // TODO: region from command line argument
-    PsxExe exe = new PsxExe(exeCode, 0, PsxExeRegion.Europe);
+    PsxExe exe = new PsxExe(exeCode, 0, region);
     
     // Validate memory regions
     try
@@ -176,6 +199,12 @@ int main(string[] args)
     // Save PSX-EXE to file
     printInfo("Saving to \"%s\"...", outputFile);
     write(outputFile, exe.binary); 
+
+    if (mapFile.length)
+    {
+        printInfo("Saving map to \"%s\"...", mapFile);
+        write(mapFile, mapText);
+    }
     
     printInfo("Done!");
     return 0;

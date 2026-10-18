@@ -612,6 +612,21 @@ class CodeGen
                 return (isUint(lt) || isUint(rt)) ? CType(Base.Int, 0, true) : CType(Base.Int, 0);
             }
 
+            case EK.Conditional:
+            {
+                CType ct = typeOf(e.a);
+                CType tt = typeOf(e.b);
+                CType ft = typeOf(e.c);
+                if (isStructVal(ct) || (ct.base == Base.Void && !ct.isPtr) ||
+                    isStructVal(tt) || isStructVal(ft) ||
+                    (tt.base == Base.Void && !tt.isPtr) ||
+                    (ft.base == Base.Void && !ft.isPtr))
+                    throw err(e.file, e.line, "conditional operator needs scalar expressions");
+                if (tt.isPtr) return tt;
+                if (ft.isPtr) return ft;
+                return CType(Base.Int, 0, isUint(tt) || isUint(ft));
+            }
+
             case EK.Assign:
             case EK.IncDec:
                 return typeOf(e.a);
@@ -707,6 +722,7 @@ class CodeGen
             case EK.Var:    return genVar(e, want);
             case EK.Unary:  return genUnary(e, want);
             case EK.Binary: return genBinary(e, want);
+            case EK.Conditional: return genConditional(e, want);
             case EK.Assign: return genAssign(e, want, false);
             case EK.IncDec: return genIncDec(e, want, false);
             case EK.Call:
@@ -738,6 +754,33 @@ class CodeGen
             default:
                 assert(0);
         }
+    }
+
+    Val genConditional(Expr e, int want)
+    {
+        typeOf(e);
+        string lFalse = newLabel();
+        string lEnd = newLabel();
+        Val d = dest0(want);
+
+        genBranch(e.a, lFalse, false);
+        Val t = genExpr(e.b, d.r);
+        if (t.r != d.r)
+        {
+            move(d.r, t.r);
+            release(t);
+        }
+        jump(lEnd);
+
+        placeLabel(lFalse);
+        Val f = genExpr(e.c, d.r);
+        if (f.r != d.r)
+        {
+            move(d.r, f.r);
+            release(f);
+        }
+        placeLabel(lEnd);
+        return d;
     }
 
     Val genConst(long v, int want)
@@ -2659,7 +2702,6 @@ class CodeGen
                 throw err(g.file, g.line,
                     "an array cannot have both an initializer and a file attribute");
             
-            // TODO: build path for searching external files
             string externalFilePath = g.attrFilename;
             bool foundFile = exists(externalFilePath);
             if (!foundFile)

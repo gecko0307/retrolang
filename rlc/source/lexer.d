@@ -63,7 +63,7 @@ immutable string[] syms2 = [
     "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<", ">>", "->"
 ];
 
-immutable string singleSyms = "+-*/%&|^~!<>=(){}[];,.@#";
+immutable string singleSyms = "+-*/%&|^~!<>=(){}[];,.@#?:";
 
 bool inList(string s, const(string)[] list)
 {

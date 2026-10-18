@@ -1,8 +1,13 @@
 Retrolang 0.7.0 - TBD
 ---------------------
 - **RLC**
-  - Inline assembly support
+  - Inline assembly support (`asm` statement blocks)
   - External assembly support was removed because it is redundant now
+  - Ternary operator support: `<condition> ? <result_if_true> : <result_if_false>`
+  - Embedded-data search paths: `--data` is now passed through to compilation
+  - Windows-safe path lists: `--include` and `--data` use `;` as a separator
+  - EXE region selection: `--region japan|europe|north-america`. Europe remains the default
+  - Linker map: `--map <file>` for sorted code/data symbol addresses and image sizes
 - **Retrolib**
   - `save.ri` - memory card API.
 

@@ -38,6 +38,7 @@ enum EK
     Var,
     Unary,
     Binary,
+    Conditional,
     Assign,
     IncDec,
     Call,
@@ -56,6 +57,7 @@ class Expr
     string name;    // identifier (Var, Call) or raw string contents (Str)
     long num;       // Num
     Expr a, b;
+    Expr c;         // Conditional: false expression
     Expr[] args;    // Call
     CType ty;       // Cast target
     bool post;      // IncDec: postfix form

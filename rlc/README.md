@@ -13,3 +13,8 @@ Usage:
 ```
 rlc -o PSX.EXE src/main.r
 ```
+
+Use `--include` and `--data` to specify additional search directories (separated
+by `;` on Windows or `:` on other platforms), `--region` to select the PS-X EXE
+region, and `--map` to write linked symbol addresses to a map file. Run `rlc
+--help` for the full option list.

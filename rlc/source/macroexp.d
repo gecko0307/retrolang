@@ -142,6 +142,7 @@ Expr cloneExpr(Expr e, MacroSubst ctx)
     n.num = e.num;
     n.a = cloneExpr(e.a, ctx);
     n.b = cloneExpr(e.b, ctx);
+    n.c = cloneExpr(e.c, ctx);
     foreach (x; e.args)
         n.args ~= cloneExpr(x, ctx);
     n.ty = e.ty;

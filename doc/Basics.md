@@ -34,9 +34,11 @@ rlc [options] <input_file>
 
 | Option | Meaning |
 |---|---|
-| `-i`, `--include` <dirs> | Colon-separated list of directories to search for include files |
-| `-d`, `--data` <dirs> | Colon-separated list of directories to search for embedded data files |
+| `-i`, `--include` <dirs> | OS-native path-list of directories to search for include files (`;` on Windows, `:` elsewhere) |
+| `-d`, `--data` <dirs> | OS-native path-list of directories to search for embedded data files (`;` on Windows, `:` elsewhere) |
 | `-o`, `--output <file>` | Output file name (default `PSX.EXE`) |
+| `--region <name>` | PS-X EXE region: `japan`, `europe` (default), or `north-america` |
+| `--map <file>` | Write a linker map with code/data symbols and addresses |
 | `-v`, `--verbose` | Print code size, data labels, section addresses and the generated instruction listing |
 | `-h`, `--help` | Show usage |
 
@@ -266,9 +268,14 @@ From highest to lowest. All binary operators are left-associative except assignm
 | 10 | `\|` |
 | 11 | `&&` |
 | 12 | `\|\|` |
-| 13 | `=`  `+=`  `-=`  `*=`  `/=`  `%=`  `&=`  `\|=`  `^=`  `<<=`  `>>=` (right-associative) |
+| 13 | `?:` (right-associative) |
+| 14 | `=`  `+=`  `-=`  `*=`  `/=`  `%=`  `&=`  `\|=`  `^=`  `<<=`  `>>=` (right-associative) |
 
-There is no ternary operator (`?`) and no comma operator.
+There is no comma operator. The ternary operator evaluates its condition first, then evaluates only the selected expression:
+
+```c
+int absValue = x < 0 ? -x : x;
+```
 
 `&&` and `||` short-circuit and produce 0 or 1; so do comparisons and `!`. `>>` is arithmetic for signed operands and logical for `uint`. Operands are evaluated left to right, and call arguments are evaluated left to right.
 
@@ -438,7 +445,7 @@ The compiler is a single-pass, non-optimizing code generator. Knowing its habits
 
 ## 15. Limitations
 
-Not available: floating point types, 64-bit integers, `typedef`, `enum`, `union`, bit-fields, `const`/`static`/`extern`/`volatile`, `switch`, `goto`, the `?:` and comma operators, function pointers, multi-dimensional arrays, array parameters, `sizeof(expression)`, struct initializers, local array initializers, struct values as arguments, results or expressions, user-defined variadic functions, `#if`/`#ifdef` and function-like `#define` (use `macro`).
+Not available: floating point types, 64-bit integers, `typedef`, `enum`, `union`, bit-fields, `const`/`static`/`extern`/`volatile`, `switch`, `goto`, the comma operator, function pointers, multi-dimensional arrays, array parameters, `sizeof(expression)`, struct initializers, local array initializers, struct values as arguments, results or expressions, user-defined variadic functions, `#if`/`#ifdef` and function-like `#define` (use `macro`).
 
 Limits: 4 parameters and 4 call arguments; 8 register locals (the rest go to the stack); a stack frame under 32000 bytes; global arrays up to 4000000 elements.
 

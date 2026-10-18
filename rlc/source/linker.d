@@ -28,6 +28,8 @@ DEALINGS IN THE SOFTWARE.
 module linker;
 
 import std.stdio;
+import std.algorithm.sorting: sort;
+import std.format: format;
 
 import mips;
 import ir;
@@ -35,7 +37,19 @@ import memmap;
 import psxexe;
 import utils;
 
-bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
+struct MapSymbol
+{
+    string name;
+    string kind;
+    uint address;
+}
+
+bool link(
+    Assembly ass,
+    bool verbose,
+    ref ubyte[] executableCode,
+    ref string mapText,
+    bool generateMap)
 {
     // Generate machine words for each instruction, calculate total code size
     size_t codeSize = 0;
@@ -207,6 +221,18 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
         dataLabelAddrs[name] = globalOffset;
     }
 
+    MapSymbol[] mapSymbols;
+    if (generateMap)
+    {
+        foreach (entry; ass.dataEntries)
+            mapSymbols ~= MapSymbol(entry.label, "DATA", dataLabelAddrs[entry.label]);
+        foreach (name, instrIndex; ass.sections)
+            mapSymbols ~= MapSymbol(name, "CODE", relocate(ass.instructions[instrIndex].offset));
+        sort!((a, b) => a.address == b.address
+            ? a.name < b.name
+            : a.address < b.address)(mapSymbols);
+    }
+
     // Relocations
     foreach(i, entry; ass.dataEntries)
     {
@@ -376,7 +402,17 @@ bool link(Assembly ass, bool verbose, ref ubyte[] executableCode)
     code ~= data;
     
     executableCode = code;
-    
+
+    if (generateMap)
+    {
+        mapText = format(
+            "RLC linker map\nLoad address: 0x%08X\nCode size: %s byte(s)\nData size: %s byte(s)\n\nSymbols:\n",
+            LOAD_ADDR, codeSize, offset - dataStartAddr
+        );
+        foreach (symbol; mapSymbols)
+            mapText ~= format("0x%08X %-4s %s\n", symbol.address, symbol.kind, symbol.name);
+    }
+
     return true;
 }
 

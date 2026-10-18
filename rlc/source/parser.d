@@ -49,6 +49,8 @@ bool constUns(Expr e)
         return e.uns;
     if (e.kind == EK.Unary && (e.op == "-" || e.op == "~"))
         return constUns(e.a);
+    if (e.kind == EK.Conditional)
+        return constUns(e.b) || constUns(e.c);
     if (e.kind == EK.Binary)
     {
         switch (e.op)
@@ -122,6 +124,14 @@ bool constEval(Expr e, out long v)
             case "||": v = (a != 0 || b != 0) ? 1 : 0; return true;
             default:   return false;
         }
+    }
+
+    if (e.kind == EK.Conditional)
+    {
+        long condition;
+        if (!constEval(e.a, condition))
+            return false;
+        return constEval(condition ? e.b : e.c, v);
     }
 
     return false;
@@ -1022,7 +1032,7 @@ class Parser
 
     Expr parseAssign()
     {
-        Expr l = parseBin(0);
+        Expr l = parseConditional();
         Token t = peek();
         if (t.kind == TK.Sym && inList(t.text, assignOps))
         {
@@ -1034,6 +1044,20 @@ class Parser
             return e;
         }
         return l;
+    }
+
+    Expr parseConditional()
+    {
+        Expr condition = parseBin(0);
+        if (!acceptSym("?"))
+            return condition;
+
+        auto e = new Expr(EK.Conditional, condition.file, condition.line);
+        e.a = condition;
+        e.b = parseAssign();
+        expectSym(":");
+        e.c = parseConditional();
+        return e;
     }
 
     Expr parseBin(size_t lvl)
