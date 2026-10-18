@@ -1,3 +1,8 @@
+Retrolang 0.7.0 - TBD
+---------------------
+- **RLC**
+  - Inline assembly support.
+
 Retrolang 0.6.0 - 18 Oct, 2026
 ------------------------------
 - **Retrolib**
