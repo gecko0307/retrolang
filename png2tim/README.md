@@ -1,4 +1,4 @@
-#png2tim
+# PNG2TIM
 
 A simple PNG to TIM converter.
 

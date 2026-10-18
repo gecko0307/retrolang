@@ -63,7 +63,7 @@ rlc -o PSX.EXE src/main.s
 
 Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files. Based on [LNK disassembler](https://github.com/gecko0307/psxlib/tree/main/tools/psxdisasm) from PSXLib.
 
-## png2tim
+## PNG2TIM
 
 A simple PNG to TIM converter.
 
