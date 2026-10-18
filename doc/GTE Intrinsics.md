@@ -43,8 +43,8 @@ Convenient GTE macros for common operations:
 
 - `gte_enable()` - enables the GTE. Call this before other GTE intrinsics
 - `gte_set_matrix(short* m)` - copies 3x3 row-major rotation matrix from system memory pointed by `m` to GTE control registers R11R12, R13R21, R22R23, R31R32, R33. `m` should point to a buffer of 9 `short`s
-- `gte_set_vertex(short* v)` - copies an XYZ vertex from the system memory pointed by `v` to GTE data registers VXY0, VZ0, VXY1, VZ1, VXY2, VZ2. `v` should point to a buffer of 4 `shorts` (padding is required for correct alignment)
-- `gte_get_vertex(short* v)` - copies an XYZ vertex from GTE data registers VXY0, VZ0, VXY1, VZ1, VXY2, VZ2 to the system memory pointed by `v`. `v` should point to a buffer of 4 `shorts` (padding is required for correct alignment).
+- `gte_set_vertex(short* v)` - copies an XYZ vertex from the system memory pointed by `v` to GTE data registers VXY0, VZ0, VXY1, VZ1, VXY2, VZ2. `v` should point to a buffer of 12 `shorts` (padding is required for correct alignment, so each vertex is 4 `shorts`)
+- `gte_get_vertex(short* v)` - copies an XYZ vertex from GTE data registers VXY0, VZ0, VXY1, VZ1, VXY2, VZ2 to the system memory pointed by `v`. `v` should point to a buffer of 12 `shorts` (padding is required for correct alignment, so each vertex is 4 `shorts`).
 
 Misc:
 
