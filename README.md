@@ -104,7 +104,7 @@ Constant initialization is supported only for global arrays.
 
 **Embedded files**: a global array can have an attribute `@("file.bin")` to embed a file to the executable.
 
-**External assembly source**: a function with an attribute `@("file.s")` relies on external implementation in Retrolang assembly language. The compiler still generates prologue/epilogue for such functions. Local data/jump labels can be used inside the assembly source. Globally visible labels are not supported.
+**Inline assembly**: functions can contain `asm` blocks with Retrolang assembly language code.
 
 **AST macros**: abstract, reusable expressions and statements. Retrolang supports expresson macros, parametrized expresson macros, list macros (tuples), and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
 
