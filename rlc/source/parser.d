@@ -151,6 +151,7 @@ class Parser
 {
     Token[] toks;
     size_t p;
+    Program program;
 
     /// Macros defined so far (a macro must be defined before it is used).
     Macro[string] macroTable;
@@ -158,9 +159,10 @@ class Parser
     /// Parameters of the macro whose body is being parsed (they shadow macros).
     string[] curParams;
 
-    this(Token[] t)
+    this(Token[] t, Program program = null)
     {
         toks = t;
+        this.program = program is null ? new Program() : program;
     }
 
     Macro lookupMacro(string name)
@@ -539,9 +541,18 @@ class Parser
 
     Program parseProgram()
     {
-        auto prog = new Program();
+        auto prog = program;
         while (peek().kind != TK.Eof)
         {
+            if (isKw("import"))
+            {
+                Token t = next();
+                if (next().kind != TK.Str)
+                    throw err(t.file, t.line, "expected a quoted module path");
+                expectSym(";");
+                continue;
+            }
+
             if (isKw("macro"))
             {
                 parseMacroDef();

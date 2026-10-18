@@ -53,7 +53,7 @@ Usage:
 rlc -o PSX.EXE src/main.r
 ```
 
-Because there are no object files and incremental building support at the moment, main source file (`main.r`) should contain the whole program. You can use C-like `#include`s to make a single source file from multiple files. It is recommended to use `.ri` extension for included files.
+RLC builds all source modules together in one pass; it does not produce object files or support incremental builds. Use top-level `import "file.r";` declarations to organize a program across source files. Modules compile once, dependency-first, into the same program and global namespace. Use C-like `#include`s for textual inclusion, especially shared headers and macros; `.ri` is the recommended extension for included files.
 
 Assembling command is similar (RLC treats *.s file as an assembly source):
 

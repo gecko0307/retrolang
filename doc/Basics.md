@@ -49,6 +49,15 @@ The input file extension selects the front end:
 
 Pipeline: source, then preprocessing and lexing, parsing to an AST, code generation to an intermediate instruction list, linking (encoding and label resolution), and finally the PS-X EXE writer.
 
+Retrolang source files can be organized into modules with top-level imports:
+
+```c
+import "math.r";
+import "game/player.r";
+```
+
+Each imported file is compiled once as part of the same program. Imports are loaded before the importing file, so structs and other declarations needed by the importer are available. The path is resolved relative to the importing file, then through `--include` directories. Cyclic imports are errors. Modules share one global namespace; function prototypes can declare interfaces between them. AST macros and `#define` macros are not exported between modules; use `#include` for shared macro definitions and headers.
+
 A program must define `main()`. It is started from a small stub that sets up the stack pointer. If `main` returns, the CPU spins in an endless loop.
 
 ---
@@ -79,7 +88,7 @@ Identifiers can contain letters, digits and underscores (`_`), and cannot start 
 
 ```
 int short char void uint ushort uchar unsigned
-struct sizeof macro
+struct sizeof macro import
 if else while do for return break continue asm
 ```
 

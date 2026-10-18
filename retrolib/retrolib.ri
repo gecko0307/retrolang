@@ -25,18 +25,15 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /*
- * Retrolib - a standard library for Retrolang
- *
+ * Retrolib - a standard library for Retrolang.
  * This is a minimal set of functionality that aid with writing PlayStation programs.
- * Its modules meant to be directly included to the main source file using `#include` directive.
- * It is recommended to include `retrolib.ri` instead of individual modules.
  */
 
 #include "core.ri"
 #include "bios.ri"
-#include "irq.ri"
 #include "pad.ri"
 #include "gpu.ri"
 #include "spu.ri"
-#include "cd.ri"
 #include "save.ri"
+
+import "retrolib.r";

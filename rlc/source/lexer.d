@@ -79,7 +79,7 @@ bool isReserved(string s)
 {
     return inList(s, [
         "int", "short", "char", "void", "uint", "ushort", "uchar", "unsigned",
-        "struct", "sizeof", "macro", "asm",
+        "struct", "sizeof", "macro", "asm", "import",
         "if", "else", "while", "do", "for", "return", "break", "continue"
     ]);
 }

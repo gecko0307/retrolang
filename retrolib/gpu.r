@@ -1,0 +1,800 @@
+/*
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the software
+to the public domain. We make this dedication for the benefit of the
+public at large and to the detriment of our heirs and successors.
+We intend this dedication to be an overt act of relinquishment in 
+perpetuity of all present and future rights to this software under
+copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+*/
+
+/**
+ * GPU driver (implementation module).
+ */
+
+#include "core.ri"
+#include "gpu.ri"
+
+import "dma.r";
+
+/// Screen-aligned rectangle
+struct GpuRect
+{
+    int x;
+    int y;
+    int width;
+    int height;
+};
+
+/// Solid-colored line
+struct GpuLine1
+{
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+};
+
+/// Gouraud-shaded line
+struct GpuLine2
+{
+    int x1;
+    int y1;
+    int color1;
+    int x2;
+    int y2;
+    int color2;
+};
+
+/// Solid-colored triangle
+struct GpuTriangle1
+{
+    int x1;
+    int y1;
+    int x2;
+    int y2;
+    int x3;
+    int y3;
+    int color;
+};
+
+/// Gouraud-shaded triangle
+struct GpuTriangle2
+{
+    int x1;
+    int y1;
+    int color1;
+
+    int x2;
+    int y2;
+    int color2;
+
+    int x3;
+    int y3;
+    int color3;
+};
+
+/// Textured triangle
+struct GpuTriangle3
+{
+    struct GpuTexture* texture;
+    int x1;
+    int y1;
+    ushort u1;
+    ushort v1;
+    int x2;
+    int y2;
+    ushort u2;
+    ushort v2;
+    int x3;
+    int y3;
+    ushort u3;
+    ushort v3;
+    int color;
+};
+
+/// Solid-colored sprite
+struct GpuSprite1
+{
+    int x;
+    int y;
+    int width;
+    int height;
+};
+
+/// Textured sprite
+struct GpuSprite2
+{
+    struct GpuTexture* texture;
+    int x;
+    int y;
+    int u;
+    int v;
+    int width;
+    int height;
+    int color;
+    int modulate;
+};
+
+/// GPU initalization settings
+struct GpuSettings
+{
+    int videoMode;
+    struct GpuRect display;
+    struct GpuRect clip;
+    int interleaving; // 0 - off, 1 - on
+    int colorDepth;
+};
+
+/// TIM file header
+struct TimHeader
+{
+    uint magic;
+    uint flags;
+};
+
+/// TIM image/CLUT data header
+struct TimData
+{
+    uint size;
+    uint pos;
+    uint wh; // packed width/height
+};
+
+/// Texture info
+struct GpuTexture
+{
+    /// Pixel format
+    uint pmode;
+    
+    /// X offset within the texture page
+    ushort px;
+    
+    /// Y offset
+    ushort py;
+    
+    /// Width
+    ushort width;
+    
+    /// Height
+    ushort height;
+    
+    /// CLUT ID
+    ushort clutId;
+    
+    /// Texture page
+    ushort tpage;
+    
+    /// CLUT info, must be present in RAM while the texture is used
+    struct TimData* clut;
+    
+    /// Image info, must be present in RAM while the texture is used
+    struct TimData* image;
+};
+
+// GPU I/O ports
+int* gp0 = GPU_PORT_GP0;
+int* gp1 = GPU_PORT_GP1;
+
+// DMA ports
+int* dma2Madr = DMA_CH2_MADR; // channel 2: base address
+int* dma2Bcr  = DMA_CH2_BCR;  // channel 2: block control
+int* dma2Chcr = DMA_CH2_CHCR; // channel 2: channel control
+
+// Video mode parameters
+struct GpuSettings* __gpuSettings;
+int screenX = 0;
+int screenY = 0;
+int cyclesPerPixel = 0;
+
+// Internal state
+int  displayOffset = 0;           // vertical offset for double buffering
+
+int  gpuCommandBuffer0[GPU_BUF_WORDS] @GPURegionCommandBuffer0;
+int  gpuCommandBuffer1[GPU_BUF_WORDS] @GPURegionCommandBuffer1;
+
+int* gpuCurrentBuffer = GPU_BUF0; // buffer being filled
+int  gpuBufferPos = 0;            // next free word in gpuCurrentBuffer
+int* gpuLast = 0;                 // header of the last packet in gpuCurrentBuffer
+
+int  gpuOT0[OT_SIZE_WORDS] @GPURegionOT0;
+int  gpuOT1[OT_SIZE_WORDS] @GPURegionOT1;
+
+int* gpuOt = GPU_OT0;             // Pointer to the current ordering table.
+
+/**
+ * Initialize the GPU.
+ * The pointer to the GpuSettings struct must be valid till the end of the program.
+ */
+void gpuInit(struct GpuSettings* settings)
+{
+    __gpuSettings = settings;
+    
+    // Reset GPU
+    *gp1 = GP1_RESET;
+    
+    // Enable DMA channel 2 and select CPU->GP0 transfer direction.
+    *dmaDpcr = *dmaDpcr | DMA_CH2_ENABLE;
+    *gp1 = 0x04000002;
+    gpuCurrentBuffer = GPU_BUF0;
+    gpuBufferPos = 0;
+    gpuLast = 0;
+    
+    // Set drawing mode bits
+    //*gp0 = 0xe1000200;
+    *gp0 = 0xe1000600;
+    
+    // Texture window settings
+    *gp0 = 0xe2000000;
+    
+    // Clip area
+    *gp0 = GP0_CLIP_POS |
+        (__gpuSettings->clip.y << 10 | __gpuSettings->clip.x);
+    *gp0 = GP0_CLIP_SIZE |
+        (__gpuSettings->clip.height - 1 + __gpuSettings->clip.y) << 10 | 
+        (__gpuSettings->clip.width - 1  + __gpuSettings->clip.x);
+    
+    // Drawing offset
+    *gp0 = GP0_DRAW_OFFS;
+    
+    // Mask settings
+    *gp0 = GP0_MASK;
+    
+    // Display offset
+    *gp1 = GP1_DISP_OFFS |
+        (__gpuSettings->display.y << 10) |
+        (__gpuSettings->display.x & 0xffff);
+
+    int x1, x2, y1, y2;
+
+    // Horizontal signal start/end
+    cyclesPerPixel = 0;
+    if      (__gpuSettings->display.width == 256) cyclesPerPixel = 10;
+    else if (__gpuSettings->display.width == 320) cyclesPerPixel = 8;
+    else if (__gpuSettings->display.width == 512) cyclesPerPixel = 5;
+    else if (__gpuSettings->display.width == 640) cyclesPerPixel = 4;
+    if      (__gpuSettings->display.width == 368)
+    {
+        // Special case
+        x1 = 539;
+        x2 = 3227;
+    }
+    else
+    {
+        x1 = HSTART + screenX * cyclesPerPixel;
+        x2 = HSTART + ((screenX + __gpuSettings->display.width) * cyclesPerPixel);
+    }
+    *gp1 = GP1_HRANGE | ((x2 & 0xfff) << 12) | (x1 & 0xfff);
+    bios_a(0x3f, "x1 = %d, x2 = %d\n", x1, x2);
+    
+    // Vertical signal start/end
+    int centerY = VCENTER_NTSC;
+    if (__gpuSettings->videoMode == VMODE_PAL)
+        centerY = VCENTER_PAL;
+    y1 = centerY - __gpuSettings->display.height / 2 + screenY;
+    y2 = y1 + __gpuSettings->display.height;
+    *gp1 = GP1_VRANGE | ((y2 & 0x3FF) << 10) | (y1 & 0x3FF);
+    bios_a(0x3f, "y1 = %d, y2 = %d\n", y1, y2);
+    
+    // Video mode
+    x1 = 0;
+    y1 = 0;
+         if (__gpuSettings->display.width == 256)  x1 = HRES_256;
+    else if (__gpuSettings->display.width == 320)  x1 = HRES_320;
+    else if (__gpuSettings->display.width == 512)  x1 = HRES_512;
+    else if (__gpuSettings->display.width == 640)  x1 = HRES_640;
+    else if (__gpuSettings->display.width == 368)  x1 = HRES_368;
+         if (__gpuSettings->display.height == 240) y1 = VRES_240;
+    else if (__gpuSettings->display.height == 480) y1 = VRES_480;
+    uchar interleaving = (__gpuSettings->interleaving & 0x01) << 5;
+    uchar bitDepth = (__gpuSettings->colorDepth & 0x01) << 4;
+    *gp1 = GP1_DISP_MODE | x1 | y1 | interleaving | bitDepth | (__gpuSettings->videoMode << 3);
+    
+    // Enable display
+    *gp1 = GP1_DISP_ENABLE;
+    
+    gpuCurrentBuffer = GPU_BUF0;
+    gpuOt = GPU_OT0;
+    gpuBufferPos = 0;
+    gpuOtClear();
+}
+
+/// Resets the current OT: ot[N-1] -> ... -> ot[0] -> end
+void gpuOtClear()
+{
+    int i;
+    gpuOt[0] = GPU_LIST_END;
+    for (i = 1; i < OT_SIZE_WORDS; i++)
+        gpuOt[i] = (uint)(gpuOt + i - 1) & GPU_LIST_END;
+}
+
+/**
+ * Reserves a packet of n command words in the current command buffer and returns a
+ * pointer to the first of them, linking the packet into OT bucket z.
+ */
+int* gpuAllocZ(int n, int z)
+{
+    if (gpuBufferPos + n + 1 > GPU_BUF_WORDS)
+        return 0; // out of buffer capacity, caller must drop the primitive
+    
+    int* hdr = gpuCurrentBuffer + gpuBufferPos;
+    gpuBufferPos += n + 1;
+
+    // Header: size | address of whatever the bucket pointed to before
+    *hdr = (n << 24) | (gpuOt[z] & GPU_LIST_END);
+    gpuOt[z] = (uint)hdr & GPU_LIST_END;
+    return hdr + 1;
+}
+
+/// Env/clear packets: always the farthest bucket, so they run first.
+int* gpuAlloc(int n)
+{
+    return gpuAllocZ(n, OT_SIZE_WORDS - 1);
+}
+
+/// Terminates the list in the current buffer and starts the DMA transfer.
+void gpuKick()
+{
+    if (gpuBufferPos == 0)
+        return;
+
+    // the previous transfer must be finished before the channel is reprogrammed
+    while ((*dma2Chcr & DMA_BUSY) != 0) {} //gpuWaitDma();
+
+    *dma2Madr = (uint)(gpuOt + OT_SIZE_WORDS - 1) & 0xffffff;
+    *dma2Bcr = 0;
+    *dma2Chcr = DMA_CH2_LIST_START;
+}
+
+/**
+ * Sends the queued commands, waits until the GPU has executed all of them and
+ * restarts the current buffer. Call this before touching GP0 directly.
+ */
+void gpuFlush()
+{
+    gpuKick();
+    gpuWaitDma();
+    gpuWaitIdle();
+    gpuBufferPos = 0;
+}
+
+///
+void gpuQueueEnv()
+{
+    int* p = gpuAllocZ(3, OT_SIZE_WORDS - 1);
+    p[0] = GP0_DRAW_OFFS | (displayOffset << 11);
+    p[1] = GP0_CLIP_POS |
+        ((displayOffset + __gpuSettings->clip.y) << 10 | __gpuSettings->clip.x);
+    p[2] = GP0_CLIP_SIZE |
+        ((__gpuSettings->clip.height - 1 + displayOffset + __gpuSettings->clip.y) << 10 |
+         (__gpuSettings->clip.width - 1 + __gpuSettings->clip.x));
+}
+
+/**
+ * Ends the frame: starts the DMA and swaps command buffers.
+ * The GPU keeps drawing while the CPU builds the next frame.
+ */
+void gpuEndFrame()
+{
+    gpuKick();
+    gpuWaitDma();
+    gpuWaitCmd();
+    gpuWaitIdle();
+
+    // Show the buffer that was just drawn
+    *gp1 = GP1_DISP_OFFS |
+        ((displayOffset + __gpuSettings->display.y) << 10) |
+        (__gpuSettings->display.x & 0xffff);
+
+    // Switch to the other command buffer and OT
+    if (gpuCurrentBuffer == GPU_BUF0)
+    {
+        gpuCurrentBuffer = GPU_BUF1;
+        gpuOt = GPU_OT1;
+    }
+    else
+    {
+        gpuCurrentBuffer = GPU_BUF0;
+        gpuOt = GPU_OT0;
+    }
+    
+    // Switch to the other framebuffer
+    if (displayOffset == 0)
+        displayOffset = __gpuSettings->display.height;
+    else
+        displayOffset = 0;
+    
+    gpuBufferPos = 0;
+    gpuOtClear();
+    gpuQueueEnv();
+}
+
+/// Creates a texture from a TIM file.
+void gpuTextureInit(struct TimHeader* tim, struct GpuTexture* tex)
+{
+    char* p = (char*)tim;
+    p += sizeof(struct TimHeader);
+    
+    struct TimData* clut = 0;
+    struct TimData* image = 0;
+    uchar* imageData = 0;
+    uchar* clutData = 0;
+    
+    // get the color mode
+    tex->pmode = (tim->flags & 0x03);
+    
+    if ((tim->flags & 0x08) == 0)
+    {
+        // No CLUT present
+        image = (struct TimData*)p;
+        imageData = p + sizeof(struct TimData);
+        tex->clutId = 0;
+    }
+    else
+    {
+        clut = (struct TimData*)p;
+        clutData = p + sizeof(struct TimData);
+        p += clut->size;
+        image = (struct TimData*)p;
+        imageData = p + sizeof(struct TimData);
+        
+        tex->clutId = ((clut->pos >> 10) | (clut->pos & 0xffff) >> 4);
+    }
+    
+    tex->px = (image->pos & 0xffff);
+    tex->py = (image->pos >> 16);
+    
+    tex->tpage = ((tex->py & 0x100) >> 4) | ((tex->px & 0x3ff) >> 6) | ((tex->py & 0x200) << 2);
+    tex->tpage = ((tex->pmode << 7) | tex->tpage);
+    
+    tex->px %= 64; // x/y offset within tpage
+    if (tex->py > 255)
+        tex->py -= 256;
+    
+    // width/height of pixel data
+    tex->width = (image->wh & 0xffff) << (2 - tex->pmode);
+    tex->height = (image->wh >> 16);
+    
+    tex->clut = clut;
+    tex->image = image;
+}
+
+/// Copies texture data (pixel data or CLUT) to VRAM
+void gpuMemToVram(struct TimData* timData, uint sizeInBytes)
+{
+    uint i;
+    uint* pp = (uint*)timData;
+    uint sizeInWords = (sizeInBytes >> 2) - 3;
+
+    gpuWaitIdle();
+
+    *gp0 = GP0_MEM2VRAM;
+    *gp0 = pp[1]; // x, y
+    *gp0 = pp[2]; // width, height
+
+    for (i = 0; i < sizeInWords; i++)
+        *gp0 = pp[3 + i];
+}
+
+/// Copies texture data (pixel data or CLUT) to VRAM using DMA
+void gpuQueueMemToVram(struct TimData* timData, uint sizeInBytes)
+{
+    uint i;
+    uint* pp = (uint*)timData;
+    uint words = (sizeInBytes >> 2) - 3; // skip size/pos/wh
+    uint* data = pp + 3;
+
+    gpuFlush();
+
+    *gp0 = GP0_MEM2VRAM;
+    *gp0 = pp[1]; // x, y
+    *gp0 = pp[2]; // width, height
+
+    // Bulk of the data: DMA in blocks of 16 words
+    uint blocks = words >> 4;
+    uint rest = words & 15;
+    if (blocks > 0)
+    {
+        *dma2Madr = (uint)data & 0xffffff;
+        *dma2Bcr = (blocks << 16) | 16;
+        *dma2Chcr = DMA_CH2_BLOCK_START;
+        gpuWaitDma();
+        data += blocks << 4;
+    }
+
+    // Remaining words by hand
+    for (i = 0; i < rest; i++)
+        *gp0 = data[i];
+}
+
+/// Uploads a texture to VRAM
+void gpuTextureUpload(struct GpuTexture* tex)
+{
+    gpuMemToVram(tex->image, tex->image->size);
+    if (tex->clut != null)
+        gpuMemToVram(tex->clut, tex->clut->size);
+}
+
+/*
+ * Direct drawing.
+ * These functions draw directly via GP0 port.
+ */
+
+/// Clears the screen with the given color.
+void gpuClear(int color)
+{
+    gpuWaitIdle();
+    
+    *gp0 = GP0_FAST_RECT | color;
+    *gp0 = GP0_PACK_COORDS(__gpuSettings->display.x,     __gpuSettings->display.y + displayOffset);
+    *gp0 = GP0_PACK_COORDS(__gpuSettings->display.width, __gpuSettings->display.height);
+}
+
+/**
+ * Fast rectangle filling command.
+ * GP0(02h) rounds down the x-coordinate to the nearest multiple of 16.
+ * The with is rounded up to a multiple of 16 pixels.
+ */
+void gpuFillRectFast(struct GpuRect* rect, int color)
+{
+    gpuWaitIdle();
+    
+    *gp0 = GP0_FAST_RECT | color;
+    *gp0 = GP0_PACK_COORDS(rect->x, rect->y);
+    *gp0 = GP0_PACK_COORDS(rect->width, rect->height);
+}
+
+/// Draws a solid-colored line.
+void gpuDrawLine1(struct GpuLine1* line, int color)
+{
+    gpuWaitIdle();
+    
+    *gp0 = GP0_LINE1 | color;
+    *gp0 = GP0_PACK_COORDS(line->x1, line->y1);
+    *gp0 = GP0_PACK_COORDS(line->x2, line->y2);
+}
+
+/// Draws a Gouraud-shaded line.
+void gpuDrawLine2(struct GpuLine2* line)
+{
+    gpuWaitIdle();
+    
+    *gp0 = GP0_LINE2 | line->color1;
+    *gp0 = GP0_PACK_COORDS(line->x1, line->y1);
+    *gp0 = line->color2;
+    *gp0 = GP0_PACK_COORDS(line->x2, line->y2);
+}
+
+/// Draws a solid-colored sprite.
+void gpuDrawSprite1(struct GpuSprite1* sprite, int color)
+{
+    gpuWaitIdle();
+    
+    *gp0 = GP0_SPRITE1 | color;
+    *gp0 = GP0_PACK_COORDS(sprite->x, sprite->y);
+    *gp0 = GP0_PACK_COORDS(sprite->width, sprite->height);
+}
+
+/// Draws a textured sprite.
+void gpuDrawSprite2(struct GpuSprite2* sprite)
+{
+    uint u = sprite->texture->px + sprite->u;
+    uint v = sprite->texture->py + sprite->v;
+    
+    gpuWaitIdle();
+    
+    *gp0 = GP0_SPRITE2 | sprite->texture->tpage;
+    if (sprite->modulate)
+        *gp0 = GP0_SPRITE_TEX_MOD | sprite->color;
+    else
+        *gp0 = GP0_SPRITE_TEX_RAW | sprite->color;
+    *gp0 = GP0_PACK_COORDS(sprite->x, sprite->y);
+    *gp0 = GP0_PACK_UV_DATA(u, v, (uint)sprite->texture->clutId);
+    *gp0 = GP0_PACK_COORDS(sprite->width, sprite->height);
+}
+
+/// Draws a solid-colored triangle.
+void gpuDrawTriangle1(struct GpuTriangle1* tri, int color)
+{
+    gpuWaitIdle();
+    
+    *gp0 = GP0_TRI1 | color;
+    *gp0 = GP0_PACK_COORDS(tri->x1, tri->y1); 
+    *gp0 = GP0_PACK_COORDS(tri->x2, tri->y2);
+    *gp0 = GP0_PACK_COORDS(tri->x3, tri->y3);
+}
+
+/// Draws a Gouraud-shaded triangle.
+void gpuDrawTriangle2(struct GpuTriangle2* tri)
+{
+    gpuWaitIdle();
+    
+    *gp0 = GP0_TRI2 | tri->color1;
+    *gp0 = GP0_PACK_COORDS(tri->x1, tri->y1);
+    *gp0 = tri->color2;
+    *gp0 = GP0_PACK_COORDS(tri->x2, tri->y2);
+    *gp0 = tri->color3;
+    *gp0 = GP0_PACK_COORDS(tri->x3, tri->y3);
+}
+
+/// Draws a textured triangle.
+void gpuDrawTriangle3(struct GpuTriangle3* tri)
+{
+    uint px, py, u, v;
+    px = tri->texture->px;
+    py = tri->texture->py;
+    
+    gpuWaitIdle();
+    
+    *gp0 = GP0_TRI3 | tri->color;
+    *gp0 = GP0_PACK_COORDS(tri->x1, tri->y1);
+    u = px + tri->u1;
+    v = py + tri->v1;
+    *gp0 = GP0_PACK_UV_DATA(u, v, (uint)tri->texture->clutId);
+    *gp0 = GP0_PACK_COORDS(tri->x2, tri->y2);
+    u = px + tri->u2;
+    v = py + tri->v2;
+    *gp0 = GP0_PACK_UV_DATA(u, v, (uint)tri->texture->tpage);
+    *gp0 = GP0_PACK_COORDS(tri->x3, tri->y3);
+    u = px + tri->u3;
+    v = py + tri->v3;
+    *gp0 = GP0_PACK_UV(u, v);
+}
+
+/**
+ * Queued drawing.
+ * These functions don't stall the CPU. Commands are inserted into
+ * the current command buffer and linked to OT at the specified Z.
+ */
+
+/// Clears the screen with the given color.
+void gpuSortClear(int color)
+{
+    // Allocate the farthest bucket
+    int* p = gpuAllocZ(3, OT_SIZE_WORDS - 1);
+    if (p == 0) return;
+    
+    p[0] = GP0_FAST_RECT | color;
+    p[1] = GP0_PACK_COORDS(__gpuSettings->display.x,     __gpuSettings->display.y + displayOffset);
+    p[2] = GP0_PACK_COORDS(__gpuSettings->display.width, __gpuSettings->display.height);
+}
+
+/// Draws a solid-colored line.
+void gpuSortLine1(struct GpuLine1* line, int z, int color)
+{
+    int zz = z;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
+    int* p = gpuAllocZ(3, zz);
+    if (p == 0) return;
+    
+    p[0] = GP0_LINE1 | color;
+    p[1] = GP0_PACK_COORDS(line->x1, line->y1);
+    p[2] = GP0_PACK_COORDS(line->x2, line->y2);
+}
+
+/// Draws a Gouraud-shaded line.
+void gpuSortLine2(struct GpuLine2* line, int z)
+{
+    int zz = z;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
+    int* p = gpuAllocZ(4, zz);
+    if (p == 0) return;
+    
+    p[0] = GP0_LINE2 | line->color1;
+    p[1] = GP0_PACK_COORDS(line->x1, line->y1);
+    p[2] = line->color2;
+    p[3] = GP0_PACK_COORDS(line->x2, line->y2);
+}
+
+/// Draws a solid-colored sprite.
+void gpuSortSprite1(struct GpuSprite1* sprite, int z, int color)
+{
+    int zz = z;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
+    int* p = gpuAllocZ(3, zz);
+    if (p == 0) return;
+    
+    p[0] = GP0_SPRITE1 | color;
+    p[1] = GP0_PACK_COORDS(sprite->x, sprite->y);
+    p[2] = GP0_PACK_COORDS(sprite->width, sprite->height);
+}
+
+/// Draws a textured sprite.
+void gpuSortSprite2(struct GpuSprite2* sprite, int z)
+{
+    int zz = z;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
+    int* p = gpuAllocZ(5, zz);
+    if (p == 0) return;
+    
+    uint u = sprite->texture->px + sprite->u;
+    uint v = sprite->texture->py + sprite->v;
+    p[0] = GP0_SPRITE2 | sprite->texture->tpage;
+    if (sprite->modulate)
+        p[1] = GP0_SPRITE_TEX_MOD | sprite->color;
+    else
+        p[1] = GP0_SPRITE_TEX_RAW | sprite->color;
+    p[2] = GP0_PACK_COORDS(sprite->x, sprite->y);
+    p[3] = GP0_PACK_UV_DATA(u, v, (uint)sprite->texture->clutId);
+    p[4] = GP0_PACK_COORDS(sprite->width, sprite->height);
+}
+
+/// Draws a solid-colored triangle.
+void gpuSortTriangle1(struct GpuTriangle1* tri, int z, int color)
+{
+    int zz = z;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
+    int* p = gpuAllocZ(4, zz);
+    if (p == 0) return;
+    
+    p[0] = GP0_TRI1 | color;
+    p[1] = GP0_PACK_COORDS(tri->x1, tri->y1);
+    p[2] = GP0_PACK_COORDS(tri->x2, tri->y2);
+    p[3] = GP0_PACK_COORDS(tri->x3, tri->y3);
+}
+
+/// Draws a Gouraud-shaded triangle.
+void gpuSortTriangle2(struct GpuTriangle2* tri, int z)
+{
+    int zz = z;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
+    int* p = gpuAllocZ(6, zz);
+    if (p == 0) return;
+    
+    p[0] = GP0_TRI2 | tri->color1;
+    p[1] = GP0_PACK_COORDS(tri->x1, tri->y1);
+    p[2] = tri->color2;
+    p[3] = GP0_PACK_COORDS(tri->x2, tri->y2);
+    p[4] = tri->color3;
+    p[5] = GP0_PACK_COORDS(tri->x3, tri->y3);
+}
+
+/// Draws a textured triangle.
+void gpuSortTriangle3(struct GpuTriangle3* tri, int z)
+{
+    int zz = z;
+    if (zz > OT_SIZE_WORDS - 2)
+        zz = OT_SIZE_WORDS - 2;
+    int* p = gpuAllocZ(7, zz);
+    if (p == 0) return;
+    
+    uint px, py, u, v;
+    px = tri->texture->px;
+    py = tri->texture->py;
+    
+    p[0] = GP0_TRI3 | tri->color;
+    p[1] = GP0_PACK_COORDS(tri->x1, tri->y1);
+    u = px + tri->u1;
+    v = py + tri->v1;
+    p[2] = GP0_PACK_UV_DATA(u, v, (uint)tri->texture->clutId);
+    p[3] = GP0_PACK_COORDS(tri->x2, tri->y2);
+    u = px + tri->u2;
+    v = py + tri->v2;
+    p[4] = GP0_PACK_UV_DATA(u, v, (uint)tri->texture->tpage);
+    p[5] = GP0_PACK_COORDS(tri->x3, tri->y3);
+    u = px + tri->u3;
+    v = py + tri->v3;
+    p[6] = GP0_PACK_UV(u, v);
+}

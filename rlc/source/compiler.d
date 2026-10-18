@@ -85,12 +85,76 @@ DEALINGS IN THE SOFTWARE.
  */
 module compiler;
 
+import std.file: readText, exists;
+import std.format: format;
+import std.path: absolutePath, buildNormalizedPath, buildPath, dirName, isAbsolute;
+import std.string: join;
+
 import types;
 import lexer;
 import ast;
 import parser;
 import codegen;
 import ir;
+import error;
+
+struct ModuleImport
+{
+    string path;
+    Token token;
+}
+
+private ModuleImport[] findModuleImports(Token[] toks)
+{
+    ModuleImport[] imports;
+    int braceDepth = 0;
+
+    for (size_t i = 0; i < toks.length && toks[i].kind != TK.Eof; ++i)
+    {
+        Token t = toks[i];
+        if (t.kind == TK.Ident && t.text == "import")
+        {
+            if (braceDepth != 0)
+                throw err(t.file, t.line, "import declarations are only allowed at file scope");
+            if (i + 2 >= toks.length || toks[i + 1].kind != TK.Str ||
+                toks[i + 2].kind != TK.Sym || toks[i + 2].text != ";")
+                throw err(t.file, t.line, "expected import \"file\";");
+            if (toks[i + 1].text.length == 0)
+                throw err(t.file, t.line, "import path cannot be empty");
+            imports ~= ModuleImport(toks[i + 1].text, t);
+            i += 2;
+            continue;
+        }
+
+        if (t.kind == TK.Sym && t.text == "{")
+            braceDepth++;
+        else if (t.kind == TK.Sym && t.text == "}")
+            braceDepth--;
+    }
+
+    return imports;
+}
+
+private string resolveModulePath(string name, string importer, string[] includeDirs, Token use)
+{
+    string full = isAbsolute(name)
+        ? name
+        : (importer.length ? buildPath(dirName(importer), name) : name);
+    if (!exists(full) && !isAbsolute(name))
+    {
+        foreach (dir; includeDirs)
+        {
+            full = buildPath(dir, name);
+            if (exists(full))
+                break;
+        }
+    }
+
+    if (!exists(full))
+        throw err(use.file, use.line, format("can't find imported module \"%s\"", name));
+
+    return buildNormalizedPath(absolutePath(full));
+}
 
 /// Compiles source text to Assembly object.
 Assembly compile(
@@ -100,7 +164,64 @@ Assembly compile(
     string[] dataDirs = [])
 {
     structDefs = null;
-    Token[] toks = lex(source, filename, includeDirs);
-    Program p = (new Parser(toks)).parseProgram();
+
+    auto p = new Program();
+    bool[string] loading;
+    bool[string] loaded;
+    string[] importStack;
+
+    void loadModule(string moduleSource, string modulePath, Token useSite)
+    {
+        string normalizedPath = buildNormalizedPath(absolutePath(modulePath));
+        if (normalizedPath in loaded)
+            return;
+        if (normalizedPath in loading)
+        {
+            bool inCycle = false;
+            string[] cycle;
+            foreach (path; importStack)
+            {
+                if (path == normalizedPath)
+                    inCycle = true;
+                if (inCycle)
+                    cycle ~= path;
+            }
+            cycle ~= normalizedPath;
+            throw err(useSite.file, useSite.line, "circular module import: " ~ cycle.join(" -> "));
+        }
+
+        loading[normalizedPath] = true;
+        importStack ~= normalizedPath;
+        scope(exit)
+        {
+            importStack = importStack[0 .. $ - 1];
+            loading.remove(normalizedPath);
+        }
+
+        Token[] toks = lex(moduleSource, modulePath, includeDirs);
+        foreach (moduleImport; findModuleImports(toks))
+        {
+            string importedPath = resolveModulePath(
+                moduleImport.path,
+                normalizedPath,
+                includeDirs,
+                moduleImport.token
+            );
+
+            string importedSource;
+            try
+                importedSource = readText(importedPath);
+            catch (Exception e)
+                throw err(moduleImport.token.file, moduleImport.token.line,
+                    format("error reading imported module \"%s\": %s", importedPath, e.msg));
+
+            loadModule(importedSource, importedPath, moduleImport.token);
+        }
+
+        (new Parser(toks, p)).parseProgram();
+        loaded[normalizedPath] = true;
+    }
+
+    loadModule(source, filename, Token.init);
     return (new CodeGen(filename, dataDirs, includeDirs)).generate(p);
 }

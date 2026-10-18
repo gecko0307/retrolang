@@ -24,37 +24,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
-/**
- * Interrupts (WIP).
- */
+#include "core.ri"
 
-int* I_MASK = 0x1F801074; // Interrupt mask register
-int* I_STAT = 0x1F801070; // Interrupt status register
-
-/// This is only needed if you don't call padInit, which is unlikely.
-void irqEnable()
-{
-    int sr = mfc0(COP0_SR);
-    sr = sr | 0x0401; // Set IEc (bit 0) + IM2 (bit 10)
-    mtc0(COP0_SR, sr);
-}
-
-void irqDisable()
-{
-    int sr = mfc0(COP0_SR);
-    sr = sr & ~0x0001; // Clear IEc bit only
-    mtc0(COP0_SR, sr);
-}
-
-int irqSave()
-{
-    int sr = mfc0(COP0_SR);
-    mtc0(COP0_SR, sr & ~0x0001);
-    return sr & 0x0001; // previous IEc
-}
-
-void irqRestore(int prev)
-{
-    if (prev)
-        irqEnable();
-}
+/// DMA control (channel enables / priorities)
+int* dmaDpcr = DMA_DPCR;

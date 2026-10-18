@@ -26,9 +26,9 @@ For more information, please refer to <https://unlicense.org>
 
 /*
  * CD audio driver.
- *
- * Depends on core.ri
  */
+
+import "irq.r";
 
 uchar* CD_INDEX = 0x1F801800; // read: status, write: register index (0-3)
 uchar* CD_REG1  = 0x1F801801; // idx0 write: command | read: response FIFO
