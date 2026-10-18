@@ -29,6 +29,7 @@ For more information, please refer to <https://unlicense.org>
  */
 
 #include "retrolib.ri"
+#include "math.ri"
 
 // Model-space vertex
 struct Vertex
@@ -245,26 +246,6 @@ struct GpuSettings gpu;
 uchar texture[] @("assets/texture.tim");
 uchar character[] @("assets/character.psm");
 uchar floor[] @("assets/floor.psm");
-uchar sin4096[] @("sin_table/sin4096.bin");
-
-#define QPI 0x200
-#define HPI 0x400
-#define PI  0x800
-#define PI2 0x1000
-
-// Fast fixed-point sine
-short sin(uint angle)
-{
-    short* sinTable = (short*)sin4096;
-    return sinTable[angle & 0xfff];
-}
-
-// Fast fixed-point cosine
-short cos(uint angle)
-{
-    short* sinTable = (short*)sin4096;
-    return sinTable[(angle + HPI) & 0xfff];
-}
 
 void trSetRotationIdentity(struct RTPSTransform* tr)
 {
