@@ -176,7 +176,8 @@ int main(string[] args)
     printInfo("Linking...");
     ubyte[] exeCode;
     string mapText;
-    if (!link(ass, verbose, exeCode, mapText, mapFile.length > 0)) return 1;
+    if (!link(ass, verbose, exeCode, mapText, mapFile.length > 0))
+        return 1;
     
     // Generate PS-X EXE
     PsxExe exe = new PsxExe(exeCode, 0, region);
