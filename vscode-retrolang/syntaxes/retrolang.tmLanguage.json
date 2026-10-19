@@ -60,7 +60,7 @@
     },
     "preprocessor": {
       "name": "meta.preprocessor.retrolang",
-      "begin": "^\\s*(#)\\s*(include|define|undef)\\b",
+      "begin": "^\\s*(#)\\s*(include|import|define|undef|if|endif)\\b",
       "beginCaptures": {
         "1": {
           "name": "punctuation.definition.directive.retrolang"
@@ -172,7 +172,7 @@
     },
     "keywords": {
       "name": "keyword.control.retrolang",
-      "match": "\\b(?:if|else|while|do|for|return|break|continue|import)\\b"
+      "match": "\\b(?:if|else|while|do|for|return|break|continue|import|asm)\\b"
     },
     "types": {
       "name": "storage.type.retrolang",
@@ -180,7 +180,7 @@
     },
     "constants": {
       "name": "constant.language.retrolang",
-      "match": "\\b(?:NULL|TRUE|FALSE)\\b"
+      "match": "\\b(?:null|true|false)\\b"
     },
     "macro-declaration": {
       "match": "(\\bmacro\\s+)([A-Za-z_][A-Za-z0-9_]*)",
