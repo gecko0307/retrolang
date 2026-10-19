@@ -49,16 +49,62 @@ The input file extension selects the front end:
 
 Pipeline: source, then preprocessing and lexing, parsing to an AST, code generation to an intermediate instruction list, linking (encoding and label resolution), and finally the PS-X EXE writer.
 
-Retrolang source files can be organized into modules with top-level imports:
+### Module system
+
+RLC compiles a Retrolang program as a [unity build](https://en.wikipedia.org/wiki/Unity_build): the root source file and its imported modules are parsed and compiled together into one executable. This is a middle ground between textual inclusion and a full-featured module system:
+
+- Modules have no private scope, exports, or separate object files. All declarations share one global namespace, so global names must not conflict.
+- Imports are declarations at file scope. An import may be written directly as `import "file.r";`, or as the `#import` directive described below.
+- RLC loads each module once per compilation, before parsing the file that imports it. This lets an importer use declarations such as struct definitions from its dependencies.
+- Import paths are resolved relative to the file containing the import. If the file is not found there, RLC searches the directories supplied with `--include` (or `-i`), in order. Separate multiple directories with `;`.
+- Cyclic module imports are errors. Importing the same resolved file through multiple paths does not compile it more than once.
+
+#### `import` declaration and `#import` directive
+
+The language-level declaration `import "file.r";` adds a module to the compilation graph. It does not textually insert that file's tokens into the importing source.
+
+The preprocessor directive `#import "file.r"` does both jobs: it textually processes the file, then creates an `import "file.r";` declaration so RLC also compiles the file as a module. This combination is useful because preprocessor definitions and AST macro definitions are local to each module. Textual processing makes those definitions available to the importer; the module import compiles the module's ordinary declarations exactly once.
+
+Use `#if import` / `#endif` to keep ordinary declarations out of the textual copy while retaining them when the file is compiled as a module:
 
 ```c
-import "math.r";
-import "game/player.r";
+// module.r
+#define BASE_VALUE 10
+macro AddBase(value) = BASE_VALUE + value;
+
+#if import
+
+#import "bios.r"
+
+void print_value(int value)
+{
+    printf("%d\n", AddBase(value));
+}
+
+#endif
 ```
 
-RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. Each imported file is compiled once as part of the same bundle. Imports are loaded before the importing file, so structs and other declarations needed by the importer are available. The path is resolved relative to the importing file, then through `--include` directories. Cyclic imports are errors.
+```c
+// main.r
+#import "module.r"
 
-Modules are lexically and syntactically independent, and the preprocessor state is local to each module. For this reason, AST macros and `#define` directives are not exported between modules; use `#include "file.ri"` for shared definitions.
+void main()
+{
+    print_value(5);
+}
+```
+
+When a file is textually included with `#include` or `#import`, its `#if import` block is skipped. When RLC processes it as a module, that block is included.
+
+Use plain `import` when only module compilation is needed and the importer does not need the imported file's preprocessor or AST macro definitions. Use `#include` for text-only inclusion, such as sharing `#define` directives. Use `#import` for the common case where a file provides both macros and module declarations. A module's ordinary declarations should be inside `#if import` when it can be included with `#import`; otherwise they would also be inserted into the importer as source text.
+
+Imports are only valid at file scope. `#import` uses a quoted path and, like other preprocessor directives, must start at the beginning of a line. For example, to use a library module:
+
+```c
+#import "retrolib.r"
+```
+
+Each module is preprocessed and parsed independently. A module's `#define` state does not flow through a plain module import into another module. The textual part of `#import` is what shares preprocessor and AST macro definitions with its importer; it does not make modules have separate declaration namespaces.
 
 A program must define `main()`. It is started from a small stub that sets up the stack pointer. If `main` returns, the CPU spins in an endless loop.
 
@@ -125,8 +171,10 @@ A preprocessor directive must be the first token on its line and takes the rest 
 | `#define NAME tokens...` | Object-like token macro (no parameters) |
 | `#undef NAME` | Remove a definition |
 | `#include "file"` | Insert another source file |
+| `#import "file"` | Insert a source file and add a module import |
+| `#if import` / `#endif` | Include a block only when compiling the file as a module, not when textually included |
 
-`#define` bodies are token sequences, expanded where the name is used. A macro never expands recursively into itself. There is no `#if`/`#ifdef` and no include guard, so include each file once. A file that includes itself, directly or indirectly, is an error.
+`#define` bodies are token sequences, expanded where the name is used. A macro never expands recursively into itself. `#if import` is the only supported conditional directive; there is no `#ifdef`, expression evaluation, or general-purpose conditional compilation. There is no conventional include guard, so avoid textually including a file more than once unless its contents are safe to repeat. A file that includes itself, directly or indirectly, is an error.
 
 `#define` is purely lexical. For typed, hygienic substitution use `macro` (see Macros.md).
 
