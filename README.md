@@ -213,7 +213,7 @@ duckstation -fastboot -- %~dp0/iso/PSX.EXE
 
 ## PCSX-Redux MIPS API
 
-Retrolib includes work-in-progress support for [PCSX-Redux](https://github.com/grumpycoders/pcsx-redux) binary API that is described [here](https://pcsx-redux.consoledev.net/mips_api/). It allows PlayStation programs to communicate with the emulator for debugging purposes.
+Retrolib includes full support for [PCSX-Redux](https://github.com/grumpycoders/pcsx-redux) binary API that is described [here](https://pcsx-redux.consoledev.net/mips_api/). It allows PlayStation programs to communicate with the emulator for debugging purposes.
 
 ## TODO
 
