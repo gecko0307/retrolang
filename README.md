@@ -67,6 +67,10 @@ Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE fi
 
 A simple PNG to TIM converter.
 
+## WAV2VAG
+
+An utility for converting integer PCM WAV files to PlayStation ADPCM VAG files and decoding VAG files back to WAV. Build it with `dmd wav2vag.d -of=wav2vag.exe`; run `wav2vag.exe --help` for options.
+
 ## Retrobuild
 
 Build automation system. With Retrobuild, you don't have to call the compiler directly or write platform-specific scripts. It compiles a project, packs it into a CD-ROM image (CUE+BIN) using [mkpsxiso](https://github.com/lameguy64/mkpsxiso), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe projects.
@@ -226,7 +230,7 @@ What is not implemented yet:
 
 ## License
 
-RLC, PSXDISASM, Retrobuild and png2tim are distributed under the Boost Software License, 1.0.
+RLC, PSXDISASM, Retrobuild, png2tim and wav2vag are distributed under the Boost Software License, 1.0.
 
 The standard library and all examples are distributed under Unlicense/Public Domain.
 

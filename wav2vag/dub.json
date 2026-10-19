@@ -1,0 +1,9 @@
+{
+    "name": "wav2vag",
+    "description": "PCM WAV to PlayStation VAG file converter",
+    "authors": [
+        "Timur Gafarov"
+    ],
+    "copyright": "Copyright © 2026, Timur Gafarov",
+    "license": "BSL-1.0"
+}

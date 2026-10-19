@@ -1,1 +1,0 @@
-psxavenc -t vag -f 25000 camera.wav camera.vag
