@@ -345,14 +345,19 @@ private Token[] preprocess(
     string path,
     ref Token[][string] macros,
     ref bool[string] including,
-    string[] includeDirs)
+    string[] includeDirs,
+    bool isIncludedFile = false)
 {
     Token[] res;
     size_t i = 0;
+    
+    bool insertBlock = true;
 
     while (i < toks.length)
     {
         Token t = toks[i];
+        import std.stdio;
+        //writeln(t, " ", insertBlock);
         if (t.kind == TK.Eof)
             break;
 
@@ -373,20 +378,37 @@ private Token[] preprocess(
             switch (d[0].text)
             {
                 case "define":
+                    if (!insertBlock) break;
                     if (d.length < 2 || d[1].kind != TK.Ident)
                         throw err(path, t.line, "#define needs a name");
                     macros[d[1].text] = d[2 .. $].dup;   // body is already tokenized
                     break;
 
                 case "undef":
+                    if (!insertBlock) break;
                     if (d.length != 2 || d[1].kind != TK.Ident)
                         throw err(path, t.line, "#undef needs a name");
                     macros.remove(d[1].text);
                     break;
 
+                case "if":
+                    if (!insertBlock) break;
+                    if (d.length != 2 || d[1].kind != TK.Ident)
+                        throw err(path, t.line, "#if needs a name");
+                    string name = d[1].text;
+                    if (name == "import" && isIncludedFile)
+                        insertBlock = false;
+                    break;
+
+                case "endif":
+                    insertBlock = true;
+                    break;
+
                 case "include":
+                case "import":
+                    if (!insertBlock) break;
                     if (d.length != 2 || d[1].kind != TK.Str)
-                        throw err(path, t.line, "#include needs a quoted file name");
+                        throw err(path, t.line, format("#%s needs a quoted file name", d[0].text));
 
                     string name = d[1].text;
                     string full = path.length ? buildPath(dirName(path), name) : name;
@@ -410,27 +432,40 @@ private Token[] preprocess(
                         throw err(path, t.line, "circular include of \"" ~ name ~ "\"");
 
                     including[norm] = true;
-                    res ~= preprocess(lexRaw(readText(full), full), full, macros, including, includeDirs);
+                    res ~= preprocess(lexRaw(readText(full), full), full, macros, including, includeDirs, true);
                     including.remove(norm);
+                    
+                    if (d[0].text == "import")
+                    {
+                        res ~= Token(TK.Ident, "import", 0, d[0].line, false, d[0].file);
+                        res ~= Token(TK.Str, name, 0, d[0].line, false, d[0].file);
+                        res ~= Token(TK.Sym, ";", 0, d[0].line, false, d[0].file);
+                    }
+                    
                     break;
 
                 default:
-                    throw err(path, t.line, "unknown directive '#" ~ d[0].text ~ "'");
+                    if (!insertBlock) break;
+                    else
+                        throw err(path, t.line, "unknown directive '#" ~ d[0].text ~ "'");
             }
 
             i = end;
             continue;
         }
 
-        if (t.kind == TK.Ident && t.text in macros)
+        if (insertBlock)
         {
-            bool[string] active;
-            active[t.text] = true;
-            res ~= expand(t, macros, active);
+            if (t.kind == TK.Ident && t.text in macros)
+            {
+                bool[string] active;
+                active[t.text] = true;
+                res ~= expand(t, macros, active);
+            }
+            else
+                res ~= t;
         }
-        else
-            res ~= t;
-
+        
         i++;
     }
 

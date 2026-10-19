@@ -28,6 +28,8 @@ For more information, please refer to <https://unlicense.org>
  * Interrupts (WIP).
  */
 
+#if import
+
 #include "core.ri"
 
 int* I_MASK = 0x1F801074; // Interrupt mask register
@@ -60,3 +62,5 @@ void irqRestore(int prev)
     if (prev)
         irqEnable();
 }
+
+#endif

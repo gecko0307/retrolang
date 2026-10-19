@@ -25,10 +25,17 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /*
- * Simple sound API (implementation module).
+ * Simple sound API.
  */
 
-#include "spu.ri"
+/**
+ * Voice n registers start at 0x1F801C00 + n * 16, as ushort offsets:
+ *   [0] vol L   [1] vol R   [2] pitch   [3] start addr (8-byte units)
+ *   [4] ADSR1   [5] ADSR2
+ */
+#define SPU_VOICE_BASE 0x1F801C00
+
+#if import
 
 import "dma.r";
 
@@ -375,3 +382,5 @@ void spuStopAll()
     for (int v = 0; v < 24; v++)
         voiceSound[v] = -1;
 }
+
+#endif

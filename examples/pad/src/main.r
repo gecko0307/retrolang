@@ -29,7 +29,7 @@ For more information, please refer to <https://unlicense.org>
  * Prints pressed buttons to TTY
  */
 
-#include "retrolib.ri"
+#import "retrolib.r"
 
 void main()
 {

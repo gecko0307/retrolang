@@ -25,9 +25,82 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /**
- * PCSX-Redux debug API (implementation module).
+ * PCSX-Redux debug API.
  * https://pcsx-redux.consoledev.net/mips_api/
  */
+
+/// Prints ASCII character with code c to emulator's stdout.
+macro pcsx_putc(c)
+{
+    *PCSX_IO = c;
+}
+
+/// Breaks execution.
+macro pcsx_debugbreak()
+{
+    *PCSX_BREAK = 0;
+}
+
+/**
+ * Executes Lua function at PCSX.execSlots[slot].
+ * The slot value can be between 1 and 255, as a slot value of 0 is pcsx_debugbreak().
+ * If no Lua function exists within a slot, nothing happens.
+ */
+macro pcsx_execSlot(slot)
+{
+    *PCSX_EXECSLOT = slot;
+}
+
+/**
+ * When the emulator was started with -testmode, exit the emulator and forward code as exit code.
+ * Otherwise, log the exit code and pause emulation.
+ */
+macro pcsx_exit(code)
+{
+    *PCSX_EXIT = code;
+}
+
+/// Create a UI dialog displaying msg.
+macro pcsx_message(msg)
+{
+    *PCSX_MESSAGE = msg;
+}
+
+/// Enable or disable kernel checking.
+macro pcsx_checkKernel(enable)
+{
+    *PCSX_CHECKKERNEL = enable;
+}
+
+/// Returns 1 if kernel checking is enabled.
+macro pcsx_isCheckingKernel(enable) = (*PCSX_CHECKKERNEL != 0);
+
+/// Returns 1 if code is running in PCSX-Redux.
+macro pcsx_present() = (*(uint*)PCSX_IO == 0x58534350);
+
+/*
+ * Memory sanitizer
+ */
+
+/// Initialize memory sanitizer system.
+macro pcsx_initMsan()
+{
+    *PCSX_MSAN_CTRL = 0;
+}
+
+/// Reset memory sanitizer system.
+macro pcsx_resetMsan()
+{
+    *PCSX_MSAN_CTRL = 1;
+}
+
+/// Register the address of the PSYQo heap metadata, which is used by the PSYQo heap viewer.
+macro pcsx_registerHeapMetadata(metadata)
+{
+    *(void*)PCSX_MSAN_HEAP_META = metadata;
+}
+
+#if import
 
 #include "pcsx.ri"
 
@@ -107,3 +180,5 @@ void* pcsx_msanGetChainPtr(void* headerAddr)
 {
     return *(void**)PCSX_MSAN_CHAIN;
 }
+
+#endif

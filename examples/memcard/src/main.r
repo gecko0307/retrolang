@@ -28,7 +28,7 @@ For more information, please refer to <https://unlicense.org>
  * Memory card I/O test.
  */
 
-#include "retrolib.ri"
+#import "retrolib.r"
 
 #define DATA_SIZE 14
 

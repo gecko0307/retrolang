@@ -28,8 +28,8 @@ For more information, please refer to <https://unlicense.org>
  * Mesh rendering test
  */
 
-#include "retrolib.ri"
-#include "math.ri"
+#import "retrolib.r"
+#import "math.r"
 
 // Model-space vertex
 struct Vertex

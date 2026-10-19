@@ -2,19 +2,19 @@
 
 Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs.
 
-* `retrolib.ri` - imports entire library at once (recommended)
+* `retrolib.r` - imports entire library at once (recommended)
 * `core.ri` - core definitions
 * `bios.ri` - macros for some common BIOS calls
 * `dma.r` - DMA API
-* `pad.r` + `pad.ri` - gamepad driver
-* `gpu.r` + `gpu.ri` - GPU driver / graphics API
-* `spu.r` + `spu.ri` - SPU driver / sound API
+* `pad.r` - gamepad driver
+* `gpu.r` - GPU driver / graphics API
+* `spu.r` - SPU driver / sound API
 * `cd.r` - CD audio API
-* `save.r` + `save.ri` - memry card save/load API
-* `pcsx.r` + `pcsx.ri` - PCSX-Redux API.
+* `save.r` - memry card save/load API
+* `pcsx.r` - PCSX-Redux API.
 
-Usage (assuming you've pointed RLC to `retrolib` as an include directory):
+Usage (assuming you've pointed RLC to `retrolib` as an include/import directory):
 
 ```c
-#include "retrolib.ri"
+#import "retrolib.r"
 ```

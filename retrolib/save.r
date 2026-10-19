@@ -25,7 +25,7 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /**
- * Memory card save/load API (implementation module).
+ * Memory card save/load API.
  *
  * Layout of a save file (blocks * 8192 bytes):
  *   0x000  BIOS header: "SC", icon flag, block count, title, CLUT, icon frames
@@ -50,9 +50,26 @@ For more information, please refer to <https://unlicense.org>
  *    does not let us tell them apart here.
  */
 
+#define SAVE_BLOCK_SIZE    8192
+#define SAVE_MAX_BLOCKS    1           // raise if you need bigger saves
+#define SAVE_HEADER_SIZE   512
+#define SAVE_PHDR_SIZE     16
+#define SAVE_DATA_OFFSET   (SAVE_HEADER_SIZE + SAVE_PHDR_SIZE)
+#define SAVE_MAGIC         0x31565341  // "ASV1"
+#define SAVE_NAME_MAX      20
+
+#define SAVE_OK            0
+#define SAVE_ERR_OPEN      -1          // missing file or no card
+#define SAVE_ERR_IO        -2          // short read/write
+#define SAVE_ERR_CORRUPT   -3          // bad magic or checksum
+#define SAVE_ERR_VERSION   -4          // version mismatch
+#define SAVE_ERR_TOO_BIG   -5          // data does not fit
+#define SAVE_ERR_ARGS      -6
+
+#if import
+
 #include "core.ri"
 #include "bios.ri"
-#include "save.ri"
 
 struct Save
 {
@@ -325,3 +342,5 @@ int saveRead(struct Save* save)
         save->size = size;
     return SAVE_OK;
 }
+
+#endif

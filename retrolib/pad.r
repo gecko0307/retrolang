@@ -25,10 +25,39 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /**
- * Gamepad driver (implementation module).
+ * Gamepad driver.
  */
 
-#include "pad.ri"
+#define JOY_BASE 0x1F800000
+#define JOY_DATA 0x1040
+#define JOY_STAT 0x1044
+#define JOY_MODE 0x1048
+#define JOY_CTRL 0x104A
+#define JOY_BAUD 0x104E
+
+#define PAD_ID_DIGITAL      0x41
+#define PAD_ID_ANALOG_GREEN 0x53
+#define PAD_ID_ANALOG_RED   0x73
+
+#define PAD_L2       0x0001
+#define PAD_R2       0x0002
+#define PAD_L1       0x0004
+#define PAD_R1       0x0008
+#define PAD_TRIANGLE 0x0010
+#define PAD_CIRCLE   0x0020
+#define PAD_CROSS    0x0040
+#define PAD_SQUARE   0x0080
+#define PAD_SELECT   0x0100
+#define PAD_START    0x0800
+#define PAD_UP       0x1000
+#define PAD_RIGHT    0x2000
+#define PAD_DOWN     0x4000
+#define PAD_LEFT     0x8000
+
+#define STICK_ON  64    // |value - 128| above this: pressed
+#define STICK_OFF 40    // below this: released
+
+#if import
 
 /*
  * SIO
@@ -224,3 +253,5 @@ int padAxis(int v)
         return 0;
     return s;
 }
+
+#endif

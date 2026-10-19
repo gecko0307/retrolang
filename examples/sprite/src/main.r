@@ -28,7 +28,7 @@ For more information, please refer to <https://unlicense.org>
  * 2D sprite rendering + CD-ROM reading test.
  */
 
-#include "retrolib.ri"
+#import "retrolib.r"
 
 struct GpuSettings gpu;
 

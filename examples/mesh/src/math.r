@@ -28,7 +28,12 @@ For more information, please refer to <https://unlicense.org>
  * Fixed-point trigonometry based on a sine table.
  */
 
-#include "math_types.ri"
+#define QPI 0x200
+#define HPI 0x400
+#define PI  0x800
+#define PI2 0x1000
+
+#if import
 
 uchar sin4096[] @("sin_table/sin4096.bin");
 
@@ -45,3 +50,5 @@ short cos(uint angle)
     short* sinTable = (short*)sin4096;
     return sinTable[(angle + HPI) & 0xfff];
 }
+
+#endif

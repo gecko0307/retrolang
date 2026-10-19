@@ -24,7 +24,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
-#include "retrolib.ri"
+#import "retrolib.r"
 
 uchar tiles[] @("assets/tiles.tim");
 uchar character[] @("assets/character.tim");

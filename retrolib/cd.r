@@ -28,6 +28,8 @@ For more information, please refer to <https://unlicense.org>
  * CD audio driver.
  */
 
+#if import
+
 import "irq.r";
 
 uchar* CD_INDEX = 0x1F801800; // read: status, write: register index (0-3)
@@ -228,3 +230,5 @@ void cdUpdate()
         }
     }
 }
+
+#endif

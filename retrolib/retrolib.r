@@ -29,10 +29,13 @@ For more information, please refer to <https://unlicense.org>
  * This is a minimal set of functionality that aid with writing PlayStation programs.
  */
 
-import "irq.r";
-import "dma.r";
-import "pad.r";
-import "gpu.r";
-import "spu.r";
-import "save.r";
-import "cd.r";
+#include "core.ri"
+#include "bios.ri"
+
+#import "irq.r"
+#import "dma.r"
+#import "pad.r"
+#import "gpu.r"
+#import "spu.r"
+#import "save.r"
+#import "cd.r"

@@ -24,7 +24,11 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#if import
+
 #include "core.ri"
 
 /// DMA control (channel enables / priorities)
 int* dmaDpcr = DMA_DPCR;
+
+#endif

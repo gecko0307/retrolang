@@ -28,7 +28,7 @@ For more information, please refer to <https://unlicense.org>
  * DMA triangle rendering test.
  */
 
-#include "retrolib.ri"
+#import "retrolib.r"
 
 struct GpuSettings gpu;
 
