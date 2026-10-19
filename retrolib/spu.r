@@ -37,7 +37,7 @@ For more information, please refer to <https://unlicense.org>
 
 #if import
 
-import "dma.r";
+#import "dma.r"
 
 // SPU registers
 

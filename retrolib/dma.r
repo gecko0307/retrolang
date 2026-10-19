@@ -26,7 +26,7 @@ For more information, please refer to <https://unlicense.org>
 
 #if import
 
-#include "core.ri"
+#import "core.r"
 
 /// DMA control (channel enables / priorities)
 int* dmaDpcr = DMA_DPCR;

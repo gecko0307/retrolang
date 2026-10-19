@@ -138,7 +138,7 @@ macro gpuWaitDma()
 
 #if import
 
-#include "core.ri"
+#import "core.r"
 
 import "dma.r";
 

@@ -68,8 +68,8 @@ For more information, please refer to <https://unlicense.org>
 
 #if import
 
-#include "core.ri"
-#include "bios.ri"
+#import "core.r"
+#import "bios.r"
 
 struct Save
 {

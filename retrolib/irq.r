@@ -30,7 +30,7 @@ For more information, please refer to <https://unlicense.org>
 
 #if import
 
-#include "core.ri"
+#import "core.r"
 
 int* I_MASK = 0x1F801074; // Interrupt mask register
 int* I_STAT = 0x1F801070; // Interrupt status register

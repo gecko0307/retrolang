@@ -29,9 +29,8 @@ For more information, please refer to <https://unlicense.org>
  * This is a minimal set of functionality that aid with writing PlayStation programs.
  */
 
-#include "core.ri"
-#include "bios.ri"
-
+#import "core.r"
+#import "bios.r"
 #import "irq.r"
 #import "dma.r"
 #import "pad.r"

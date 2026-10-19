@@ -96,7 +96,7 @@ Constant initialization is supported only for global arrays.
 
 **Program entry point**: `main()`, started from a small stub that sets `$sp`.
 
-**Modules**: RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. RLC builds all source modules together in one pass; it does not produce object files or support incremental builds. The `import "file.r"` directive adds a module into the bundle, ensuring each module is parsed only once. AST macros and `#define` directives are not exported between modules; use `#include "file.ri"` for shared definitions.
+**Modules**: RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. RLC builds all source modules together in one pass; it does not produce object files or support incremental builds. The `#import "file.r"` directive adds a module into the bundle, ensuring each module is parsed only once. See [documentation](/doc/Basics.md) for details.
 
 **BIOS intrinsics**: `bios_a(n, ...)`, `bios_b(n, ...)`, `bios_c(n, ...)` through the `A0h`/`B0h`/`C0h` vectors with up to 3 further arguments. `n` is a function number which is passed in `$t1` register.
 
@@ -148,23 +148,28 @@ See [doc folder](/doc) for more details on the language.
 
 ## Retrolib Standard Library
 
-Retrolang provides a minimal set of optional low-level functionality that aid with writing PlayStation programs. Retrolib is a successor of [PSXLib project](https://github.com/gecko0307/psxlib).
+Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs.
 
-* `retrolib.ri` - imports entire library at once (recommended)
-* `core.ri` - core definitions
-* `bios.ri` - macros for some common BIOS calls
+Core modules:
+
+* `retrolib.r` - imports entire library at once
+* `core.r` - core definitions
+* `bios.r` - macros for some common BIOS calls
 * `dma.r` - DMA API
-* `pad.r` + `pad.ri` - gamepad driver
-* `gpu.r` + `gpu.ri` - GPU driver / graphics API
-* `spu.r` + `spu.ri` - SPU driver / sound API
+* `pad.r` - gamepad driver
+* `gpu.r` - GPU driver / graphics API
+* `spu.r` - SPU driver / sound API
 * `cd.r` - CD audio API
-* `save.r` + `save.ri` - memry card save/load API
-* `pcsx.r` + `pcsx.ri` - PCSX-Redux API.
+* `save.r` - memory card save/load API.
 
-Usage (assuming you've pointed RLC to `retrolib` as an include directory):
+Additional modules:
+
+* `pcsx.r` - PCSX-Redux API.
+
+Usage (assuming you've pointed RLC to `retrolib` as an include/import directory):
 
 ```c
-#include "retrolib.ri"
+#import "retrolib.r"
 ```
 
 ## Examples Collection

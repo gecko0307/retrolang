@@ -102,8 +102,6 @@ macro pcsx_registerHeapMetadata(metadata)
 
 #if import
 
-#include "pcsx.ri"
-
 int* SBUS_DEV0_ADDR  = 0x1F801000;
 int* SBUS_DEV8_ADDR  = 0x1F801004;
 int* SBUS_DEV0_CTRL  = 0x1F801008;
