@@ -1,5 +1,5 @@
-Retrolang 0.7.0 - TBD
----------------------
+Retrolang 0.7.0 - 19 Oct, 2026
+------------------------------
 - **RLC**
   - Modules support based on the [unity-build](https://en.wikipedia.org/wiki/Unity_build) method. `import` and `#import` directives
   - Inline assembly support (`asm` statement blocks)
