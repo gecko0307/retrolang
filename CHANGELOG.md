@@ -10,7 +10,7 @@ Retrolang 0.7.0 - 19 Oct, 2026
   - EXE region selection: `--region japan|europe|north-america`. Europe remains the default
   - Linker map: `--map <file>` for sorted code/data symbol addresses and image sizes
 - **Retrolib**
-  - Retrolib now uses modules. Each module can be imported to the program separately as needed, or the entire library can be imported using `#import "retrolib.ri"`
+  - Retrolib now uses modules. Each module can be imported to the program separately as needed, or the entire library can be imported using `#import "retrolib.r"`
   - `save.r` - memory card API.
 - **Misc**
   - VSCode extension.
