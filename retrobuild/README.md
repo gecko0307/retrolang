@@ -14,7 +14,7 @@ retrobuild [command] [options]
 | `compile` | Run only the compile stage |
 | `iso` | Run only the ISO stage (requires an existing executable) |
 | `cu2 <file.cue>` | Convert a CUE sheet to CU2 (standalone, no project needed) |
-| `init <name>` | Scaffold a new project in `./<name>` |
+| `init <name> [--force]` | Scaffold a new project in `./<name>` |
 | `clean` | Remove generated outputs |
 | `doctor` | Report which tools were found and where |
 
@@ -26,6 +26,7 @@ Global options:
 | `-m <file>` | Use a specific manifest file |
 | `-v`, `--verbose` | Print every external command line before running it |
 | `-q`, `--quiet` | Print errors only |
+| `-f`, `--force` | Replace scaffold files when using `init` |
 | `--no-iso` | Skip ISO and CU2 stages |
 | `--no-cu2` | Skip CU2 stage |
 | `--version`, `--help` | Standard |
@@ -122,7 +123,7 @@ pre_compile = [
 
 `cwd` is relative to the manifest directory and defaults to it. A program path containing a directory separator is resolved relative to the hook's `cwd` on all platforms; bare names use the normal PATH lookup. Within one hook list, use either all arrays or all tables (TOML 0.5 forbids mixed-type arrays).
 
-## Tool discovery (not implemented yet)
+## Tool discovery
 
 For each external tool (`rlc`, `mkpsxiso`), Retrobuild resolves the executable in this order and uses the first match:
 
@@ -150,17 +151,18 @@ Behavior:
 - The existing `cue2cu2.py` is the reference implementation for the output format. Retrobuild's output should be byte-identical to it for the same input; this is the acceptance test.
 - Implemented as an independent module with no dependency on the rest of the tool, so it can be reused or tested alone.
 
-## Scaffolding (not implemented yet)
+## Scaffolding
 
-`retrobuild init <name>` creates:
+`retrobuild init <name>` creates a starter project in the named directory:
 
 - `src/main.r`: minimal "hello" program
-- `iso.xml`: minimal mkpsxiso description referencing `iso/PSX.EXE` and producing `game.bin` / `game.cue`
+- `iso/SYSTEM.CNF`: boot configuration for `PSX.EXE`
+- `iso.xml`: minimal mkpsxiso description referencing `SYSTEM.CNF` and `iso/PSX.EXE`, producing `game.bin` / `game.cue`
 - `retrobuild.toml`: commented example with defaults
 - `.gitignore`: ignores `iso/PSX.EXE`, `game.bin`, `game.cue`, `game.cu2`
 
-It refuses to write into a non-empty directory unless `--force` is given.
+It refuses to write into a non-empty directory unless `--force` is given. With `--force`, only the scaffold files listed above are replaced; other files in the directory are left alone.
 
-## Clean (not implemented yet)
+## Clean
 
-`retrobuild clean` removes `executable`, the BIN referenced by the CUE sheet, the CUE file, and the CU2 file. It deletes only files it knows it produces and never recurses into directories.
+`retrobuild clean` removes the configured executable, CUE file, and CU2 file, plus the BIN referenced by the CUE sheet when that BIN is inside the project directory. It deletes only files it knows it produces and never recurses into directories. A referenced BIN outside the project directory is left untouched and reported as a warning.

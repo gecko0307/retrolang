@@ -37,11 +37,11 @@ import errors;
 import log;
 import manifest;
 import pipeline;
+import project;
 
 enum versionString = "0.1.0";
 
-private immutable string[] plannedCommands = ["init", "clean", "doctor"];
-private immutable string[] knownCommands   = ["build", "compile", "iso", "cu2"];
+private immutable string[] knownCommands = ["build", "compile", "iso", "cu2", "init", "clean", "doctor"];
 
 private void printUsage()
 {
@@ -55,6 +55,9 @@ Commands:
   compile           Compile the source into the executable only
   iso               Build the CD-ROM image from an existing executable
   cu2 <file.cue>    Convert a CUE sheet to CU2 (no project needed)
+  init <name>       Create a new project
+  clean             Remove generated project outputs
+  doctor            Report tool discovery results
 
 Options:
   -C <dir>          Run as if started in <dir>
@@ -62,6 +65,7 @@ Options:
   -o <file>         Output file for the cu2 command (default: <cue>.cu2)
   -v, --verbose     Print every external command line
   -q, --quiet       Print errors only
+  -f, --force       Overwrite scaffold files (init only)
       --no-iso      Skip the CD-ROM image and CU2 stages
       --no-cu2      Skip the CU2 stage
       --version     Print version and exit
@@ -87,7 +91,7 @@ int main(string[] args)
 private int run(string[] args)
 {
     string dir, manifestPath, outputPath;
-    bool beVerbose, beQuiet, showVersion, noIso, noCu2;
+    bool beVerbose, beQuiet, showVersion, noIso, noCu2, force;
     GetoptResult parsed;
 
     try
@@ -98,6 +102,7 @@ private int run(string[] args)
             "o",         "Output file for cu2",           &outputPath,
             "verbose|v", "Print every external command",  &beVerbose,
             "quiet|q",   "Print errors only",             &beQuiet,
+            "force|f",   "Overwrite scaffold files",      &force,
             "no-iso",    "Skip the CD-ROM image stage",   &noIso,
             "no-cu2",    "Skip the CU2 stage",            &noCu2,
             "version",   "Print version and exit",        &showVersion);
@@ -123,10 +128,18 @@ private int run(string[] args)
     // args[0] is the program name; the rest are positional arguments.
     string command = args.length > 1 ? args[1] : "build";
 
-    if (plannedCommands.canFind(command))
-        throw new RetrobuildException("Command \"" ~ command ~ "\" is not implemented yet", ExitCode.usage);
     if (!knownCommands.canFind(command))
         throw new RetrobuildException("Unknown command \"" ~ command ~ "\" (see --help)", ExitCode.usage);
+
+    if (command == "init")
+    {
+        if (args.length != 3)
+            throw new RetrobuildException("Usage: retrobuild init <name> [--force]", ExitCode.usage);
+        if (manifestPath.length || outputPath.length || noIso || noCu2)
+            throw new RetrobuildException("Project build options are not valid with init", ExitCode.usage);
+    }
+    else if (force)
+        throw new RetrobuildException("--force is only valid with the init command", ExitCode.usage);
 
     if (command == "cu2")
     {
@@ -134,12 +147,14 @@ private int run(string[] args)
             throw new RetrobuildException(
                 "Usage: retrobuild cu2 <file.cue> [-o <file.cu2>]", ExitCode.usage);
     }
-    else
+    else if (command != "init")
     {
         if (args.length > 2)
             throw new RetrobuildException("Unexpected argument \"" ~ args[2] ~ "\" (see --help)", ExitCode.usage);
         if (outputPath.length)
             throw new RetrobuildException("-o is only valid with the cu2 command", ExitCode.usage);
+        if (command != "build" && (noIso || noCu2))
+            throw new RetrobuildException("--no-iso and --no-cu2 are only valid with build", ExitCode.usage);
     }
 
     if (dir.length)
@@ -160,6 +175,12 @@ private int run(string[] args)
         return ExitCode.ok;
     }
 
+    if (command == "init")
+    {
+        createProject(args[2], force);
+        return ExitCode.ok;
+    }
+
     auto m = loadManifest(manifestPath);
 
     switch (command)
@@ -172,6 +193,12 @@ private int run(string[] args)
             break;
         case "build":
             buildPipeline(m, noIso, noCu2);
+            break;
+        case "clean":
+            cleanProject(m);
+            break;
+        case "doctor":
+            doctorProject(m);
             break;
         default:
             assert(0);

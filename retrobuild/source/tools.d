@@ -132,6 +132,39 @@ ToolLocation optionalTool(in ToolInfo tool, in string[string] manifestPaths)
     return loc;
 }
 
+/// Lists the concrete override and executable paths searched for a tool.
+string[] toolSearchLocations(in ToolInfo tool, in string[string] manifestPaths)
+{
+    string[] locations;
+    if (auto p = tool.name in manifestPaths)
+        locations ~= "[tools] " ~ *p;
+    else
+        locations ~= "[tools] (not configured)";
+
+    auto envPath = environment.get(tool.envVar, "");
+    if (envPath.length)
+        locations ~= "$" ~ tool.envVar ~ " " ~ envPath;
+    else
+        locations ~= "$" ~ tool.envVar ~ " (not set)";
+
+    foreach (root; sdkRoots())
+        locations ~= buildNormalizedPath(absolutePath(
+            buildPath(root, tool.sdkSubdir, exeName(tool.name))));
+
+    bool pathCandidate;
+    auto pathDirs = environment.get("PATH", "").split(pathSeparator);
+    foreach (dir; pathDirs)
+        if (dir.length)
+        {
+            locations ~= buildNormalizedPath(absolutePath(buildPath(dir, exeName(tool.name))));
+            pathCandidate = true;
+        }
+    if (!pathCandidate)
+        locations ~= "PATH (empty)";
+
+    return locations;
+}
+
 /// Like optionalTool(), but throws if the tool cannot be found.
 ToolLocation requireTool(in ToolInfo tool, in string[string] manifestPaths)
 {
