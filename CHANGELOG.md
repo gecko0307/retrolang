@@ -1,7 +1,7 @@
 Retrolang 0.8.0 - TBD
 ---------------------
 - **Retrobuild**
-  - Implement missing commands `init`, `clean`, `doctor`.
+  - Implement missing commands `init`, `clean`, `doctor`
 - **WAV2VAG**
   - New tool, a PCM WAV to VAG format converter.
 

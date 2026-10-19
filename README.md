@@ -6,7 +6,7 @@ The goal of this project is to build a PlayStation 1 development toolchain compl
 
 Retrolang tools are written entirely in [D language](https://dlang.org/).
 
-What can you do with Retrolang (in more or less convenient ways):
+What can you do with Retrolang:
 
 - Render 2D and 3D graphics via command buffers and the DMA
 - Upload TIM files to VRAM
@@ -230,7 +230,7 @@ What is not implemented yet:
 
 ## License
 
-RLC, PSXDISASM, Retrobuild, png2tim and wav2vag are distributed under the Boost Software License, 1.0.
+RLC, PSXDISASM, Retrobuild, PNG2TIM and WAV2VAG are distributed under the Boost Software License, 1.0.
 
 The standard library and all examples are distributed under Unlicense/Public Domain.
 
