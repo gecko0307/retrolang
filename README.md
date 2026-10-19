@@ -190,7 +190,8 @@ Usage (assuming you've pointed RLC to `retrolib` as an include/import directory)
 - [platform_game](/examples/platform_game) - 2D platform game
 - [mesh](/examples/mesh) - walkable 3D scene with a first person camera
 - [memcard](/examples/memcard) - memory card reading and writing
-- [vag](/examples/vag) - VAG sound playback example.
+- [vag](/examples/vag) - VAG sound playback example
+- [cd_audio](/examples/cd_audio) - CD audio playback example.
 
 All examples support building with Retrobuild. RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository. Optionally, to build a CD-ROM image, mkpsxiso must be available system-wide or locally as `/mkpsxiso/mkpsxiso.exe` in the repository.
 
