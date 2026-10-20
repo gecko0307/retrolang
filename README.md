@@ -181,7 +181,7 @@ Usage (assuming you've pointed RLC to `retrolib` as an include/import directory)
 
 ## Examples Collection
 
-`examples` directory contains a number of basic demos showcasing possibilities of RLC.
+`examples` directory contains a number of basic demos showcasing possibilities of Retrolang and Retrolib.
 
 - [asm](/examples/asm) - "Hello, World" program implemented in assembly language
 - [inline_asm](/examples/inline_asm) - assembly function example (printing an argument to TTY and returning a value)
