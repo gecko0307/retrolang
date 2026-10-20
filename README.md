@@ -130,7 +130,7 @@ Constant initialization is supported only for global arrays.
 **Example program:**
 
 ```c
-#include "retrolib.ri"
+#import "retrolib.r"
 
 void main()
 {
