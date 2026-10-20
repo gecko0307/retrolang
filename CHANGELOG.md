@@ -1,3 +1,8 @@
+Retrolang 0.9.0 - TBD
+---------------------
+- **Retrolib**
+  - `pad_old.r` - legacy gamepad API.
+
 Retrolang 0.8.0 - 20 Oct, 2026
 ------------------------------
 - **Retrobuild**
