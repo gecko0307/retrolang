@@ -137,18 +137,20 @@ The same in Retrolang assembly language:
 
 ```asm
 .text
-    li $a0, .msg
+  start:
+    li $a0, msg
     li $t1, 0x003f
     li $t2, 0x00a0
-    jr $t2
+    jalr $t2
     nop
     
-    jr $ra
+  loop:
+    li $t0, loop
+    jalr $t0
     nop
 
 .data
-  .msg:
-    "Hello, World!\n\0"
+    msg: .asciiz "Hello, World!\n"
 ```
 
 See [doc folder](/doc) for more details on the language.
