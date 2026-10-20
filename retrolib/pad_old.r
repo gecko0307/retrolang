@@ -1,0 +1,70 @@
+/*
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the software
+to the public domain. We make this dedication for the benefit of the
+public at large and to the detriment of our heirs and successors.
+We intend this dedication to be an overt act of relinquishment in 
+perpetuity of all present and future rights to this software under
+copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+*/
+
+/**
+ * Legacy gamepad driver.
+ * You should use pad.r instead.
+ */
+
+#define PAD_L2       0x0001
+#define PAD_R2       0x0002
+#define PAD_L1       0x0004
+#define PAD_R1       0x0008
+#define PAD_TRIANGLE 0x0010
+#define PAD_CIRCLE   0x0020
+#define PAD_CROSS    0x0040
+#define PAD_SQUARE   0x0080
+#define PAD_SELECT   0x0100
+#define PAD_START    0x0800
+#define PAD_UP       0x1000
+#define PAD_RIGHT    0x2000
+#define PAD_DOWN     0x4000
+#define PAD_LEFT     0x8000
+
+#if import
+
+int _pad_buf;
+int _pad_data = 0xffffffff;
+
+void padInit()
+{
+    bios_b(0x15, 0x20000001, &_pad_buf, 0, 0);
+}
+
+int padRead1()
+{
+    return (~_pad_data) & 0xFFFF;
+}
+
+void padWaitSync()
+{
+    int* p = &_pad_buf;
+    *p = 0x0000;
+    while (*p == 0x0000) {}
+    _pad_data = *p;
+}
+
+#endif

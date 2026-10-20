@@ -30,7 +30,7 @@ For more information, please refer to <https://unlicense.org>
 
 #if import
 
-import "irq.r";
+#import "irq.r"
 
 uchar* CD_INDEX = 0x1F801800; // read: status, write: register index (0-3)
 uchar* CD_REG1  = 0x1F801801; // idx0 write: command | read: response FIFO

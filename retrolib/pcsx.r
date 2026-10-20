@@ -29,6 +29,41 @@ For more information, please refer to <https://unlicense.org>
  * https://pcsx-redux.consoledev.net/mips_api/
  */
 
+#if import
+
+int* SBUS_DEV0_ADDR  = 0x1F801000;
+int* SBUS_DEV8_ADDR  = 0x1F801004;
+int* SBUS_DEV0_CTRL  = 0x1F801008;
+int* SBUS_DEV1_CTRL  = 0x1F80100C;
+int* SBUS_DEV2_CTRL  = 0x1F801010;
+int* SBUS_DEV4_CTRL  = 0x1F801014;
+int* SBUS_DEV5_CTRL  = 0x1F801018;
+int* SBUS_DEV8_CTRL  = 0x1F80101C;
+int* SBUS_COM_CTRL   = 0x1F801020;
+
+// PCSX MMIO
+char*  PCSX_IO          = 0x1F802080;
+char*  PCSX_BREAK       = 0x1F802081;
+uchar* PCSX_EXECSLOT    = 0x1F802081;
+short* PCSX_EXIT        = 0x1F802082;
+char** PCSX_MESSAGE     = 0x1F802084;
+char*  PCSX_CHECKKERNEL = 0x1F802088;
+
+/**
+ * PCSX-Redux API needs DEV8/EXP2 (1f802000 to 1f80207f),
+ * which holds the hardware register for the BIOS POST status,
+ * to be expanded to 1f8020ff.
+ */
+void pcsx_init()
+{
+    int size = *SBUS_DEV8_CTRL;
+    while (size < 0x80000)
+        size++;
+    *SBUS_DEV8_CTRL = size;
+}
+
+#endif
+
 /// Prints ASCII character with code c to emulator's stdout.
 macro pcsx_putc(c)
 {
@@ -82,6 +117,16 @@ macro pcsx_present() = (*(uint*)PCSX_IO == 0x58534350);
  * Memory sanitizer
  */
 
+#if import
+
+char* PCSX_MSAN_CTRL      = 0x1F802089;
+char* PCSX_MSAN_HEAP_META = 0x1F8020A0;
+int*  PCSX_MSAN_ALLOC     = 0x1F80208C; // read = alloc, write = free
+int*  PCSX_MSAN_REALLOC   = 0x1F802090;
+int*  PCSX_MSAN_CHAIN     = 0x1F802094;
+
+#endif
+
 /// Initialize memory sanitizer system.
 macro pcsx_initMsan()
 {
@@ -101,47 +146,6 @@ macro pcsx_registerHeapMetadata(metadata)
 }
 
 #if import
-
-int* SBUS_DEV0_ADDR  = 0x1F801000;
-int* SBUS_DEV8_ADDR  = 0x1F801004;
-int* SBUS_DEV0_CTRL  = 0x1F801008;
-int* SBUS_DEV1_CTRL  = 0x1F80100C;
-int* SBUS_DEV2_CTRL  = 0x1F801010;
-int* SBUS_DEV4_CTRL  = 0x1F801014;
-int* SBUS_DEV5_CTRL  = 0x1F801018;
-int* SBUS_DEV8_CTRL  = 0x1F80101C;
-int* SBUS_COM_CTRL   = 0x1F801020;
-
-// PCSX MMIO
-char*  PCSX_IO          = 0x1F802080;
-char*  PCSX_BREAK       = 0x1F802081;
-uchar* PCSX_EXECSLOT    = 0x1F802081;
-short* PCSX_EXIT        = 0x1F802082;
-char** PCSX_MESSAGE     = 0x1F802084;
-char*  PCSX_CHECKKERNEL = 0x1F802088;
-
-/**
- * PCSX-Redux API needs DEV8/EXP2 (1f802000 to 1f80207f),
- * which holds the hardware register for the BIOS POST status,
- * to be expanded to 1f8020ff.
- */
-void pcsx_init()
-{
-    int size = *SBUS_DEV8_CTRL;
-    while (size < 0x80000)
-        size++;
-    *SBUS_DEV8_CTRL = size;
-}
-
-/*
- * Memory sanitizer
- */
-
-char* PCSX_MSAN_CTRL      = 0x1F802089;
-char* PCSX_MSAN_HEAP_META = 0x1F8020A0;
-int*  PCSX_MSAN_ALLOC     = 0x1F80208C; // read = alloc, write = free
-int*  PCSX_MSAN_REALLOC   = 0x1F802090;
-int*  PCSX_MSAN_CHAIN     = 0x1F802094;
 
 /// Allocates memory with memory sanitizer.
 void* pcsx_msanAlloc(uint size)

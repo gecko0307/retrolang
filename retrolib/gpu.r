@@ -139,8 +139,7 @@ macro gpuWaitDma()
 #if import
 
 #import "core.r"
-
-import "dma.r";
+#import "dma.r"
 
 /// Screen-aligned rectangle
 struct GpuRect
