@@ -108,7 +108,7 @@ Constant initialization is supported only for global arrays.
 
 **Program entry point**: `main()`, started from a small stub that sets `$sp`.
 
-**Modules**: RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. RLC builds all source modules together in one pass; it does not produce object files or support incremental builds. The `#import "file.r"` directive adds a module into the bundle, ensuring each module is parsed only once. See [documentation](/doc/Basics.md) for details.
+**Modules**: RLC implements a [unity-build](https://en.wikipedia.org/wiki/Unity_build) compilation method which is a trade-off between C-style `#include` and a full-featured module system. There are no symbol tables or module-local scopes; the program is a single bundle with one global scope. RLC builds all source modules together in one pass; it does not produce object files or support incremental builds. The `#import "file.r"` directive adds a module into the bundle, ensuring each module is parsed only once. See [documentation](/doc/Basics.md#1-toolchain) for details.
 
 **BIOS intrinsics**: `bios_a(n, ...)`, `bios_b(n, ...)`, `bios_c(n, ...)` through the `A0h`/`B0h`/`C0h` vectors with up to 3 further arguments. `n` is a function number which is passed in `$t1` register.
 
