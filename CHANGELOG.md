@@ -4,6 +4,8 @@ Retrolang 0.8.0 - TBD
   - Implement missing commands `init`, `clean`, `doctor`
 - **WAV2VAG**
   - New tool, a PCM WAV to VAG format converter
+- **DATWrite**
+  - New tool, an utility that generates CD license patch (a *.dat file) with a custom text and logo model
 - **Examples**
   - CD audio playback example.
 

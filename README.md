@@ -59,6 +59,10 @@ Assembling command is similar (RLC treats *.s file as an assembly source):
 rlc -o PSX.EXE src/main.s
 ```
 
+## Retrobuild
+
+Build automation system. With Retrobuild, you don't have to call the compiler directly or write platform-specific scripts. It compiles a project, packs it into a CD-ROM image (CUE+BIN) using [mkpsxiso](https://github.com/lameguy64/mkpsxiso), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe projects.
+
 ## PSXDISASM
 
 Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files. Based on [LNK disassembler](https://github.com/gecko0307/psxlib/tree/main/tools/psxdisasm) from PSXLib.
@@ -69,11 +73,11 @@ A simple PNG to TIM converter.
 
 ## WAV2VAG
 
-An utility for converting integer PCM WAV files to PlayStation ADPCM VAG files and decoding VAG files back to WAV. Build it with `dmd wav2vag.d -of=wav2vag.exe`; run `wav2vag.exe --help` for options.
+PCM WAV files to ADPCM VAG converter.
 
-## Retrobuild
+## DATWrite
 
-Build automation system. With Retrobuild, you don't have to call the compiler directly or write platform-specific scripts. It compiles a project, packs it into a CD-ROM image (CUE+BIN) using [mkpsxiso](https://github.com/lameguy64/mkpsxiso), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe projects.
+An utility that generates CD license patch (a *.dat file) with a custom text and logo model.
 
 ## The Language
 
