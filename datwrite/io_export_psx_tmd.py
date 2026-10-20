@@ -1,6 +1,6 @@
 bl_info = {
     "name": "PlayStation Boot Logo TMD",
-    "author": "Retrolang",
+    "author": "Retrolang Project",
     "version": (1, 0, 0),
     "blender": (4, 5, 0),
     "location": "File > Export > PlayStation Boot Logo (.tmd)",
