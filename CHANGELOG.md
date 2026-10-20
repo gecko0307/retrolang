@@ -1,5 +1,5 @@
-Retrolang 0.8.0 - TBD
----------------------
+Retrolang 0.8.0 - 20 Oct, 2026
+------------------------------
 - **Retrobuild**
   - Implement missing commands `init`, `clean`, `doctor`
 - **WAV2VAG**
