@@ -30,6 +30,10 @@ Platformer game example:
 
 ![3D scene](media/3d_scene.png)
 
+Custom boot logo:
+
+![Boot](media/boot.png)
+
 ## Rationale
 
 Retrolang is a result of 10+ years of tinkering with the console, different SDKs, custom GPU libraries and related tools. It was initially created as an assembler, but eventually got many improvements. I always wanted to write my own programs for PSX, but the tooling was frustratingly clunky, so I eventually decided to make my own everything, right down to the machine code.
