@@ -120,12 +120,7 @@ Constant initialization is supported only for global arrays.
 
 **AST macros**: abstract reusable expressions and statements. Retrolang supports expresson macros, parametrized expresson macros, list macros (tuples), and statement macros. They are useful for defining constants, inlining performance-critical functions and GTE command blocks.
 
-**Static allocator**: a global array can be placed in an arbitrary region of available RAM using the region attribute: `@(0x80180000, 1024)`. Regions work like static arenas: the compiler automatically bumps offset for a new allocation that shares the region base address with existing allocation. List macros can be used to identify regions. Base addresses must be given in KSEG0.
-
-**Code generation notes:**
-
-- Local variables live in `$s0`-`$s7` (callee-saved) unless their address is taken, in which case (or when registers run out) they live in the stack frame.
-- Expression temporaries use `$t0`-`$t9` as a register stack. Live temporaries are saved around calls.
+**Static allocator**: a static array can be placed in an arbitrary region of available RAM using the region attribute: `@(0x80180000, 1024)`. Regions work like static arenas: the compiler automatically bumps offset for a new allocation that shares the region base address with existing allocation. List macros can be used to identify regions. Base addresses must be given in KSEG0.
 
 **Example program:**
 
@@ -208,8 +203,6 @@ All examples support building with Retrobuild. RLC must be available system-wide
 Provided examples rely on the following third-party tools:
 
 - [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso) to build CD-ROM images
-- [PSX License Tool](https://github.com/jbreckmckye/psx-license-tool) to patch BIN files with your own license data
-- [psxavenc](https://github.com/WonderfulToolchain/psxavenc) to convert WAV files to VAG format
 - [Blender](https://blender.org) to export meshes to PSM format.
 
 For running examples on the PC, we recommend [DuckStation](https://www.duckstation.org/), a fast and feature-rich PlayStation emulator for Windows, Linux and Mac. To run an image (or directly `PSX.EXE` if you don't build an image), use the following command:
@@ -239,7 +232,7 @@ What is not implemented yet:
 
 ## License
 
-RLC, PSXDISASM, Retrobuild, PNG2TIM and WAV2VAG are distributed under the Boost Software License, 1.0.
+RLC, PSXDISASM, Retrobuild, PNG2TIM, WAV2VAG and DATWrite are distributed under the Boost Software License, 1.0.
 
 The standard library and all examples are distributed under Unlicense/Public Domain.
 
