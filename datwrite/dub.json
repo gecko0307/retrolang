@@ -1,0 +1,9 @@
+{
+    "name": "datwrite",
+    "description": "PS1 CD System Area DAT generator",
+    "copyright": "Copyright © 2026, Timur Gafarov",
+    "license": "BSL-1.0",
+    "authors": [
+        "Timur Gafarov"
+    ]
+}
