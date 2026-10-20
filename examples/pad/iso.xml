@@ -4,7 +4,7 @@
 		<identifiers
 			system ="PLAYSTATION"
 			application ="PLAYSTATION"
-			volume ="GAME"
+			volume ="RL03_PAD"
 		/>
 		<license file="../licenses/default.dat"/>
 		<directory_tree>

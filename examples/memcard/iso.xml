@@ -4,10 +4,7 @@
 		<identifiers
 			system ="PLAYSTATION"
 			application ="PLAYSTATION"
-			volume ="GAME"
-			volume_set ="GAME"
-			publisher ="GECKO"
-			data_preparer ="MKPSXISO"
+			volume ="RL10_MEMCARD"
 		/>
 		<license file="../licenses/default.dat"/>
 		<directory_tree>
