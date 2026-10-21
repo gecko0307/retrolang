@@ -1,7 +1,9 @@
 Retrolang 0.9.0 - TBD
 ---------------------
 - **Retrolib**
-  - `pad_old.r` - legacy gamepad API.
+  - `pad_old.r` - legacy gamepad API
+- **PSXDISASM**
+  - Finish support for LNK2 object files.
 
 Retrolang 0.8.0 - 20 Oct, 2026
 ------------------------------

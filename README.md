@@ -69,7 +69,7 @@ Build automation system. With Retrobuild, you don't have to call the compiler di
 
 ## PSXDISASM
 
-Work-in-progress dumper and disassembler for PsyQ LNK *.obj files and PSX-EXE files. Based on [LNK disassembler](https://github.com/gecko0307/psxlib/tree/main/tools/psxdisasm) from PSXLib.
+Disassembler and dumper for MIPS R3000 binaries.
 
 ## PNG2TIM
 
