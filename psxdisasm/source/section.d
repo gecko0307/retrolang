@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2026 Timur Gafarov 
+Copyright (c) 2026 Timur Gafarov
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -27,6 +27,8 @@ DEALINGS IN THE SOFTWARE.
 */
 module section;
 
+import expression;
+
 enum RelocationType: ubyte
 {
     REL32_BE = 8,
@@ -45,8 +47,12 @@ enum RelocationType: ubyte
 struct Relocation
 {
     RelocationType type;
-    uint offset;
-    int addend;
+    uint offset;         // offset of the patched word within the section
+    int addend;          // constant part of the expression (valid if simple)
+    Expression expr;     // full expression as stored in the file
+    bool simple = false; // expr reduced to [symbol | section] + addend
+    int symbolIndex = -1;
+    int sectionIndex = -1;
 };
 
 class Section
@@ -55,12 +61,12 @@ class Section
     uint group;
     uint alignment;
     string name;
-    uint pointer;
-    uint zeroes;
+    uint pointer;             // start of the most recent BYTES chunk
+    uint zeroes;              // pending zero-fill, not yet in data
     uint uninitializedOffset;
     ubyte[] data;
     Relocation[] relocations;
-    
+
     this(uint index, uint group, uint alignment, string name)
     {
         this.index = index;
@@ -68,7 +74,17 @@ class Section
         this.alignment = alignment;
         this.name = name;
     }
-    
+
+    /// Materializes pending zero-fill into data.
+    void flushZeroes()
+    {
+        if (zeroes > 0)
+        {
+            data ~= new ubyte[zeroes];
+            zeroes = 0;
+        }
+    }
+
     size_t getFullSize()
     {
         return data.length + zeroes + uninitializedOffset;

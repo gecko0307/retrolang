@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2026 Timur Gafarov 
+Copyright (c) 2026 Timur Gafarov
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -33,7 +33,11 @@ class Symbol
     uint sectionIndex;
     uint offset;
     string name;
-    
+
+    bool imported = false;   // XREF: defined in another object file
+    bool local = false;      // not visible to the linker
+    bool isFunction = false; // came from a FUNCTION debug record
+
     this(uint index, uint sectionIndex, uint offset, string name)
     {
         this.index = index;

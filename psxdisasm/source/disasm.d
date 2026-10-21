@@ -41,11 +41,18 @@ class MipsDisassembler
     /// entry:    if given, only code reachable from this address is disassembled
     ///           as code, everything else is printed as data. If uint.max,
     ///           everything is disassembled linearly.
-    this(uint[] text, uint baseAddr = 0, uint entry = uint.max)
+    /// labels:   symbol names by address, printed as "name:" lines before the
+    ///           instruction at that address
+    /// notes:    free-form comments by address (e.g. relocation targets),
+    ///           appended to the line as "; note"
+    this(uint[] text, uint baseAddr = 0, uint entry = uint.max,
+         string[][uint] labels = null, string[uint] notes = null)
     {
         this.text = text;
         this.baseAddr = baseAddr;
-        
+        this.labels = labels;
+        this.notes = notes;
+
         if (entry == uint.max)
         {
             disassembleLinear();
@@ -62,15 +69,30 @@ class MipsDisassembler
     uint[] text;
     uint baseAddr;
     bool[] isCode;
-    
+    string[][uint] labels;
+    string[uint] notes;
+
+    void printLabels(uint addr)
+    {
+        auto p = addr in labels;
+        if (p is null)
+            return;
+        foreach (name; *p)
+            writefln("%s:", name);
+    }
+
+    string noteFor(uint addr)
+    {
+        auto p = addr in notes;
+        return p is null ? "" : "  ; " ~ *p;
+    }
+
     uint addrOf(size_t i)
     {
         return baseAddr + cast(uint)(i * 4);
     }
     
-    // ---------------------------------------------------------------
     // Output drivers
-    // ---------------------------------------------------------------
     
     void disassembleLinear()
     {
@@ -102,8 +124,9 @@ class MipsDisassembler
     void printInstruction(uint pc, uint instr)
     {
         size_t idx = (pc - baseAddr) / 4;
-        writefln("  %08x: %08x  %s%s", pc, instr, disasmInstruction(pc, instr),
-                 biosAnnotation(idx));
+        printLabels(pc);
+        writefln("  %08x: %08x  %s%s%s", pc, instr, disasmInstruction(pc, instr),
+                 biosAnnotation(idx), noteFor(pc));
     }
     
     void printData(size_t start, size_t end)
@@ -111,10 +134,14 @@ class MipsDisassembler
         size_t i = start;
         while (i < end)
         {
+            printLabels(addrOf(i));
+
+            // A zero run stops at labels and relocated words
             size_t j = i;
-            while (j < end && text[j] == 0)
+            while (j < end && text[j] == 0 &&
+                   (j == i || (addrOf(j) !in labels && addrOf(j) !in notes)))
                 j++;
-            
+
             if (j - i >= 4)
             {
                 writefln("  %08x: ... %d words of zeros (0x%x bytes)",
@@ -123,8 +150,9 @@ class MipsDisassembler
             }
             else
             {
-                writefln("  %08x: %08x  .word 0x%08x%s",
-                         addrOf(i), text[i], text[i], asciiHint(text[i]));
+                writefln("  %08x: %08x  .word 0x%08x%s%s",
+                         addrOf(i), text[i], text[i], asciiHint(text[i]),
+                         noteFor(addrOf(i)));
                 i++;
             }
         }
@@ -152,9 +180,7 @@ class MipsDisassembler
         return anyPrintable ? "  ; \"" ~ s ~ "\"" : "";
     }
     
-    // ---------------------------------------------------------------
     // Control flow tracing
-    // ---------------------------------------------------------------
     
     static uint jumpTarget(uint pc, uint instr)
     {
@@ -246,9 +272,7 @@ class MipsDisassembler
         }
     }
     
-    // ---------------------------------------------------------------
     // Instruction decoding (returns the text after the address)
-    // ---------------------------------------------------------------
     
     string disasmInstruction(uint pc, uint instr)
     {
@@ -325,10 +349,7 @@ class MipsDisassembler
         return format("BXX $%s, 0x%02x, 0x%08x", rs, sub, target);
     }
     
-    // ---------------------------------------------------------------
     // BIOS call annotation: "li $t2, 0xA0 / li $t1, N / jalr $t2"
-    // ---------------------------------------------------------------
-    
     string biosAnnotation(size_t idx)
     {
         uint instr = text[idx];

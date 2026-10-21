@@ -30,7 +30,6 @@ module mips;
 /**
  * MIPS R3000 instruction codes
  */
-
 enum MipsInstr: ubyte
 {
     BXX =   0b000001,
@@ -44,7 +43,7 @@ enum MipsInstr: ubyte
     
     ADDI =  0b001000,
     ADDIU = 0b001001,
-    SLTI =  0b001001,
+    SLTI =  0b001010,
     SLTIU = 0b001011,
     
     ANDI =  0b001100,
@@ -117,7 +116,7 @@ enum MipsRType: ubyte
     NOR =   0b100111,
     
     SLT =   0b101010,
-    STLU =  0b101011
+    SLTU =  0b101011
 }
 
 enum MipsCop0: ubyte

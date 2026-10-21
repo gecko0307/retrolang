@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2026 Timur Gafarov 
+Copyright (c) 2026 Timur Gafarov
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -28,241 +28,656 @@ DEALINGS IN THE SOFTWARE.
 module psyqobj;
 
 import std.stdio;
-import std.bitmanip;
+import std.format : format;
+import std.bitmanip : littleEndianToNative;
+import std.math : abs;
 
 import section;
 import symbol;
-import mips;
+import expression;
+
+/**
+ * PsyQ LNK version 2 object file parser.
+ *
+ * File layout: "LNK", version byte (2), then a stream of records, each
+ * starting with an even opcode byte, terminated by an END (0) record.
+ * All multi-byte values are little-endian; strings are length-prefixed
+ * with a single byte.
+ */
 
 enum PsyqOpcode: ubyte
 {
     END = 0,
-    BYTES = 2,
-    SWITCH = 6,
-    ZEROES = 8,
-    RELOCATION = 10,
-    EXPORTED_SYMBOL = 12,
-    IMPORTED_SYMBOL = 14,
-    SECTION = 16,
-    LOCAL_SYMBOL = 18,
-    FILENAME = 28,
-    PROGRAMTYPE = 46,
-    UNINITIALIZED = 48,
-    INC_SLD_LINENUM = 50,
-    INC_SLD_LINENUM_BY_BYTE = 52,
-    INC_SLD_LINENUM_BY_WORD = 54,
-    SET_SLD_LINENUM = 56,
-    SET_SLD_LINENUM_FILE = 58,
-    END_SLD = 60,
+    BYTES = 2,                   // u16 size, data
+    RUN_AT_OFFSET = 4,           // u16 section, u16 offset
+    SWITCH = 6,                  // u16 section
+    ZEROES = 8,                  // u32 size
+    RELOCATION = 10,             // u8 type, u16 offset, expression
+    EXPORTED_SYMBOL = 12,        // u16 index, u16 section, u32 offset, string
+    IMPORTED_SYMBOL = 14,        // u16 index, string
+    SECTION = 16,                // u16 index, u16 group, u8 alignment, string
+    LOCAL_SYMBOL = 18,           // u16 section, u32 offset, string
+    GROUP_SYMBOL = 20,           // u16 number, u8 type, string
+    BYTE_SIZE_REGISTER = 22,     // u16
+    WORD_SIZE_REGISTER = 24,     // u16
+    LONG_SIZE_REGISTER = 26,     // u16
+    FILENAME = 28,               // u16 index, string
+    SET_TO_FILE = 30,            // u16 file, u32 line
+    SET_TO_LINE = 32,            // u32
+    INC_LINENUM = 34,
+    INC_LINENUM_BY_BYTE = 36,    // u8
+    INC_LINENUM_BY_WORD = 38,    // u32
+    VERY_LOCAL_SYMBOL = 40,      // same as LOCAL_SYMBOL
+    SET_3BYTE_REGISTER = 42,     // u16
+    SET_MX_INFO = 44,            // u8, u8
+    PROGRAMTYPE = 46,            // u8
+    XBSS = 48,                   // u16 index, u16 section, u32 size, string
+    INC_SLD_LINENUM = 50,        // u16 offset
+    INC_SLD_LINENUM_BY_BYTE = 52, // u16 offset, u8
+    INC_SLD_LINENUM_BY_WORD = 54, // u16 offset, u32
+    SET_SLD_LINENUM = 56,        // u16 offset, u32 line
+    SET_SLD_LINENUM_FILE = 58,   // u16 offset, u32 line, u16 file
+    END_SLD = 60,                // u16
     FUNCTION = 74,
-    FUNCTION_END = 76,
-    BLOCK_START = 78,
-    BLOCK_END = 80,
-    SECTION_DEF = 82,
-    SECTION_DEF2 = 84,
-    FUNCTION_START2 = 86,
+    FUNCTION_END = 76,           // u16 section, u32 offset, u32 line
+    BLOCK_START = 78,            // same layout as FUNCTION_END
+    BLOCK_END = 80,              // same layout as FUNCTION_END
+    DEF = 82,
+    DEF2 = 84,
 };
+
+class LnkError: Exception
+{
+    this(string msg, string file = __FILE__, size_t line = __LINE__)
+    {
+        super(msg, file, line);
+    }
+}
 
 class PsyqObject
 {
     public:
-    
+
     ubyte ver;
     ubyte programType = 0;
+    Section[] sections;                // in order of declaration
     Section[string] sectionsByName;
     Section[uint] sectionsByIndex;
-    Symbol[string] symbolsByName;
+    Symbol[string] symbolsByName;      // exported symbols
+    Symbol[uint] symbolsByIndex;       // exported + imported (XDEF/XREF/XBSS)
+    Symbol[] symbols;                  // everything: exported, imported, local, functions
     bool parsed = false;
-    
-    this(ubyte[] binary)
+    bool verbose = false;
+    string errorMessage;
+
+    this(ubyte[] binary, bool verbose = false)
     {
         this.binary = binary;
-        parsed = parse();
+        this.verbose = verbose;
+
+        try
+        {
+            parsed = parse();
+        }
+        catch (LnkError e)
+        {
+            errorMessage = e.msg;
+            writefln("Error: %s", e.msg);
+            parsed = false;
+        }
     }
-    
+
+    /// Readable name for a symbol / section id used inside expressions.
+    string leafName(ubyte op, uint id)
+    {
+        if (op == ExprOp.SYMBOL)
+        {
+            auto p = id in symbolsByIndex;
+            if (p !is null)
+                return (*p).name;
+        }
+        else if (op == ExprOp.SECTION_BASE || op == ExprOp.SECTION_START ||
+                 op == ExprOp.SECTION_END)
+        {
+            auto p = id in sectionsByIndex;
+            if (p !is null)
+                return (*p).name;
+        }
+        return "";
+    }
+
+    /// One-line description of a relocation, e.g. "HI16 printf+0x10"
+    string describeRelocation(Relocation r)
+    {
+        string target;
+
+        if (r.simple)
+        {
+            if (r.symbolIndex >= 0)
+            {
+                target = leafName(ExprOp.SYMBOL, cast(uint)r.symbolIndex);
+                if (target.length == 0)
+                    target = format("symbol#%d", r.symbolIndex);
+            }
+            else if (r.sectionIndex >= 0)
+            {
+                target = leafName(ExprOp.SECTION_BASE, cast(uint)r.sectionIndex);
+                if (target.length == 0)
+                    target = format("section#%d", r.sectionIndex);
+            }
+
+            if (target.length == 0)
+                target = format("0x%x", cast(uint)r.addend);
+            else if (r.addend > 0)
+                target ~= format("+0x%x", r.addend);
+            else if (r.addend < 0)
+                target ~= format("-0x%x", cast(uint)(-cast(long)r.addend));
+        }
+        else if (r.expr !is null)
+        {
+            target = r.expr.describe(&leafName);
+        }
+        else
+        {
+            target = "?";
+        }
+
+        return format("%s %s", r.type, target);
+    }
+
     protected:
-    
+
     ubyte[] binary;
     size_t index = 3;
     Section currentSection = null;
-    
+
+    void log(T...)(T args)
+    {
+        if (verbose)
+            writefln(args);
+    }
+
+    // ---------------------------------------------------------------
+    // Bounds-checked little-endian readers
+    // ---------------------------------------------------------------
+
+    void need(size_t n)
+    {
+        if (n > binary.length || index > binary.length - n)
+            throw new LnkError(format("Unexpected end of file at offset 0x%X", index));
+    }
+
     ubyte readUByte()
     {
+        need(1);
         ubyte b = binary[index];
         index++;
         return b;
     }
-    
+
     ushort readUShort()
     {
-        ushort u = *cast(ushort*)&binary[index];
+        need(2);
+        ubyte[2] b = binary[index .. index + 2];
         index += 2;
-        return u;
+        return littleEndianToNative!ushort(b);
     }
-    
+
     uint readUInt()
     {
-        uint ui = *cast(uint*)&binary[index];
+        need(4);
+        ubyte[4] b = binary[index .. index + 4];
         index += 4;
-        return ui;
+        return littleEndianToNative!uint(b);
     }
-    
+
     ubyte[] readUBytes(size_t num)
     {
-        if (index + num < binary.length)
-        {
-            ubyte[] b = binary[index..index+num];
-            index += num;
-            return b;
-        }
-        else
-        {
-            return binary[index..$];
-        }
+        need(num);
+        ubyte[] b = binary[index .. index + num];
+        index += num;
+        return b;
     }
-    
+
     string readString()
     {
-        ubyte len = binary[index];
-        index++;
-        size_t sStart = index;
-        size_t sEnd = sStart + len;
+        size_t len = readUByte();
+        need(len);
+        string s = cast(string)binary[index .. index + len].idup;
         index += len;
-        return cast(string)binary[sStart..sEnd];
+        return s;
     }
-    
-    bool error(T...)(T args)
+
+    // ---------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------
+
+    Section requireCurrentSection()
     {
-        writefln(args);
-        return false;
+        if (currentSection is null)
+            throw new LnkError(format("Current section is not set (offset 0x%X)", index));
+        return currentSection;
     }
-    
-    void parseExpression()
+
+    Section requireSection(uint idx)
     {
-        // TODO
+        auto p = idx in sectionsByIndex;
+        if (p is null)
+            throw new LnkError(format("Unknown section index %d (offset 0x%X)", idx, index));
+        return *p;
     }
-    
+
+    void addSymbol(Symbol s)
+    {
+        symbols ~= s;
+        if (!s.local && !s.isFunction)
+            symbolsByIndex[s.index] = s;
+        if (!s.local && !s.isFunction && !s.imported)
+            symbolsByName[s.name] = s;
+    }
+
+    Expression readExpression(int depth = 0)
+    {
+        if (depth > 64)
+            throw new LnkError("Relocation expression is nested too deeply");
+
+        size_t at = index;
+        ubyte op = readUByte();
+        auto e = new Expression(op);
+
+        if (op == ExprOp.CONSTANT)
+            e.value = readUInt();
+        else if (isIdOp(op))
+            e.value = readUShort();
+        else if (isBinaryOp(op))
+        {
+            e.left = readExpression(depth + 1);
+            e.right = readExpression(depth + 1);
+        }
+        else
+            throw new LnkError(format("Unknown expression tag 0x%02X at offset 0x%X", op, at));
+
+        return e;
+    }
+
+    // ---------------------------------------------------------------
+    // Record stream
+    // ---------------------------------------------------------------
+
     bool parse()
     {
-        string magic = cast(string)binary[0..3];
-        writefln("Magic: %s [%(0x%02X, %)]", magic, magic);
-        
+        if (binary.length < 4)
+            throw new LnkError("File is too small");
+
+        string magic = cast(string)binary[0 .. 3];
+        log("Magic: %s", magic);
+
         if (magic != "LNK")
-        {
-            return error("Unknown object file format!");
-        }
-        
+            throw new LnkError("Unknown object file format!");
+
         index = 3;
-        
+
         ver = readUByte();
-        writefln("Version: 0x%02X", ver);
-    
+        log("Version: 0x%02X", ver);
+
         if (ver != 2)
-        {
-            return error("Unknown LNK version!");
-        }
-        
+            throw new LnkError("Unknown LNK version!");
+
         bool readingStream = true;
-        while(readingStream && index < binary.length)
+        while (readingStream && index < binary.length)
         {
+            size_t opcodeOffset = index;
             ubyte opcode = readUByte();
-            writefln("Opcode 0x%02X %s", opcode, cast(PsyqOpcode)opcode);
-            
-            switch(opcode)
+            log("[%06X] Opcode 0x%02X %s", opcodeOffset, opcode, cast(PsyqOpcode)opcode);
+
+            switch (opcode)
             {
-                case PsyqOpcode.PROGRAMTYPE:
-                    ubyte t = readUByte();
-                    writefln("  Program type: 0x%02X", t);
-                    if (t != 7 && t != 9)
-                        return error("Unknown program type!");
-                    if (programType)
-                        return error("Program type already declared!");
-                    else
-                        programType = t;
+                case PsyqOpcode.END:
+                {
+                    readingStream = false;
                     break;
-                
-                case PsyqOpcode.SECTION:
-                    ushort sectionIndex = readUShort();
-                    ushort group = readUShort();
-                    ubyte alignment = readUByte();
-                    string name = readString();
-                    writefln("  Section index: %s, group: %s, alignment: %s, name: %s", sectionIndex, group, alignment, name);
-                    Section section = new Section(sectionIndex, group, alignment, name);
-                    sectionsByName[name] = section;
-                    sectionsByIndex[sectionIndex] = section;
-                    if ((alignment - 1) & alignment)
-                        return error("Section alignment isn't a power of two!");
-                    break;
-                
-                case PsyqOpcode.SWITCH:
-                    ushort sectionIndex = readUShort();
-                    writefln("  Switch to section %s...", sectionIndex);
-                    currentSection = sectionsByIndex[sectionIndex];
-                    if (currentSection is null)
-                        return error("Unknown section index!");
-                    break;
-                
+                }
+
                 case PsyqOpcode.BYTES:
+                {
                     ushort size = readUShort();
-                    writefln("  %s byte(s):", size);
                     ubyte[] slice = readUBytes(size);
-                    writefln("  [%(0x%02X, %)]", slice);
-                    if (currentSection is null)
-                        return error("Current section is not set!");
-                    currentSection.pointer = cast(uint)currentSection.getFullSize();
-                    if (currentSection.zeroes)
-                    {
-                        ubyte[] zeroes = new ubyte[currentSection.zeroes];
-                        currentSection.zeroes = 0;
-                        currentSection.data ~= zeroes;
-                    }
-                    currentSection.data ~= slice;
+                    log("  %s byte(s): [%(0x%02X, %)]", size, slice);
+                    Section s = requireCurrentSection();
+                    s.flushZeroes();
+                    s.pointer = cast(uint)s.data.length;
+                    s.data ~= slice;
                     break;
-                
+                }
+
+                case PsyqOpcode.RUN_AT_OFFSET:
+                {
+                    ushort sectionIndex = readUShort();
+                    ushort offset = readUShort();
+                    log("  Run section %s at offset 0x%04X", sectionIndex, offset);
+                    break;
+                }
+
+                case PsyqOpcode.SWITCH:
+                {
+                    ushort sectionIndex = readUShort();
+                    log("  Switch to section %s...", sectionIndex);
+                    currentSection = requireSection(sectionIndex);
+                    break;
+                }
+
+                case PsyqOpcode.ZEROES:
+                {
+                    uint size = readUInt();
+                    log("  %s zero byte(s)", size);
+                    if (size > 0x10000000)
+                        throw new LnkError("Unreasonable zero-fill size");
+                    Section s = requireCurrentSection();
+                    s.zeroes += size;
+                    break;
+                }
+
+                case PsyqOpcode.RELOCATION:
+                {
+                    RelocationType relocType = cast(RelocationType)readUByte();
+                    ushort offset = readUShort();
+                    Expression expr = readExpression();
+                    Section s = requireCurrentSection();
+
+                    Relocation r;
+                    r.type = relocType;
+                    r.offset = offset + s.pointer;
+                    r.expr = expr;
+
+                    int symIdx;
+                    int secIdx;
+                    long addend;
+                    r.simple = resolveSimple(expr, symIdx, secIdx, addend);
+                    if (r.simple)
+                    {
+                        r.symbolIndex = symIdx;
+                        r.sectionIndex = secIdx;
+                        r.addend = cast(int)addend;
+                    }
+
+                    log("  Relocation %s at 0x%08X+0x%04X (section %s): %s",
+                        relocType, s.pointer, offset, s.name, expr.describe());
+                    s.relocations ~= r;
+                    break;
+                }
+
                 case PsyqOpcode.EXPORTED_SYMBOL:
+                {
                     ushort symbolIndex = readUShort();
                     ushort sectionIndex = readUShort();
                     uint offset = readUInt();
                     string name = readString();
-                    writefln("  symbolIndex: %s, sectionIndex: %s, offset: 0x%08X, name: %s", symbolIndex, sectionIndex, offset, name);
-                    Symbol symbol = new Symbol(symbolIndex, sectionIndex, offset, name);
-                    symbolsByName[name] = symbol;
+                    log("  XDEF symbolIndex: %s, sectionIndex: %s, offset: 0x%08X, name: %s",
+                        symbolIndex, sectionIndex, offset, name);
+                    addSymbol(new Symbol(symbolIndex, sectionIndex, offset, name));
                     break;
-                
+                }
+
+                case PsyqOpcode.IMPORTED_SYMBOL:
+                {
+                    ushort symbolIndex = readUShort();
+                    string name = readString();
+                    log("  XREF symbolIndex: %s, name: %s", symbolIndex, name);
+                    Symbol sym = new Symbol(symbolIndex, 0, 0, name);
+                    sym.imported = true;
+                    addSymbol(sym);
+                    break;
+                }
+
+                case PsyqOpcode.SECTION:
+                {
+                    ushort sectionIndex = readUShort();
+                    ushort group = readUShort();
+                    ubyte alignment = readUByte();
+                    string name = readString();
+                    log("  Section index: %s, group: %s, alignment: %s, name: %s",
+                        sectionIndex, group, alignment, name);
+                    if (alignment == 0 || ((alignment - 1) & alignment))
+                        throw new LnkError("Section alignment isn't a power of two!");
+                    if (sectionIndex in sectionsByIndex)
+                        throw new LnkError(format("Duplicate section index %d", sectionIndex));
+                    Section section = new Section(sectionIndex, group, alignment, name);
+                    sections ~= section;
+                    sectionsByName[name] = section;
+                    sectionsByIndex[sectionIndex] = section;
+                    break;
+                }
+
+                case PsyqOpcode.LOCAL_SYMBOL:
+                case PsyqOpcode.VERY_LOCAL_SYMBOL:
+                {
+                    ushort sectionIndex = readUShort();
+                    uint offset = readUInt();
+                    string name = readString();
+                    log("  Local symbol sectionIndex: %s, offset: 0x%08X, name: %s",
+                        sectionIndex, offset, name);
+                    Symbol sym = new Symbol(0, sectionIndex, offset, name);
+                    sym.local = true;
+                    addSymbol(sym);
+                    break;
+                }
+
+                case PsyqOpcode.GROUP_SYMBOL:
+                {
+                    ushort number = readUShort();
+                    ubyte type = readUByte();
+                    string name = readString();
+                    log("  Group symbol %s, type: %s, name: %s", number, type, name);
+                    break;
+                }
+
+                case PsyqOpcode.BYTE_SIZE_REGISTER:
+                case PsyqOpcode.WORD_SIZE_REGISTER:
+                case PsyqOpcode.LONG_SIZE_REGISTER:
+                case PsyqOpcode.SET_3BYTE_REGISTER:
+                {
+                    ushort reg = readUShort();
+                    log("  Register %s", reg);
+                    break;
+                }
+
                 case PsyqOpcode.FILENAME:
+                {
                     ushort fileIndex = readUShort();
                     string fileName = readString();
-                    writefln("  %s \"%s\"", fileIndex, fileName);
+                    log("  %s \"%s\"", fileIndex, fileName);
                     break;
-                
-                case PsyqOpcode.RELOCATION:
-                    RelocationType relocType = cast(RelocationType)readUByte();
-                    writefln("  Type: %s", relocType);
+                }
+
+                case PsyqOpcode.SET_TO_FILE:
+                {
+                    ushort file = readUShort();
+                    uint line = readUInt();
+                    log("  Set to file %s, line %s", file, line);
+                    break;
+                }
+
+                case PsyqOpcode.SET_TO_LINE:
+                {
+                    uint line = readUInt();
+                    log("  Set to line %s", line);
+                    break;
+                }
+
+                case PsyqOpcode.INC_LINENUM:
+                    break;
+
+                case PsyqOpcode.INC_LINENUM_BY_BYTE:
+                {
+                    ubyte n = readUByte();
+                    log("  Increment line by %s", n);
+                    break;
+                }
+
+                case PsyqOpcode.INC_LINENUM_BY_WORD:
+                {
+                    uint n = readUInt();
+                    log("  Increment line by %s", n);
+                    break;
+                }
+
+                case PsyqOpcode.SET_MX_INFO:
+                {
+                    ubyte a = readUByte();
+                    ubyte b = readUByte();
+                    log("  MX info %s, %s", a, b);
+                    break;
+                }
+
+                case PsyqOpcode.PROGRAMTYPE:
+                {
+                    ubyte t = readUByte();
+                    log("  Program type: 0x%02X", t);
+                    if (t != 7 && t != 9)
+                        throw new LnkError("Unknown program type!");
+                    if (programType)
+                        throw new LnkError("Program type already declared!");
+                    programType = t;
+                    break;
+                }
+
+                case PsyqOpcode.XBSS:
+                {
+                    ushort symbolIndex = readUShort();
+                    ushort sectionIndex = readUShort();
+                    uint size = readUInt();
+                    string name = readString();
+                    log("  XBSS symbolIndex: %s, sectionIndex: %s, size: 0x%X, name: %s",
+                        symbolIndex, sectionIndex, size, name);
+                    Section s = requireSection(sectionIndex);
+                    addSymbol(new Symbol(symbolIndex, sectionIndex, s.uninitializedOffset, name));
+                    s.uninitializedOffset += size;
+                    break;
+                }
+
+                // Source line debug info: parsed and skipped
+                case PsyqOpcode.INC_SLD_LINENUM:
+                {
                     ushort offset = readUShort();
-                    if (currentSection is null)
-                        return error("Current section is not set!");
-                    writefln("  Offset 0x%08X+0x%08X", offset, currentSection.pointer);
-                    parseExpression();
-                    //Expression expression = parseExpression(file, verbose);
-                    // Addend will be populated later during expression evaluation
-                    currentSection.relocations ~= Relocation(relocType, offset + currentSection.pointer, 0);
+                    log("  SLD: offset 0x%04X, line++", offset);
                     break;
-                
+                }
+
+                case PsyqOpcode.INC_SLD_LINENUM_BY_BYTE:
+                {
+                    ushort offset = readUShort();
+                    ubyte n = readUByte();
+                    log("  SLD: offset 0x%04X, line += %s", offset, n);
+                    break;
+                }
+
+                case PsyqOpcode.INC_SLD_LINENUM_BY_WORD:
+                {
+                    ushort offset = readUShort();
+                    uint n = readUInt();
+                    log("  SLD: offset 0x%04X, line += %s", offset, n);
+                    break;
+                }
+
+                case PsyqOpcode.SET_SLD_LINENUM:
+                {
+                    ushort offset = readUShort();
+                    uint line = readUInt();
+                    log("  SLD: offset 0x%04X, line = %s", offset, line);
+                    break;
+                }
+
+                case PsyqOpcode.SET_SLD_LINENUM_FILE:
+                {
+                    ushort offset = readUShort();
+                    uint line = readUInt();
+                    ushort file = readUShort();
+                    log("  SLD: offset 0x%04X, line = %s, file = %s", offset, line, file);
+                    break;
+                }
+
                 case PsyqOpcode.END_SLD:
-                    ushort zero = readUShort(); // 2 bytes of nothing
-                    if (zero != 0)
-                        return error("Invalid END_SLD");
+                {
+                    ushort offset = readUShort();
+                    log("  SLD end, offset 0x%04X", offset);
                     break;
-                
-                case PsyqOpcode.END:
-                    readingStream = false;
+                }
+
+                // Function / block debug info
+                case PsyqOpcode.FUNCTION:
+                {
+                    ushort sectionIndex = readUShort();
+                    uint offset = readUInt();
+                    ushort file = readUShort();
+                    uint line = readUInt();
+                    ushort frameReg = readUShort();
+                    uint frameSize = readUInt();
+                    ushort retReg = readUShort();
+                    uint mask = readUInt();
+                    uint maskOffset = readUInt();
+                    string name = readString();
+                    log("  Function %s: section %s, offset 0x%08X, file %s, line %s, " ~
+                        "frame $%s+0x%X, return reg %s, mask 0x%08X @ 0x%X",
+                        name, sectionIndex, offset, file, line, frameReg, frameSize,
+                        retReg, mask, maskOffset);
+                    Symbol sym = new Symbol(0, sectionIndex, offset, name);
+                    sym.isFunction = true;
+                    addSymbol(sym);
                     break;
-                
+                }
+
+                case PsyqOpcode.FUNCTION_END:
+                case PsyqOpcode.BLOCK_START:
+                case PsyqOpcode.BLOCK_END:
+                {
+                    ushort sectionIndex = readUShort();
+                    uint offset = readUInt();
+                    uint line = readUInt();
+                    log("  Section %s, offset 0x%08X, line %s", sectionIndex, offset, line);
+                    break;
+                }
+
+                case PsyqOpcode.DEF:
+                {
+                    ushort sectionIndex = readUShort();
+                    uint value = readUInt();
+                    ushort cls = readUShort();
+                    ushort type = readUShort();
+                    uint size = readUInt();
+                    string name = readString();
+                    log("  Def %s: section %s, value 0x%X, class %s, type %s, size %s",
+                        name, sectionIndex, value, cls, type, size);
+                    break;
+                }
+
+                case PsyqOpcode.DEF2:
+                {
+                    ushort sectionIndex = readUShort();
+                    uint value = readUInt();
+                    ushort cls = readUShort();
+                    ushort type = readUShort();
+                    uint size = readUInt();
+                    ushort dimCount = readUShort();
+                    uint[] dims;
+                    foreach (i; 0 .. dimCount)
+                        dims ~= readUInt();
+                    string tag = readString();
+                    string name = readString();
+                    log("  Def2 %s (tag %s): section %s, value 0x%X, class %s, type %s, " ~
+                        "size %s, dims %s", name, tag, sectionIndex, value, cls, type,
+                        size, dims);
+                    break;
+                }
+
                 default:
-                    return error("Unknown opcode!");
+                    throw new LnkError(format("Unknown opcode 0x%02X at offset 0x%X",
+                                              opcode, opcodeOffset));
             }
         }
-        
+
+        if (readingStream)
+            throw new LnkError("Unexpected end of file (missing END record)");
+
         return true;
     }
 }

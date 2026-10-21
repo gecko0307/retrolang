@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2026 Timur Gafarov 
+Copyright (c) 2026 Timur Gafarov
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -27,58 +27,201 @@ DEALINGS IN THE SOFTWARE.
 */
 import std.stdio;
 import std.file;
+import std.format : format;
+import std.bitmanip : littleEndianToNative;
 
 import psyqobj;
 import section;
+import symbol;
 import psxexe;
 import disasm;
 
+/// Little-endian words from a byte buffer (no alignment assumptions)
+uint[] toWords(const(ubyte)[] data)
+{
+    uint[] words = new uint[data.length / 4];
+    foreach (i, ref w; words)
+    {
+        ubyte[4] b = data[i * 4 .. i * 4 + 4];
+        w = littleEndianToNative!uint(b);
+    }
+    return words;
+}
+
+/// Symbol names by offset for a given section
+string[][uint] buildLabels(PsyqObject obj, Section s)
+{
+    string[][uint] labels;
+    foreach (sym; obj.symbols)
+    {
+        if (sym.imported || sym.sectionIndex != s.index)
+            continue;
+
+        bool known = false;
+        if (auto p = sym.offset in labels)
+        {
+            foreach (n; *p)
+                if (n == sym.name)
+                    known = true;
+        }
+        if (!known)
+            labels[sym.offset] ~= sym.name;
+    }
+    return labels;
+}
+
+/// Relocation descriptions by offset for a given section
+string[uint] buildNotes(PsyqObject obj, Section s)
+{
+    string[uint] notes;
+    foreach (r; s.relocations)
+    {
+        string text = obj.describeRelocation(r);
+        if (auto p = r.offset in notes)
+            *p ~= ", " ~ text;
+        else
+            notes[r.offset] = text;
+    }
+    return notes;
+}
+
+void dumpData(PsyqObject obj, Section s)
+{
+    auto labels = buildLabels(obj, s);
+    auto notes = buildNotes(obj, s);
+    auto data = s.data;
+
+    for (size_t i = 0; i < data.length; i += 16)
+    {
+        // Print labels that start within this row
+        foreach (k; 0 .. 16)
+        {
+            if (i + k < data.length)
+            {
+                if (auto p = cast(uint)(i + k) in labels)
+                    foreach (name; *p)
+                        writefln("%s:", name);
+            }
+        }
+
+        string hex;
+        string asc;
+        foreach (k; 0 .. 16)
+        {
+            if (i + k < data.length)
+            {
+                ubyte c = data[i + k];
+                hex ~= format("%02x ", c);
+                asc ~= (c >= 0x20 && c < 0x7f) ? cast(char)c : '.';
+            }
+            else
+                hex ~= "   ";
+        }
+        writefln("  %08x: %s |%s|", i, hex, asc);
+    }
+
+    foreach (r; s.relocations)
+        writefln("  reloc +0x%04x: %s", r.offset, obj.describeRelocation(r));
+}
+
+void printSymbols(PsyqObject obj)
+{
+    if (obj.symbols.length == 0)
+        return;
+
+    writeln("Symbols:");
+    foreach (sym; obj.symbols)
+    {
+        string kind = sym.imported ? "import" :
+                      sym.isFunction ? "func  " :
+                      sym.local ? "local " : "export";
+
+        if (sym.imported)
+        {
+            writefln("  %s %s", kind, sym.name);
+        }
+        else
+        {
+            string secName = "?";
+            if (auto p = sym.sectionIndex in obj.sectionsByIndex)
+                secName = (*p).name;
+            writefln("  %s %s+0x%x  %s", kind, secName, sym.offset, sym.name);
+        }
+    }
+}
+
 int main(string[] args)
 {
-    if (args.length < 2)
+    bool verbose = false;
+    string objFilename;
+
+    foreach (arg; args[1 .. $])
     {
+        if (arg == "-v" || arg == "--verbose")
+            verbose = true;
+        else if (objFilename.length == 0)
+            objFilename = arg;
+    }
+
+    if (objFilename.length == 0)
+    {
+        writeln("Usage: psxdis [-v] <file>");
         writeln("No input file specified.");
         return 1;
     }
-    
-    string objFilename = args[1];
-    
+
     writefln("File: %s", objFilename);
-    
+
     ubyte[] binary = cast(ubyte[])std.file.read(objFilename);
     if (binary.length < 8)
     {
         writeln("Unknown file type!");
         return 1;
     }
-    
+
     string fileStart = cast(string)binary[0..8];
     if (fileStart[0..3] == "LNK")
     {
         // PsyQ object file
-        writefln("LNK format object file");
-        
-        PsyqObject obj = new PsyqObject(binary);
-        
-        foreach(name, section; obj.sectionsByName)
+        PsyqObject obj = new PsyqObject(binary, verbose);
+
+        writefln("LNK format object file (version %s)", obj.ver);
+
+        printSymbols(obj);
+
+        foreach (s; obj.sections)
         {
-            if (section.data.length > 0)
+            size_t fullSize = s.getFullSize();
+            if (fullSize == 0 && s.relocations.length == 0)
+                continue;
+
+            writefln("Section %s (%s), size 0x%X, alignment %s, group %s:",
+                     s.name, s.index, fullSize, s.alignment, s.group);
+
+            if (s.data.length == 0)
             {
-                writefln("Section %s (%s):", name, section.index);
-                if (section.name == ".text")
-                {
-                    if (section.data.length > 0)
-                    {
-                        auto disassembler = new MipsDisassembler(cast(uint[])section.data);
-                    }
-                }
-                else
-                {
-                    writefln("  \"%s\"", cast(string)section.data);
-                }
+                writefln("  (uninitialized, 0x%X bytes)", fullSize);
+                continue;
             }
+
+            if (s.name == ".text")
+            {
+                if (s.data.length % 4 != 0)
+                    writefln("  Warning: .text size is not a multiple of 4 (%s bytes)", s.data.length);
+
+                auto disassembler = new MipsDisassembler(toWords(s.data), 0, uint.max,
+                    buildLabels(obj, s), buildNotes(obj, s));
+            }
+            else
+            {
+                dumpData(obj, s);
+            }
+
+            size_t trailing = fullSize - s.data.length;
+            if (trailing > 0)
+                writefln("  + 0x%X bytes of uninitialized data", trailing);
         }
-        
+
         if (obj.parsed)
             return 0;
         else
