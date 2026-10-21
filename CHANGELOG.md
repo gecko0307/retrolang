@@ -5,7 +5,9 @@ Retrolang 0.9.0 - TBD
   - `DirEntry` structure in `bios.r`
   - `pad_old.r` - legacy gamepad API
 - **PSXDISASM**
-  - Finish support for LNK2 object files.
+  - Finish support for LNK2 object files
+- **XA Tool**
+  - New tool, a XA stream interleaver meant to be used with [psxavenc](https://github.com/WonderfulToolchain/psxavenc).
 
 Retrolang 0.8.0 - 20 Oct, 2026
 ------------------------------

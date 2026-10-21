@@ -80,6 +80,10 @@ A simple PNG to TIM converter.
 
 PCM WAV files to ADPCM VAG converter.
 
+## XA Tool
+
+A simple XA stream interleaver.
+
 ## DATWrite
 
 An utility that generates CD license patch (a *.dat file) with a custom text and logo model.
@@ -235,7 +239,7 @@ What is not implemented yet:
 
 ## License
 
-RLC, PSXDISASM, Retrobuild, PNG2TIM, WAV2VAG and DATWrite are distributed under the Boost Software License, 1.0.
+RLC, PSXDISASM, Retrobuild, PNG2TIM, WAV2VAG, XA Tool and DATWrite are distributed under the Boost Software License, 1.0.
 
 The standard library and all examples are distributed under Unlicense/Public Domain.
 
