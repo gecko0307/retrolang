@@ -82,7 +82,7 @@ PCM WAV files to ADPCM VAG converter.
 
 ## XA Tool
 
-A simple XA stream interleaver.
+XA stream encoder/interleaver.
 
 ## DATWrite
 
