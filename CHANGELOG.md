@@ -7,7 +7,7 @@ Retrolang 0.9.0 - TBD
 - **PSXDISASM**
   - Finish support for LNK2 object files
 - **XA Tool**
-  - New tool, a XA stream interleaver meant to be used with [psxavenc](https://github.com/WonderfulToolchain/psxavenc).
+  - New tool: XA stream encoder/interleaver
 - **Examples**
   - XA audio playback example
 - **Misc**

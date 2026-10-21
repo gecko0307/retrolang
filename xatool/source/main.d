@@ -79,13 +79,18 @@ WavData decodeAudio(string path)
     float sampleRate = input.getSamplerate();
     int channels = input.getNumChannels();
     long lengthFrames = input.getLengthInFrames();
-    double duration = lengthFrames / cast(double)sampleRate;
+    double duration = -1.0;
+    if (lengthFrames != audiostreamUnknownLength)
+        duration = lengthFrames / cast(double)sampleRate;
     int chunkFrames = 4096;
     
     writefln("Format: %s", input.getFormat());
     writefln("Sample rate: %s Hz", sampleRate);
     writefln("Channels: %s", channels);
-    writefln("Duration: %s s", duration);
+    if (duration < 0.0)
+        writefln("Duration: <undefined> (tracker format)");
+    else
+        writefln("Duration: %s s", duration);
     
     WavData result;
     result.sampleRate = cast(uint)input.getSamplerate();
@@ -129,7 +134,7 @@ Stream loadStream(string path)
         case ".wav":
             return wavToXa(path);
 
-        case ".mp3":
+        case ".mp3", ".flac", ".ogg", ".opus", ".qoa", ".mod", ".xm":
             return wavToXa(decodeAudio(path), path);
 
         default:
