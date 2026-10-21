@@ -1,6 +1,6 @@
 # XA Tool
 
-XA Tool is a simple XA stream interleaver. It interleaves 2336-byte sector XA files (usually generated with psxavenc) into one playable file.
+XA stream encoder and interleaver. Combines 2336-byte sector XA files into one playable file.
 
 Usage:
 
@@ -18,7 +18,7 @@ Interleave span (sectors per cycle):
 - 16 = 18900 Hz stereo, or 37800 Hz mono
 - 32 = 18900 Hz mono
 
-XA Tool can also experimentally encode PCM WAV to XA (just use *.wav files as inputs instead of *.xa):
+XA Tool can also encode PCM WAV (8/16-bit, stereo) to XA. Simply use *.wav files as inputs instead of *.xa:
 
 ```
 xatool -o MUSIC.XA --file 1 channel0.wav channel1.wav

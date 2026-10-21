@@ -5,4 +5,6 @@ licenses/*
 *.dll
 *.bin
 *.que
-run.bat
+*.bat
+*.xa
+*.wav
