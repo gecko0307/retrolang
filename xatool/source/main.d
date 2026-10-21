@@ -23,42 +23,30 @@ Interleave span (sectors per cycle):
 
 import std.stdio;
 import std.file: read;
+import std.path: extension;
 import std.getopt: getopt;
 import std.format: format;
 import std.exception: enforce;
+import std.string: toLower;
 
-enum SECTOR = 2336;
-enum FILLER_CHANNEL = 31;
+import wav;
+import xa;
 
-struct Stream
+Stream loadStream(string path)
 {
-    string path;
-    ubyte[] data;
-
-    @property size_t length() const
+    switch (path.extension.toLower)
     {
-        return data.length / SECTOR;
+        case ".wav":
+            return wavToXa(path);
+
+        case ".xa":
+            return readSectors(path);
+
+        default:
+            throw new Exception(format(
+                "%s: unsupported input format (expected WAV or XA)",
+                path));
     }
-
-    ubyte[] sector(size_t index)
-    {
-        return data[index * SECTOR .. (index + 1) * SECTOR];
-    }
-}
-
-Stream readSectors(string path)
-{
-    auto data = cast(ubyte[]) read(path);
-
-    enforce(data.length != 0,
-        format("%s: empty input file", path));
-
-    enforce(data.length % SECTOR == 0,
-        format("%s: size %s is not a multiple of %s "
-            ~ "(encode with -t xa, not xacd)",
-            path, data.length, SECTOR));
-
-    return Stream(path, data);
 }
 
 int main(string[] args)
@@ -83,9 +71,7 @@ int main(string[] args)
 
     if (output.length == 0)
     {
-        stderr.writeln(
-            "Usage: xainterleave -o OUTPUT [--file N] "
-            ~ "[--span N] INPUT...");
+        stderr.writeln("Usage: xainterleave -o OUTPUT [--file N] [--span N] INPUT...");
         return 1;
     }
 
@@ -132,7 +118,7 @@ int main(string[] args)
     try
     {
         foreach (path; args[1..$])
-            streams ~= readSectors(path);
+            streams ~= loadStream(path);
     }
     catch (Exception e)
     {
@@ -168,8 +154,8 @@ int main(string[] args)
 
             foreach (off; [0, 4])
             {
-                sec[off]     = cast(ubyte) fileNo;
-                sec[off + 1] = cast(ubyte) ch;
+                sec[off] = cast(ubyte)fileNo;
+                sec[off + 1] = cast(ubyte)ch;
 
                 if (i == last)
                     sec[off + 2] |= 0x81; // EOF | EOR
@@ -182,7 +168,7 @@ int main(string[] args)
 
     foreach (off; [0, 4])
     {
-        pad[off]     = cast(ubyte) fileNo;
+        pad[off] = cast(ubyte) fileNo;
         pad[off + 1] = FILLER_CHANNEL;
         pad[off + 2] = 0x64;
         pad[off + 3] = coding;
