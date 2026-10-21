@@ -1,6 +1,8 @@
 Retrolang 0.9.0 - TBD
 ---------------------
 - **Retrolib**
+  - `xa.r` - XA playback API
+  - `DirEntry` structure in `bios.r`
   - `pad_old.r` - legacy gamepad API
 - **PSXDISASM**
   - Finish support for LNK2 object files.
