@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<Scheme>
+	<keyword-classes>
+		<keyword-class name="retrolang">
+			asm break continue do else for if import macro null return struct while
+			int uint char uchar byte ubyte unsigned void
+		</keyword-class>
+	</keyword-classes>
+	<language name="retrolang" title="Retrolang" folding="true" foldcomments="true" foldcompact="false" foldpreproc="true">
+		<lexer name="cpp" />
+		<property name="lexer.cpp.track.preprocessor" value="0" />
+		<comments line="//" streamStart="/*" streamEnd="*/" blockStart="/**" blockLine=" *" blockEnd=" */" />
+		<use-keywords>
+			<keyword key="0" name="Keywords" class="retrolang"/>
+		</use-keywords>
+		<use-styles>
+			<style name="Default" key="32" />
+			<style name="Whitespace" key="0" />
+			<style name="Comment" key="1" class="commentbox"/>
+			<style name="Comment Line" key="2" class="commentline"/>
+			<style name="Comment Doc" key="3" class="commentdoc"/>
+			<style name="Number" key="4" class="number"/>
+			<style name="Keyword" key="5" class="keyword"/>
+			<style name="String" key="6" class="string"/>
+			<style name="Character" key="7" class="string"/>
+			<style name="Preprocessor" key="9" class="preprocessor"/>
+			<style name="Operator" key="10" bold="true"/>
+			<style name="Identifier" key="11" />
+			<style name="End of line string" key="12" fore="000000" back="e0c0e0" eolfilled="true"/>
+		</use-styles>
+	</language>
+</Scheme>
