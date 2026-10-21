@@ -329,7 +329,11 @@ short[] resampleStereo(const(short)[] input, uint srcRate, uint dstRate)
 Stream wavToXa(string path)
 {
     auto wav = readWav(path);
+    return wavToXa(wav, path);
+}
 
+Stream wavToXa(WavData wav, string path)
+{
     enforce(wav.channels == 2, format("%s: expected stereo WAV", path));
     enforce(wav.bitsPerSample == 16, format("%s: expected 16-bit PCM WAV", path));
 

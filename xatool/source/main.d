@@ -48,10 +48,10 @@ module main;
  *   16 = 18900 Hz stereo, or 37800 Hz mono
  *   32 = 18900 Hz mono
  *
- * XA Tool can also encode PCM WAV (8/16-bit, stereo) to XA.
- * Simply use *.wav files as inputs instead of *.xa:
+ * XA Tool can transcode PCM WAV/MP3/FLAC/OGG files to XA format.
+ * Simply use audio files as inputs instead of *.xa:
  *
- *   xatool -o MUSIC.XA --file 1 channel0.wav channel1.wav
+ *   xatool -o MUSIC.XA --file 1 channel0.mp3 channel1.mp3
  */
 
 import std.stdio;
@@ -62,23 +62,78 @@ import std.format: format;
 import std.exception: enforce;
 import std.string: toLower;
 
+import audioformats;
 import wav;
 import xa;
 
+WavData decodeAudio(string path)
+{
+    writefln("Opening \"%s\"...", path);
+    
+    AudioStream input;
+    input.openFromFile(path);
+    
+    if (input.isError)
+        throw new Exception("Failed to open \"" ~ path ~ "\"");
+    
+    float sampleRate = input.getSamplerate();
+    int channels = input.getNumChannels();
+    long lengthFrames = input.getLengthInFrames();
+    double duration = lengthFrames / cast(double)sampleRate;
+    int chunkFrames = 4096;
+    
+    writefln("Format: %s", input.getFormat());
+    writefln("Sample rate: %s Hz", sampleRate);
+    writefln("Channels: %s", channels);
+    writefln("Duration: %s s", duration);
+    
+    WavData result;
+    result.sampleRate = cast(uint)input.getSamplerate();
+    result.channels = cast(ushort)channels;
+    result.bitsPerSample = 16;
+
+    float[] buffer = new float[chunkFrames * channels];
+
+    while(true)
+    {
+        int frames = input.readSamplesFloat(buffer);
+        if (input.isError)
+            throw new Exception("Audio decoding failed");
+        if (frames == 0)
+            break;
+        int count = frames * channels;
+        short[] converted = new short[count];
+        foreach (i; 0..count)
+        {
+            float s = buffer[i];
+            if (s <= -1.0f)
+                converted[i] = short.min;
+            else if (s >= 1.0f)
+                converted[i] = short.max;
+            else
+                converted[i] = cast(short)(s * 32768.0f);
+        }
+        result.samples ~= converted;
+    }
+
+    return result;
+}
+
 Stream loadStream(string path)
 {
-    switch (path.extension.toLower)
+    switch(path.extension.toLower)
     {
-        case ".wav":
-            return wavToXa(path);
-
         case ".xa":
             return readSectors(path);
 
+        case ".wav":
+            return wavToXa(path);
+
+        case ".mp3":
+            return wavToXa(decodeAudio(path), path);
+
         default:
-            throw new Exception(format(
-                "%s: unsupported input format (expected WAV or XA)",
-                path));
+            throw new Exception("Unsupported input format");
     }
 }
 

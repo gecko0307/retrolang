@@ -1,9 +1,12 @@
 {
-    "name": "xatool",
-    "description": "XA stream interleaver",
-    "license": "BSL-1.0",
-    "copyright": "Copyright © 2026, Timur Gafarov",
-    "authors": [
-        "Timur Gafarov"
-    ]
+	"description": "XA stream interleaver",
+	"dependencies": {
+		"audio-formats": "~>3.1.0"
+	},
+	"authors": [
+		"Timur Gafarov"
+	],
+	"copyright": "Copyright © 2026, Timur Gafarov",
+	"license": "BSL-1.0",
+	"name": "xatool"
 }
