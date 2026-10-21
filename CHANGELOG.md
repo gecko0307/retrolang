@@ -8,6 +8,8 @@ Retrolang 0.9.0 - TBD
   - Finish support for LNK2 object files
 - **XA Tool**
   - New tool, a XA stream interleaver meant to be used with [psxavenc](https://github.com/WonderfulToolchain/psxavenc).
+- **Examples**
+  - XA audio playback example.
 
 Retrolang 0.8.0 - 20 Oct, 2026
 ------------------------------
