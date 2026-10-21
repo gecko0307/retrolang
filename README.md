@@ -211,6 +211,7 @@ All examples support building with Retrobuild. RLC must be available system-wide
 Provided examples rely on the following third-party tools:
 
 - [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso) to build CD-ROM images
+- [psxavenc](https://github.com/WonderfulToolchain/psxavenc) to convert music to XA format
 - [Blender](https://blender.org) to export meshes to PlayStation-oriented formats.
 
 For running examples on the PC, we recommend [DuckStation](https://www.duckstation.org/), a fast and feature-rich PlayStation emulator for Windows, Linux and Mac. To run an image (or directly `PSX.EXE` if you don't build an image), use the following command:
