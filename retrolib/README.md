@@ -12,6 +12,7 @@ Core modules:
 * `gpu.r` - GPU driver / graphics API
 * `spu.r` - SPU driver / sound API
 * `cd.r` - CD audio API
+* `xa.r` - XA playback API
 * `save.r` - memory card save/load API.
 
 Additional modules:

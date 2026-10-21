@@ -38,3 +38,4 @@ For more information, please refer to <https://unlicense.org>
 #import "spu.r"
 #import "save.r"
 #import "cd.r"
+#import "xa.r"

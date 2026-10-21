@@ -99,3 +99,18 @@ macro dequeueIrqHandler(prio, handler) = bios_c(0x03, prio, handler);   // SysDe
 // to protect data shared between the main code and an interrupt handler.
 macro enterCriticalSection()        = syscall(0x01);
 macro exitCriticalSection()         = syscall(0x02);
+
+#if import
+
+/// Structure used in cd_firstfile/cd_nextfile
+struct DirEntry
+{
+    char name[20];
+    uint attr;
+    uint size;
+    uint next_ptr;
+    uint lba;
+    uint reserved;
+};
+
+#endif

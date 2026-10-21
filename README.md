@@ -15,6 +15,7 @@ What can you do with Retrolang:
 - Load files from the CD-ROM
 - Play VAG sounds
 - Play CDDA tracks
+- Play XA audio streams
 - Access memory cards
 - Work with the BIOS.
 
@@ -169,6 +170,7 @@ Core modules:
 * `gpu.r` - GPU driver / graphics API
 * `spu.r` - SPU driver / sound API
 * `cd.r` - CD audio API
+* `xa.r` - XA playback API
 * `save.r` - memory card save/load API.
 
 Additional modules:
@@ -229,7 +231,6 @@ What is not implemented yet:
 
 - Matrix math
 - TMD models support
-- XA support
 - MDEC support
 
 ## License
