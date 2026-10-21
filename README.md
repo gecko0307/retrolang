@@ -82,7 +82,7 @@ PCM WAV files to ADPCM VAG converter.
 
 ## XA Tool
 
-XA stream encoder/interleaver.
+XA stream encoder/interleaver. Supports PCM WAV, XA-ADPCM, MP3, OGG/Vorbis, FLAC, QOI, OPUS, MOD, XM files as input.
 
 ## DATWrite
 
