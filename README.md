@@ -48,7 +48,9 @@ Project goals:
 - Provide a modern, open, self-contained toolset with x86_64 replacements for legacy utilities;
 - Provide a clean-room SDK that doesn't depend on a single byte of proprietary software.
 
-## RLC
+## Tools
+
+### RLC
 
 The main tool is RLC, the Retrolang Compiler. It combines an assembler, compiler, and a linker in a single program and directly outputs `PSX.EXE`.
 
@@ -64,29 +66,33 @@ Assembling command is similar (RLC treats *.s file as an assembly source):
 rlc -o PSX.EXE src/main.s
 ```
 
-## Retrobuild
+### Retrobuild
 
 Build automation system. With Retrobuild, you don't have to call the compiler directly or write platform-specific scripts. It compiles a project, packs it into a CD-ROM image (CUE+BIN) using [mkpsxiso](https://github.com/lameguy64/mkpsxiso), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe projects.
 
-## PSXDISASM
+### PSXDISASM
 
 Disassembler and dumper for MIPS R3000 binaries.
 
-## PNG2TIM
+### PNG2TIM
 
 A simple PNG to TIM converter.
 
-## WAV2VAG
+### WAV2VAG
 
 PCM WAV files to ADPCM VAG converter.
 
-## XA Tool
+### XA Tool
 
 XA stream encoder/interleaver. Supports PCM WAV, XA-ADPCM, MP3, OGG/Vorbis, FLAC, QOI, OPUS, MOD, XM files as input.
 
-## DATWrite
+### DATWrite
 
 An utility that generates CD license patch (a *.dat file) with a custom text and logo model.
+
+### GPSXEmu
+
+Work-in-progress PlayStation emulator.
 
 ## The Language
 
