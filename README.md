@@ -6,7 +6,7 @@ The goal of this project is to build a PlayStation 1 development toolchain compl
 
 Retrolang tools are written entirely in [D language](https://dlang.org/).
 
-What can you do with Retrolang:
+What you can do with Retrolang:
 
 - Render 2D and 3D graphics via command buffers and the DMA
 - Upload TIM files to VRAM
