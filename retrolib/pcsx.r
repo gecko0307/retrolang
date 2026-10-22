@@ -64,13 +64,13 @@ void pcsx_init()
 
 #endif
 
-/// Prints ASCII character with code c to emulator's stdout.
+// Prints ASCII character with code c to emulator's stdout.
 macro pcsx_putc(c)
 {
     *PCSX_IO = c;
 }
 
-/// Breaks execution.
+// Breaks execution.
 macro pcsx_debugbreak()
 {
     *PCSX_BREAK = 0;
@@ -95,22 +95,22 @@ macro pcsx_exit(code)
     *PCSX_EXIT = code;
 }
 
-/// Create a UI dialog displaying msg.
+// Create a UI dialog displaying msg.
 macro pcsx_message(msg)
 {
     *PCSX_MESSAGE = msg;
 }
 
-/// Enable or disable kernel checking.
+// Enable or disable kernel checking.
 macro pcsx_checkKernel(enable)
 {
     *PCSX_CHECKKERNEL = enable;
 }
 
-/// Returns 1 if kernel checking is enabled.
+// Returns 1 if kernel checking is enabled.
 macro pcsx_isCheckingKernel(enable) = (*PCSX_CHECKKERNEL != 0);
 
-/// Returns 1 if code is running in PCSX-Redux.
+// Returns 1 if code is running in PCSX-Redux.
 macro pcsx_present() = (*(uint*)PCSX_IO == 0x58534350);
 
 /*
@@ -127,19 +127,19 @@ int*  PCSX_MSAN_CHAIN     = 0x1F802094;
 
 #endif
 
-/// Initialize memory sanitizer system.
+// Initialize memory sanitizer system.
 macro pcsx_initMsan()
 {
     *PCSX_MSAN_CTRL = 0;
 }
 
-/// Reset memory sanitizer system.
+// Reset memory sanitizer system.
 macro pcsx_resetMsan()
 {
     *PCSX_MSAN_CTRL = 1;
 }
 
-/// Register the address of the PSYQo heap metadata, which is used by the PSYQo heap viewer.
+// Register the address of the PSYQo heap metadata, which is used by the PSYQo heap viewer.
 macro pcsx_registerHeapMetadata(metadata)
 {
     *(void*)PCSX_MSAN_HEAP_META = metadata;
@@ -147,37 +147,37 @@ macro pcsx_registerHeapMetadata(metadata)
 
 #if import
 
-/// Allocates memory with memory sanitizer.
+// Allocates memory with memory sanitizer.
 void* pcsx_msanAlloc(uint size)
 {
     return *(void**)PCSX_MSAN_ALLOC;
 }
 
-/// Frees memory with memory sanitizer.
+// Frees memory with memory sanitizer.
 void pcsx_msanFree(void* ptr)
 {
     *(void**)PCSX_MSAN_ALLOC = ptr;
 }
 
-/// Reallocates memory with memory sanitizer.
+// Reallocates memory with memory sanitizer.
 void* pcsx_msanRealloc(void* ptr, uint size)
 {
     return *(void**)PCSX_MSAN_REALLOC;
 }
 
-///
+//
 void pcsx_msanSetChainPtrRaw(void* ptrToNext, uint wordCount, void* headerAddr)
 {
     *(void**)PCSX_MSAN_CHAIN = headerAddr;
 }
 
-///
+//
 void pcsx_msanSetChainPtr(void* headerAddr, void* ptrToNext, uint wordCount)
 {
     pcsx_msanSetChainPtrRaw(ptrToNext, wordCount, headerAddr);
 }
 
-///
+//
 void* pcsx_msanGetChainPtr(void* headerAddr)
 {
     return *(void**)PCSX_MSAN_CHAIN;

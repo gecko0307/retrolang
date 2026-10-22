@@ -24,11 +24,42 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#define DMA_DPCR            0x1f8010f0
+#define DMA_DICR            0x1f8010f4
+
+#define DMA_CH2_MADR        0x1f8010a0
+#define DMA_CH2_BCR         0x1f8010a4
+#define DMA_CH2_CHCR        0x1f8010a8
+#define DMA_CH2_ENABLE      0x00000800
+#define DMA_CH2_LIST_START  0x01000401 // RAM -> GPU, linked list, start
+#define DMA_CH2_BLOCK_START 0x01000201 // RAM -> GPU, block (request) mode, start
+
+#define DMA_CH4_MADR        0x1f8010c0
+#define DMA_CH4_BCR         0x1f8010c4
+#define DMA_CH4_CHCR        0x1f8010c8
+
+#define DMA_BUSY            0x01000000
+
+// Waits until the DMA channel is idle.
+macro dmaWait(channel)
+{
+    while ((*channel & DMA_BUSY) != 0) {}
+}
+
 #if import
 
 #import "core.r"
 
-/// DMA control (channel enables / priorities)
+// DMA control (channel enables / priorities)
 int* dmaDpcr = DMA_DPCR;
+
+// DMA ports
+int* dma2Madr = DMA_CH2_MADR; // channel 2: base address
+int* dma2Bcr  = DMA_CH2_BCR;  // channel 2: block control
+int* dma2Chcr = DMA_CH2_CHCR; // channel 2: channel control
+
+int* dma4Madr = DMA_CH4_MADR; // channel 4: base address
+int* dma4Bcr  = DMA_CH4_BCR;  // channel 4: block control
+int* dma4Chcr = DMA_CH4_CHCR; // channel 4: channel control
 
 #endif

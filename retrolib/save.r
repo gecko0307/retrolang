@@ -154,7 +154,7 @@ int savePath(int slot, char* name)
     return 1;
 }
 
-/// Call this before using other functions.
+// Call this before using other functions.
 void saveInit()
 {
     card_init();
@@ -164,7 +164,7 @@ void saveInit()
     memcpy(saveTitle, "SAVE", 4);
 }
 
-/// ASCII title, up to 63 characters.
+// ASCII title, up to 63 characters.
 void saveSetTitle(char* title)
 {
     int i = 0;
@@ -190,7 +190,7 @@ void saveSetIcon(uchar* clut, uchar* frames, int frameCount)
     saveIconCount = frameCount;
 }
 
-/// Returns 1 if the save can be opened for reading, 0 otherwise.
+// Returns 1 if the save can be opened for reading, 0 otherwise.
 int saveExists(int slot, char* name)
 {
     int fd;
@@ -203,7 +203,7 @@ int saveExists(int slot, char* name)
     return 1;
 }
 
-///
+//
 int saveDelete(int slot, char* name)
 {
     if (!savePath(slot, name)) return SAVE_ERR_ARGS;
@@ -211,7 +211,7 @@ int saveDelete(int slot, char* name)
     return SAVE_OK;
 }
 
-///
+//
 int saveWrite(struct Save* save)
 {
     int total, fd, w, tries;

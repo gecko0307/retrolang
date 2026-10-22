@@ -82,11 +82,6 @@ ushort* SPU_REVERB_ON1 = 0x1F801D9A; // voices 16-23
 ushort* SPU_ENDX0 = 0x1F801D9C; // voices 0-15
 ushort* SPU_ENDX1 = 0x1F801D9E; // voices 16-23
 
-// DMA channel 4
-uint* DMA4_MADR = 0x1F8010C0;
-uint* DMA4_BCR  = 0x1F8010C4;
-uint* DMA4_CHCR = 0x1F8010C8;
-
 // Internal state
 
 // SPU RAM is 512 KB. The first 0x1000 bytes hold capture buffers, so
@@ -141,13 +136,13 @@ void spuUploadADPCM(uchar* vag_data, uint byte_size, uint spu_dest_addr)
     //while ((*SPU_SPUSTAT & 0x0030) != 0x0020) nop();
     for (int i = 0; i < 150; i++) nop();
 
-    *DMA4_MADR = (uint)vag_data & 0x1FFFFC;
+    *dma4Madr = (uint)vag_data & 0x1FFFFC;
 
     uint blocks = (byte_size + 63) / 64; // round UP to 64-byte blocks
-    *DMA4_BCR  = 0x10 | (blocks << 16);
-    *DMA4_CHCR = 0x01000201;
+    *dma4Bcr  = 0x10 | (blocks << 16);
+    *dma4Chcr = 0x01000201;
 
-    while (*DMA4_CHCR & (1 << 24)) nop();
+    while (*dma4Chcr & (1 << 24)) nop();
     
     //while (*SPU_SPUSTAT & (1 << 10)) nop();
     for (int i = 0; i < 200; i++) nop(); 

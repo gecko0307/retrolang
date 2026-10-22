@@ -42,14 +42,14 @@ int cdLastStat;
 int cdLoopTrack;
 int cdPaused;
 
-/// Pending interrupt type: 0 = none, 1..5 = INT1..INT5
+// Pending interrupt type: 0 = none, 1..5 = INT1..INT5
 int cdIntPending()
 {
     *CD_INDEX = 1;
     return *CD_REG3 & 7;
 }
 
-/// Reads the whole response FIFO, keeps the first byte (stat) in cdLastStat
+// Reads the whole response FIFO, keeps the first byte (stat) in cdLastStat
 void cdReadResponse()
 {
     int first = 1;
@@ -64,7 +64,7 @@ void cdReadResponse()
     }
 }
 
-///
+//
 void cdAck()
 {
     *CD_INDEX = 1;
@@ -76,7 +76,7 @@ void cdAck()
     *I_STAT = ~4; // clear the CDROM bit in I_STAT (0 = clear)
 }
 
-/// Throws away any interrupts that are waiting
+// Throws away any interrupts that are waiting
 void cdDrain()
 {
     int guard = 0;
@@ -132,7 +132,7 @@ int cdCommand(int cmd, int param, int hasParam)
     return -1; 
 }
 
-/// 0..127
+// 0..127
 void cdSetVolume(int vol)
 {
     if (vol < 0) vol = 0;
@@ -148,7 +148,7 @@ void cdSetVolume(int vol)
     *CD_REG3 = 0x20;
 }
 
-///
+//
 void cdInit()
 {
     *CD_INDEX = 1;
@@ -166,7 +166,7 @@ void cdInit()
     cdPaused = 0;
 }
 
-/// Starts a track from its beginning (no looping bookkeeping)
+// Starts a track from its beginning (no looping bookkeeping)
 void cdStartTrack(int track)
 {
     int bcd = ((track / 10) << 4) | (track - (track / 10) * 10);
@@ -174,28 +174,28 @@ void cdStartTrack(int track)
     cdPaused = 0;
 }
 
-/// Plays a track once. Track 1 is the data track; music starts at track 2.
+// Plays a track once. Track 1 is the data track; music starts at track 2.
 void cdPlay(int track)
 {
     cdLoopTrack = 0;
     cdStartTrack(track);
 }
 
-/// Plays a track and restarts it whenever it ends (needs cdUpdate() each frame)
+// Plays a track and restarts it whenever it ends (needs cdUpdate() each frame)
 void cdPlayLoop(int track)
 {
     cdLoopTrack = track;
     cdStartTrack(track);
 }
 
-/// Pause keeps the disc spinning, so cdResume() continues almost instantly
+// Pause keeps the disc spinning, so cdResume() continues almost instantly
 void cdPause()
 {
     cdPaused = 1;
     cdCommand(0x09, 0, 0); 
 }
 
-///
+//
 void cdResume()
 {
     cdPaused = 0;

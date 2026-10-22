@@ -102,7 +102,7 @@ macro exitCriticalSection()         = syscall(0x02);
 
 #if import
 
-/// Structure used in cd_firstfile/cd_nextfile
+// Structure used in cd_firstfile/cd_nextfile
 struct DirEntry
 {
     char name[20];

@@ -67,10 +67,6 @@ macro TO_KSEG2(addr) = ((addr & 0x1FFFFFFF) | KSEG2_BASE);
 
 macro SCRATCHPAD = (KSEG0_SCRATCHPAD_START, KSEG0_SCRATCHPAD_SIZE);
 
-// DMA
-#define DMA_DPCR 0x1f8010f0
-#define DMA_DICR 0x1f8010f4
-
 // COP0 registers
 #define COP0_INDX     0
 #define COP0_RAND     1

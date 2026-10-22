@@ -59,8 +59,8 @@ int cdBcd(int v)
     return ((v / 10) << 4) | (v % 10);
 }
 
-/// Pushes one parameter into the parameter FIFO. The last parameter of a
-/// command goes through cdCommand(), which only takes a single one.
+// Pushes one parameter into the parameter FIFO. The last parameter of a
+// command goes through cdCommand(), which only takes a single one.
 void cdPushParam(int v)
 {
     int timeout = 0;
@@ -73,7 +73,7 @@ void cdPushParam(int v)
     for (int i = 0; i < 50; i++) {}
 }
 
-/// Setloc (0x02) from an absolute LBA of the file start (as given by mkpsxiso)
+// Setloc (0x02) from an absolute LBA of the file start (as given by mkpsxiso)
 void cdSetLoc(int lba)
 {
     int a = lba + 150; // the 2 second pregap
@@ -85,8 +85,8 @@ void cdSetLoc(int lba)
     cdCommand(0x02, cdBcd(ff), 1);
 }
 
-/// Mode 0xC8 = double speed + XA-ADPCM to SPU + XA filter.
-/// Then Setfilter(file, channel), Setloc, ReadS.
+// Mode 0xC8 = double speed + XA-ADPCM to SPU + XA filter.
+// Then Setfilter(file, channel), Setloc, ReadS.
 void cdXaStart()
 {
     cdCommand(0x0E, 0xC8, 1);
@@ -97,7 +97,7 @@ void cdXaStart()
     cdXaFramesLeft = cdXaFramesTotal;
 }
 
-/// Plays an XA stream once (no looping)
+// Plays an XA stream once (no looping)
 void cdPlayXA(int lba, int file, int channel)
 {
     cdLoopTrack = 0;
@@ -123,7 +123,7 @@ void cdPlayXALoop(int lba, int file, int channel, int frames)
     cdXaFramesLeft = frames;
 }
 
-/// Stops XA and restores single speed + CDDA mode (what cdInit() sets)
+// Stops XA and restores single speed + CDDA mode (what cdInit() sets)
 void cdXaStop()
 {
     cdXaActive = 0;
@@ -132,7 +132,7 @@ void cdXaStop()
     cdCommand(0x0E, 0x03, 1); // back to 1x, CDDA + autopause
 }
 
-/// Call once per frame instead of cdUpdate()
+// Call once per frame instead of cdUpdate()
 void cdXaUpdate()
 {
     cdUpdate(); // keeps draining CD interrupts
