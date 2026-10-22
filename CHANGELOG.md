@@ -1,3 +1,8 @@
+Retrolang 0.10.0 - TBD
+----------------------
+- **GPSXEmu**
+  - Work-in-progress emulator project.
+
 Retrolang 0.9.0 - 22 Oct, 2026
 ------------------------------
 - **Retrolib**
