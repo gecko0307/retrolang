@@ -164,7 +164,7 @@ int main(string[] args)
 
     if (output.length == 0)
     {
-        stderr.writeln("Usage: xainterleave -o OUTPUT [--file N] [--span N] INPUT...");
+        stderr.writeln("Usage: xatool -o OUTPUT [--file N] [--span N] INPUT...");
         return 1;
     }
 
