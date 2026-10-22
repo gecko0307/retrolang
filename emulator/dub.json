@@ -1,0 +1,15 @@
+{
+    "name": "gpsxemu",
+    "authors": [
+        "Timur Gafarov"
+    ],
+    "copyright": "Copyright © 2022, Timur Gafarov",
+    "description": "Educational PSX emulator",
+    "license": "BSL-1.0",
+    "dependencies": {
+        "bindbc-sdl": "~>1.1.0"
+    },
+    "versions": [
+        "SDL_2014"
+    ]
+}

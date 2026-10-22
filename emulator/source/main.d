@@ -1,0 +1,299 @@
+module main;
+
+import core.thread;
+import core.atomic;
+import std.stdio;
+import std.file;
+import std.digest.sha;
+import std.conv;
+import std.string;
+import std.math;
+import std.path;
+import std.algorithm: min;
+
+import bindbc.sdl;
+
+import psx.cpu;
+import psx.gpu;
+
+uint displayWidth(PsxGpu* gpu)
+{
+    switch (gpu.hres)
+    {
+        case 0: return 256;
+        case 1: return 320;
+        case 2: return 512;
+        case 3: return 640;
+        case 4: return 368;
+        case 5: return 384;
+        case 6: return 512;
+        case 7: return 640;
+        default: return 320;
+    }
+}
+
+uint displayHeight(PsxGpu* gpu)
+{
+    return gpu.vres == GpuVerticalRes.Y480Lines ? 480 : 240;
+}
+
+void copyDisplayArea(PsxGpu* gpu, ubyte[] dst)
+{
+    uint width = displayWidth(gpu);
+    uint height = displayHeight(gpu);
+
+    uint srcX = gpu.displayVRamXStart;
+    uint srcY = gpu.displayVRamYStart;
+
+    // Clear the destination buffer.
+    dst[] = 0;
+
+    if (gpu.displayDisabled)
+        return;
+
+    // Clip to VRAM bounds.
+    if (srcX >= VRAM_WIDTH || srcY >= VRAM_HEIGHT)
+        return;
+
+    width = min(width, VRAM_WIDTH - srcX);
+    height = min(height, VRAM_HEIGHT - srcY);
+
+    foreach (uint y; 0 .. height)
+    {
+        size_t srcOffset =
+            ((cast(size_t)srcY + y) * VRAM_WIDTH + srcX) * 4;
+
+        size_t dstOffset =
+            cast(size_t)y * VRAM_WIDTH * 4;
+
+        auto srcSlice = gpu.vram[srcOffset .. srcOffset + width * 4];
+        auto dstSlice = dst[dstOffset .. dstOffset + width * 4];
+
+        dstSlice[] = srcSlice[];
+    }
+}
+
+void blitAspectFit(
+    SDL_Surface* src,
+    SDL_Surface* dst,
+    uint imageWidth,
+    uint imageHeight)
+{
+    int windowWidth = dst.w;
+    int windowHeight = dst.h;
+
+    if (windowWidth <= 0 || windowHeight <= 0 ||
+        imageWidth == 0 || imageHeight == 0)
+        return;
+
+    // Масштабируем так, чтобы изображение полностью помещалось в окне.
+    double scale = min(
+        windowWidth / cast(double)imageWidth,
+        windowHeight / cast(double)imageHeight);
+
+    int width = cast(int)(imageWidth * scale);
+    int height = cast(int)(imageHeight * scale);
+
+    SDL_Rect source = {
+        0, 0, cast(int)imageWidth, cast(int)imageHeight
+    };
+
+    SDL_Rect target = {
+        (windowWidth - width) / 2,
+        (windowHeight - height) / 2,
+        width,
+        height
+    };
+
+    SDL_FillRect(dst, null, SDL_MapRGB(dst.format, 0, 0, 0));
+    SDL_BlitScaled(src, &source, dst, &target);
+}
+
+void main(string[] args)
+{
+    SDLSupport sdlsup = loadSDL();
+    if (sdlsup != sdlSupport)
+    {
+        if (sdlsup != SDLSupport.badLibrary)
+        {
+            writeln("Error: SDL library is not found. Please, install SDL 2.0.14");
+            return;
+        }
+    }
+    
+    if (SDL_Init(SDL_INIT_EVERYTHING) == -1)
+    {
+        writeln("Error: failed to init SDL: ", to!string(SDL_GetError()));
+        return;
+    }
+    
+    enum videoWidth = 320;
+    enum videoHeight = 240;
+    
+    SDL_Window* window = SDL_CreateWindow(toStringz("GPSXEmu (alpha)"),
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        videoWidth, videoHeight,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    if (window is null)
+    {
+        writeln("Error: failed to create window: ", to!string(SDL_GetError()));
+        return;
+    }
+    
+    SDL_Surface* windowSurface = SDL_GetWindowSurface(window);
+    
+    string binaryPath = "PSX.EXE";
+    if (args.length > 1)
+        binaryPath = args[1];
+    
+    ubyte[] binary = cast(ubyte[])read(binaryPath);
+    size_t binarySize = binary.length;
+    ubyte[20] shaChecksum = sha1Of(binary);
+    writefln("Binary file: %s", binaryPath);
+    writefln("Binary size: %s byte(s)", binarySize);
+    writefln("Binary SHA-1 hash: %s", toHexString(shaChecksum));
+    
+    PsxCpu cpu;
+    if (binaryPath.extension.toLower == ".exe")
+    {
+        writeln("Loading PS-X EXE...");
+        cpu.initEXE(binary);
+    }
+    else
+    {
+        writeln("Loading BIOS...");
+        cpu.init(binary);
+    }
+    
+    SDL_Surface* displaySurface = SDL_CreateRGBSurfaceFrom(
+        cpu.gpu.vram.ptr,
+        VRAM_WIDTH,
+        VRAM_HEIGHT,
+        32,
+        VRAM_WIDTH * 4,
+        0x000000FF,
+        0x0000FF00,
+        0x00FF0000,
+        0);
+    
+    ubyte[] screenPixels = new ubyte[VRAM_WIDTH * VRAM_HEIGHT * 4];
+    SDL_Surface* screenSurface = SDL_CreateRGBSurfaceFrom(
+        screenPixels.ptr,
+        VRAM_WIDTH,
+        VRAM_HEIGHT,
+        32,
+        VRAM_WIDTH * 4,
+        0x000000FF,
+        0x0000FF00,
+        0x00FF0000,
+        0);
+    
+    bool showVRAM = false;
+    
+    SDL_Event event;
+    bool running = true;
+    
+    writeln("Running...");
+    
+    void cpuLoop()
+    {
+        while(atomicLoad(cpu.running))
+        {
+            cpu.runNextInstruction();
+        }
+    };
+    
+    Thread cpuThread = new Thread(&cpuLoop);
+    cpuThread.start();
+    
+    enum FRAME_TIME_MS = 16;
+    
+    uint frameStart;
+    uint frameEnd;
+    uint elapsed;
+    bool redraw = true;
+    
+    while(running)
+    {
+        bool shouldUpdateDisplay = atomicLoad(cpu.running);
+        
+        frameStart = SDL_GetTicks();
+        
+        while(SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT)
+            {
+                cpu.stop();
+                running = false;
+            }
+            else if (event.type == SDL_KEYDOWN &&
+                     event.key.keysym.sym == SDLK_TAB)
+            {
+                showVRAM = !showVRAM;
+                if (showVRAM)
+                    SDL_SetWindowSize(window, VRAM_WIDTH, VRAM_HEIGHT);
+                else
+                    SDL_SetWindowSize(
+                        window,
+                        cast(int)displayWidth(&cpu.gpu),
+                        cast(int)displayHeight(&cpu.gpu));
+                redraw = true;
+                shouldUpdateDisplay = true;
+            }
+            else if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            {
+                windowSurface = SDL_GetWindowSurface(window);
+                redraw = true;
+                shouldUpdateDisplay = true;
+            }
+        }
+        
+        if (shouldUpdateDisplay)
+        {
+            bool newFrame = atomicLoad(cpu.gpu.frameReady);
+
+            if (newFrame)
+            {
+                if (!showVRAM)
+                    copyDisplayArea(&cpu.gpu, screenPixels);
+
+                atomicStore(cpu.gpu.frameReady, false);
+                atomicStore(cpu.gpu.frameLocked, false);
+            }
+
+            if (newFrame || redraw)
+            {
+                if (showVRAM)
+                {
+                    blitAspectFit(
+                        displaySurface,
+                        windowSurface,
+                        VRAM_WIDTH,
+                        VRAM_HEIGHT);
+                }
+                else
+                {
+                    blitAspectFit(
+                        screenSurface,
+                        windowSurface,
+                        displayWidth(&cpu.gpu),
+                        displayHeight(&cpu.gpu));
+                }
+
+                SDL_UpdateWindowSurface(window);
+                redraw = false;
+            }
+        }
+        
+        frameEnd = SDL_GetTicks();
+        elapsed = frameEnd - frameStart;
+
+        if (elapsed < FRAME_TIME_MS)
+        {
+            SDL_Delay(FRAME_TIME_MS - elapsed);
+        }
+    }
+    
+    SDL_FreeSurface(displaySurface);
+    SDL_Quit();
+}

@@ -1,0 +1,293 @@
+module psx.dma;
+
+import std.string;
+
+// The 7 DMA ports
+enum DmaPort
+{
+    None = -1,
+    
+    // Macroblock decoder input
+    MdecIn = 0,
+    // Macroblock decoder output
+    MdecOut = 1,
+    // Graphics Processing Unit
+    Gpu = 2,
+    // CD-ROM drive
+    CdRom = 3,
+    // Sound Processing Unit
+    Spu = 4,
+    // Extension port
+    Pio = 5,
+    // Used to clear the ordering table
+    Otc = 6,
+}
+
+DmaPort dmaPortFromIndex(uint index)
+{
+    switch (index)
+    {
+        case 0: return DmaPort.MdecIn;
+        case 1: return DmaPort.MdecOut;
+        case 2: return DmaPort.Gpu;
+        case 3: return DmaPort.CdRom;
+        case 4: return DmaPort.Spu;
+        case 5: return DmaPort.Pio;
+        case 6: return DmaPort.Otc;
+        default: assert(0, format("invalid port index %s", index));
+    }
+}
+
+struct PsxDma
+{
+    // DMA control register
+    uint control;
+
+    // master IRQ enable
+    bool irq_en;
+
+    // IRQ enable for individual channels
+    ubyte channel_irq_en;
+
+    // IRQ flags for individual channels
+    ubyte channel_irq_flags;
+
+    // When set the interrupt is active unconditionally (even if irq_en is false)
+    bool force_irq;
+
+    // Bits [0:5] of the interrupt registers are RW but I don't know
+    // what they're supposed to do so I just store them and send them
+    // back untouched on reads
+    ubyte irq_dummy;
+
+    DmaChannel[7] channels;
+
+    void reset()
+    {
+        control = 0x07654321;
+        irq_en = false;
+        channel_irq_en = 0;
+        channel_irq_flags = 0;
+        force_irq = false;
+        irq_dummy = 0;
+        
+        foreach(ref ch; channels)
+        {
+            ch.reset();
+        }
+    }
+
+    // Return the status of the DMA interrupt
+    bool irq()
+    {
+        ubyte channel_irq = channel_irq_flags & channel_irq_en;
+        return force_irq || (irq_en && channel_irq != 0);
+    }
+
+    // Retrieve the value of the interrupt register
+    uint interrupt()
+    {
+        uint r = 0;
+
+        r |= cast(uint)irq_dummy;
+        r |= (cast(uint)force_irq) << 15;
+        r |= (cast(uint)channel_irq_en) << 16;
+        r |= (cast(uint)irq_en) << 23;
+        r |= (cast(uint)channel_irq_flags) << 24;
+        r |= (cast(uint)irq()) << 31;
+
+        return r;
+    }
+
+    // Set the value of the interrupt register
+    void interrupt(uint val)
+    {
+        // Unknown what bits [5:0] do
+        irq_dummy = cast(ubyte)(val & 0x3f);
+
+        force_irq = ((val >> 15) & 1) != 0;
+
+        channel_irq_en = cast(ubyte)((val >> 16) & 0x7f);
+
+        irq_en = ((val >> 23) & 1) != 0;
+
+        // Writing 1 to a flag resets it
+        ubyte ack = cast(ubyte)((val >> 24) & 0x3f);
+        channel_irq_flags &= !ack;
+    }
+}
+
+// DMA transfer direction
+enum DmaDirection
+{
+    ToRam   = 0,
+    FromRam = 1,
+}
+
+// DMA transfer step
+enum DmaStep
+{
+    Increment = 0,
+    Decrement = 1,
+}
+
+// DMA transfer synchronization mode
+enum DmaSync
+{
+    // Transfer starts when the CPU writes to the Trigger bit and
+    // transfers everything at once
+    Manual = 0,
+    // Sync blocks to DMA requests
+    Request = 1,
+    // Used to transfer GPU command lists
+    LinkedList = 2,
+}
+
+// Per-channel data
+struct DmaChannel
+{
+    bool enable;
+    DmaDirection direction;
+    DmaStep step;
+    DmaSync sync;
+    // Used to start the DMA transfer when `sync` is `Manual`
+    bool trigger;
+    // If true the DMA "chops" the transfer and lets the CPU run in the gaps.
+    bool chop;
+    // Chopping DMA window size (log2 number of words)
+    ubyte chop_dma_sz;
+    // Chopping CPU window size (log2 number of cycles)
+    ubyte chop_cpu_sz;
+    // Unkown 2 RW bits in configuration register
+    ubyte dummy;
+    // DMA start address
+    uint _base;
+    // Size of a block in words
+    ushort block_size;
+    // Block count, Only used when `sync` is `Request`
+    ushort block_count;
+
+    void reset()
+    {
+        enable = false;
+        direction = DmaDirection.ToRam;
+        step = DmaStep.Increment;
+        sync = DmaSync.Manual;
+        trigger = false;
+        chop = false;
+        chop_dma_sz = 0;
+        chop_cpu_sz = 0;
+        dummy = 0;
+        _base = 0;
+        block_size = 0;
+        block_count = 0;
+    }
+
+    uint control()
+    {
+        uint r = 0;
+
+        r |= (cast(uint)direction) << 0;
+        r |= (cast(uint)step) << 1;
+        r |= (cast(uint)chop) << 8;
+        r |= (cast(uint)sync) << 9;
+        r |= (cast(uint)chop_dma_sz) << 16;
+        r |= (cast(uint)chop_cpu_sz) << 20;
+        r |= (cast(uint)enable) << 24;
+        r |= (cast(uint)trigger) << 28;
+        r |= (cast(uint)dummy) << 29;
+
+        return r;
+    }
+
+    void control(uint val)
+    {
+        if ((val & 1) != 0)
+            direction = DmaDirection.FromRam;
+        else
+            direction = DmaDirection.ToRam;
+
+        if (((val >> 1) & 1) != 0)
+            step = DmaStep.Decrement;
+        else
+            step = DmaStep.Increment;
+
+        chop = ((val >> 8) & 1) != 0;
+
+        uint syncMode = (val >> 9) & 3;
+        switch(syncMode)
+        {
+            case 0: sync = DmaSync.Manual; break;
+            case 1: sync = DmaSync.Request; break;
+            case 2: sync = DmaSync.LinkedList; break;
+            default: assert(0, format("unknown DMA sync mode %s", syncMode));
+        }
+
+        chop_dma_sz = cast(ubyte)((val >> 16) & 7);
+        chop_cpu_sz = cast(ubyte)((val >> 20) & 7);
+
+        enable = ((val >> 24) & 1) != 0;
+        trigger = ((val >> 28) & 1) != 0;
+
+        dummy = cast(ubyte)((val >> 29) & 3);
+    }
+
+    void base(uint v)
+    {
+        _base = v & 0xffffff;
+    }
+
+    uint base()
+    {
+        return _base;
+    }
+
+    uint block_control()
+    {
+        uint bs = cast(uint)block_size;
+        uint bc = cast(uint)block_count;
+        return (bc << 16) | bs;
+    }
+
+    void block_control(uint val)
+    {
+        block_size = cast(ushort)val;
+        block_count = cast(ushort)(val >> 16);
+    }
+    
+    bool active()
+    {
+        bool trig;
+        if (sync == DmaSync.Manual)
+            trig = trigger;
+        else
+            trig = true;
+        return enable && trig;
+    }
+    
+    uint transfer_size()
+    {
+        uint bs = block_size;
+        uint bc = block_count;
+        if (sync == DmaSync.Manual)
+        {
+            return bs;
+        }
+        else if (sync == DmaSync.Request)
+        {
+            return bc * bs;
+        }
+        else // DmaSync.LinkedList
+        {
+            return 0;
+        }
+    }
+    
+    void done()
+    {
+        enable = false;
+        trigger = false;
+        
+        // TODO: set the correct value for the other fields (in particular interrupts)
+    }
+}
