@@ -55,12 +55,13 @@ module main;
  */
 
 import std.stdio;
+import std.conv;
 import std.file: read;
 import std.path: extension;
 import std.getopt: getopt;
 import std.format: format;
 import std.exception: enforce;
-import std.string: toLower;
+import std.string: toLower, toUpper;
 
 import audioformats;
 import wav;
@@ -68,8 +69,6 @@ import xa;
 
 WavData decodeAudio(string path)
 {
-    writefln("Opening \"%s\"...", path);
-    
     AudioStream input;
     input.openFromFile(path);
     
@@ -84,13 +83,13 @@ WavData decodeAudio(string path)
         duration = lengthFrames / cast(double)sampleRate;
     int chunkFrames = 4096;
     
-    writefln("Format: %s", input.getFormat());
-    writefln("Sample rate: %s Hz", sampleRate);
-    writefln("Channels: %s", channels);
+    writefln("Input format: %s", input.getFormat().to!string.toUpper);
+    writefln("Input sample rate: %s Hz", sampleRate);
+    writefln("Input channels: %s", channels);
     if (duration < 0.0)
-        writefln("Duration: <undefined> (tracker format)");
+        writefln("Input duration: <undefined> (tracker format)");
     else
-        writefln("Duration: %s s", duration);
+        writefln("Input duration: %s s", duration);
     
     WavData result;
     result.sampleRate = cast(uint)input.getSamplerate();
@@ -124,22 +123,31 @@ WavData decodeAudio(string path)
     return result;
 }
 
-Stream loadStream(string path)
+// TODO: XA encoding parameters
+Stream loadStream(string path, uint sampleRate)
 {
     switch(path.extension.toLower)
     {
         case ".xa":
             return readSectors(path);
 
-        case ".wav":
-            return wavToXa(path);
-
-        case ".mp3", ".flac", ".ogg", ".opus", ".qoa", ".mod", ".xm":
-            return wavToXa(decodeAudio(path), path);
+        case ".wav", ".mp3", ".flac", ".ogg", ".opus", ".qoa", ".mod", ".xm":
+            return wavToXa(decodeAudio(path), path, sampleRate);
 
         default:
             throw new Exception("Unsupported input format");
     }
+}
+
+void printUsage()
+{
+    writeln("Encode/interleave multichannel XA streams.");
+    writeln("Usage: xatool [options] input1 [input2...]");
+    writeln("  -o, --output <file> output path");
+    writeln("  -r, --rate <Hz>     resample input PCM to this rate (37800 or 18900)");
+    writeln("      --file          stream file number (0-255)");
+    writeln("      --span          interleave span (sectors per cycle):");
+    writeln("  -h, --help          show this help");
 }
 
 int main(string[] args)
@@ -147,13 +155,17 @@ int main(string[] args)
     string output;
     int fileNo = 1;
     int span = 8;
+    uint sampleRate = 37800;
+    bool help = false;
 
     try
     {
         getopt(args,
             "o|output", &output,
             "file", &fileNo,
-            "span", &span
+            "span", &span,
+            "r|rate", &sampleRate,
+            "h|help", &help
         );
     }
     catch (Exception e)
@@ -161,29 +173,35 @@ int main(string[] args)
         stderr.writeln(e.msg);
         return 1;
     }
+    
+    if (help)
+    {
+        printUsage();
+        return 0;
+    }
 
     if (output.length == 0)
     {
-        stderr.writeln("Usage: xatool -o OUTPUT [--file N] [--span N] INPUT...");
+        printUsage();
         return 1;
     }
 
     // getopt removes parsed options; remaining arguments are inputs.
     if (args.length < 2)
     {
-        stderr.writeln("error: at least one input file is required");
+        stderr.writeln("Error: at least one input file is required");
         return 1;
     }
 
     if (fileNo < 0 || fileNo > 255)
     {
-        stderr.writeln("error: --file must be in range 0..255");
+        stderr.writeln("Error: --file must be in range 0..255");
         return 1;
     }
 
     if (span <= 0)
     {
-        stderr.writeln("error: --span must be positive");
+        stderr.writeln("Error: --span must be positive");
         return 1;
     }
 
@@ -192,7 +210,7 @@ int main(string[] args)
     if (n > span)
     {
         stderr.writeln(format(
-            "error: %s streams do not fit an interleave span of %s",
+            "Error: %s streams do not fit an interleave span of %s",
             n, span));
         return 1;
     }
@@ -200,7 +218,7 @@ int main(string[] args)
     if (n > FILLER_CHANNEL)
     {
         stderr.writeln(format(
-            "error: at most %s streams are supported",
+            "Error: at most %s streams are supported",
             FILLER_CHANNEL));
         return 1;
     }
@@ -210,8 +228,11 @@ int main(string[] args)
 
     try
     {
-        foreach (path; args[1..$])
-            streams ~= loadStream(path);
+        foreach (i, path; args[1..$])
+        {
+            writefln("XA channel %s: from %s", i, path);
+            streams ~= loadStream(path, sampleRate);
+        }
     }
     catch (Exception e)
     {
@@ -225,7 +246,6 @@ int main(string[] args)
     foreach (ref stream; streams)
     {
         ubyte otherCoding = stream.sector(0)[3];
-
         if (otherCoding != coding)
         {
             stderr.writeln(format(
@@ -239,16 +259,13 @@ int main(string[] args)
     foreach (ch, ref stream; streams)
     {
         auto last = stream.length - 1;
-
         foreach (i; 0..stream.length)
         {
             auto sec = stream.sector(i);
-
             foreach (off; [0, 4])
             {
                 sec[off] = cast(ubyte)fileNo;
                 sec[off + 1] = cast(ubyte)ch;
-
                 if (i == last)
                     sec[off + 2] |= 0x81; // EOF | EOR
             }
@@ -269,27 +286,24 @@ int main(string[] args)
     size_t cycles = 0;
 
     foreach (ref stream; streams)
+    {
         if (stream.length > cycles)
             cycles = stream.length;
-
-    ulong total = cast(ulong) cycles * cast(ulong) span;
+    }
+    
+    ulong total = cast(ulong)cycles * cast(ulong)span;
 
     try
     {
         auto outFile = File(output, "wb");
-
         foreach (c; 0..cycles)
         {
-            foreach (slot; 0..cast(size_t) span)
+            foreach (slot; 0..cast(size_t)span)
             {
                 if (slot < n && c < streams[slot].length)
-                {
                     outFile.rawWrite(streams[slot].sector(c));
-                }
                 else
-                {
                     outFile.rawWrite(pad[]);
-                }
             }
         }
 
@@ -301,10 +315,10 @@ int main(string[] args)
         return 1;
     }
 
-    writefln("wrote %s: %s sectors (%s bytes), %s stream(s), file %s, channels 0-%s",
+    writefln("Wrote %s: %s sectors (%s bytes), %s stream(s), file %s, channels 0-%s",
         output, total, total * SECTOR, n, fileNo, n - 1);
 
-    writefln("loop length: %s frames @60fps, %s frames @50fps (sectors*fps/150)",
+    writefln("Loop length: %s frames @60fps, %s frames @50fps (sectors*fps/150)",
         total * 60 / 150,
         total * 50 / 150);
 

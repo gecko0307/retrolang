@@ -281,8 +281,8 @@ void encodeXaGroup(
 
 short[] resampleStereo(const(short)[] input, uint srcRate, uint dstRate)
 {
-    enforce(srcRate > 0 && dstRate > 0, "Invalid sample rate");
-    enforce(input.length % 2 == 0, "Invalid stereo PCM data");
+    enforce(srcRate > 0 && dstRate > 0, "XA encoding error: invalid sample rate");
+    enforce(input.length % 2 == 0, "XA encoding error: invalid stereo PCM data");
 
     size_t inFrames = input.length / 2;
     if (inFrames == 0)
@@ -326,24 +326,22 @@ short[] resampleStereo(const(short)[] input, uint srcRate, uint dstRate)
     return output;
 }
 
-Stream wavToXa(string path)
+Stream wavToXa(string path, uint sampleRate)
 {
     auto wav = readWav(path);
-    return wavToXa(wav, path);
+    return wavToXa(wav, path, sampleRate);
 }
 
-Stream wavToXa(WavData wav, string path)
+Stream wavToXa(WavData wav, string path, uint sampleRate)
 {
-    enforce(wav.channels == 2, format("%s: expected stereo WAV", path));
-    enforce(wav.bitsPerSample == 16, format("%s: expected 16-bit PCM WAV", path));
+    enforce(wav.channels == 2, format("XA encoding error: expected stereo", path));
+    enforce(wav.bitsPerSample == 16, format("%s: expected 16-bit PCM", path));
 
-    enforce(wav.channels == 2, format("%s: expected stereo WAV", path));
-    enforce(wav.bitsPerSample == 16, format("%s: expected 16-bit PCM WAV", path));
+    enforce(wav.channels == 2, format("XA encoding error: expected stereo", path));
+    enforce(wav.bitsPerSample == 16, format("XA encoding error: expected 16-bit PCM", path));
 
-    // TODO: support 18900 Hz
-    auto pcm = wav.sampleRate == 37800
-        ? wav.samples
-        : resampleStereo(wav.samples, wav.sampleRate, 37800);
+    auto pcm = wav.sampleRate == sampleRate?
+        wav.samples : resampleStereo(wav.samples, wav.sampleRate, sampleRate);
 
     size_t frames = pcm.length / 2;
     
@@ -351,7 +349,7 @@ Stream wavToXa(WavData wav, string path)
         (frames + XA_FRAMES_PER_SECTOR - 1) / XA_FRAMES_PER_SECTOR;
 
     // Don't create an empty XA file for a zero-length WAV.
-    enforce(sectorCount > 0, format("%s: WAV contains no samples", path));
+    enforce(sectorCount > 0, format("XA encoding error: input contains no samples", path));
 
     Stream result;
     result.path = path;
@@ -370,7 +368,7 @@ Stream wavToXa(WavData wav, string path)
         sector[0] = 0;
         sector[1] = 0;
         sector[2] = 0x64; // audio | Form 2 | realtime
-        sector[3] = 0x01; // stereo, 37800 Hz, 4-bit
+        sector[3] = 0x01; // stereo, 37800 Hz, 4-bit - TODO: support 18900 Hz
 
         sector[4] = sector[0];
         sector[5] = sector[1];
@@ -378,7 +376,7 @@ Stream wavToXa(WavData wav, string path)
         sector[7] = sector[3];
 
         // 18 ADPCM groups begin at offset 8.
-        foreach (groupIndex; 0 .. XA_GROUPS_PER_SECTOR)
+        foreach (groupIndex; 0..XA_GROUPS_PER_SECTOR)
         {
             size_t firstFrame =
                 sectorIndex * XA_FRAMES_PER_SECTOR
