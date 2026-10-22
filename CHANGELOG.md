@@ -1,5 +1,5 @@
-Retrolang 0.9.0 - TBD
----------------------
+Retrolang 0.9.0 - 22 Oct, 2026
+------------------------------
 - **Retrolib**
   - `xa.r` - XA playback API
   - `DirEntry` structure in `bios.r`
