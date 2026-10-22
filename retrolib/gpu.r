@@ -376,7 +376,7 @@ void gpuInit(struct GpuSettings* settings)
         x2 = HSTART + ((screenX + __gpuSettings->display.width) * cyclesPerPixel);
     }
     *gp1 = GP1_HRANGE | ((x2 & 0xfff) << 12) | (x1 & 0xfff);
-    bios_a(0x3f, "x1 = %d, x2 = %d\n", x1, x2);
+    //bios_a(0x3f, "x1 = %d, x2 = %d\n", x1, x2);
     
     // Vertical signal start/end
     int centerY = VCENTER_NTSC;
@@ -385,7 +385,7 @@ void gpuInit(struct GpuSettings* settings)
     y1 = centerY - __gpuSettings->display.height / 2 + screenY;
     y2 = y1 + __gpuSettings->display.height;
     *gp1 = GP1_VRANGE | ((y2 & 0x3FF) << 10) | (y1 & 0x3FF);
-    bios_a(0x3f, "y1 = %d, y2 = %d\n", y1, y2);
+    //bios_a(0x3f, "y1 = %d, y2 = %d\n", y1, y2);
     
     // Video mode
     x1 = 0;
