@@ -124,7 +124,7 @@ WavData decodeAudio(string path)
 }
 
 // TODO: XA encoding parameters
-Stream loadStream(string path, uint sampleRate)
+Stream loadStream(string path, XaFormat targetFormat)
 {
     switch(path.extension.toLower)
     {
@@ -132,7 +132,7 @@ Stream loadStream(string path, uint sampleRate)
             return readSectors(path);
 
         case ".wav", ".mp3", ".flac", ".ogg", ".opus", ".qoa", ".mod", ".xm":
-            return wavToXa(decodeAudio(path), path, sampleRate);
+            return wavToXa(decodeAudio(path), path, targetFormat);
 
         default:
             throw new Exception("Unsupported input format");
@@ -145,8 +145,9 @@ void printUsage()
     writeln("Usage: xatool [options] input1 [input2...]");
     writeln("  -o, --output <file> output path");
     writeln("  -r, --rate <Hz>     resample input PCM to this rate (37800 or 18900)");
+    writeln("  -s, --stereo        stereo output (true/false)");
     writeln("      --file          stream file number (0-255)");
-    writeln("      --span          interleave span (sectors per cycle):");
+    writeln("      --span          interleave span (sectors per cycle)");
     writeln("  -h, --help          show this help");
 }
 
@@ -156,6 +157,7 @@ int main(string[] args)
     int fileNo = 1;
     int span = 8;
     uint sampleRate = 37800;
+    bool stereo = true;
     bool help = false;
 
     try
@@ -165,6 +167,7 @@ int main(string[] args)
             "file", &fileNo,
             "span", &span,
             "r|rate", &sampleRate,
+            "s|stereo", &stereo,
             "h|help", &help
         );
     }
@@ -226,12 +229,17 @@ int main(string[] args)
     Stream[] streams;
     streams.reserve(n);
 
+    auto targetFormat = XaFormat(sampleRate, stereo);
     try
     {
         foreach (i, path; args[1..$])
         {
-            writefln("XA channel %s: from %s", i, path);
-            streams ~= loadStream(path, sampleRate);
+            writefln("XA channel %s (%s Hz, %s): from %s",
+                i,
+                targetFormat.sampleRate,
+                targetFormat.stereo? "stereo" : "mono",
+                path);
+            streams ~= loadStream(path, targetFormat);
         }
     }
     catch (Exception e)
@@ -315,7 +323,7 @@ int main(string[] args)
         return 1;
     }
 
-    writefln("Wrote %s: %s sectors (%s bytes), %s stream(s), file %s, channels 0-%s",
+    writefln("Wrote \"%s\": %s sectors (%s bytes), %s stream(s), file %s, channels 0-%s",
         output, total, total * SECTOR, n, fileNo, n - 1);
 
     writefln("Loop length: %s frames @60fps, %s frames @50fps (sectors*fps/150)",

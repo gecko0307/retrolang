@@ -197,7 +197,7 @@ Usage (assuming you've pointed RLC to `retrolib` as an include/import directory)
 - [triangle](/examples/triangle) - classic colored triangle demo (direct rendering via GP0)
 - [dma](/examples/dma) - classic colored triangle demo (queued rendering via command buffer)
 - [sprite](/examples/sprite) - TIM texture loading and sprite rendering (direct rendering via GP0)
-- [text](/examples/text) - bitmap font loading and text rendering (queued rendering via command buffer)
+- [text](/examples/text) - bitmap font loading and text rendering (queued rendering via a command buffer)
 - [platform_game](/examples/platform_game) - 2D platform game
 - [mesh](/examples/mesh) - walkable 3D scene with a first person camera
 - [memcard](/examples/memcard) - memory card reading and writing
@@ -212,7 +212,6 @@ All examples support building with Retrobuild. RLC must be available system-wide
 Provided examples rely on the following third-party tools:
 
 - [mkpsxiso by Lameguy64](https://github.com/lameguy64/mkpsxiso) to build CD-ROM images
-- [psxavenc](https://github.com/WonderfulToolchain/psxavenc) to convert music to XA format
 - [Blender](https://blender.org) to export meshes to PlayStation-oriented formats.
 
 For running examples on the PC, we recommend [DuckStation](https://www.duckstation.org/), a fast and feature-rich PlayStation emulator for Windows, Linux and Mac. To run an image (or directly `PSX.EXE` if you don't build an image), use the following command:

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2026 Timur Gafarov 
+Copyright (c) 2026 Timur Gafarov
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -28,20 +28,42 @@ DEALINGS IN THE SOFTWARE.
 
 /*
  * RIFF/WAV loader.
+ *
+ * Supports uncompressed PCM (8/16/24/32-bit) and 32-bit IEEE float,
+ * mono or stereo, including WAVE_FORMAT_EXTENSIBLE headers.
+ * Everything is normalized to interleaved signed 16-bit samples.
  */
 module wav;
 
-import std.stdio;
 import std.file: read;
 import std.exception: enforce;
-import std.format: format;
 
 struct WavData
 {
     uint sampleRate;
     ushort channels;
-    ushort bitsPerSample;
-    short[] samples; // Interleaved PCM, signed 16-bit.
+    ushort bitsPerSample; // Bit depth of the source. samples[] is always 16-bit.
+    short[] samples;      // Interleaved PCM, signed 16-bit.
+}
+
+/// Converts a float sample (nominal range -1..1) to signed 16-bit with rounding and clipping.
+short floatToPcm16(float s)
+{
+    float v = s * 32768.0f;
+
+    if (v >= 32767.0f)
+        return short.max;
+    if (v <= -32768.0f)
+        return short.min;
+
+    return cast(short)(v < 0.0f ? v - 0.5f : v + 0.5f);
+}
+
+private short clampToShort(long v)
+{
+    return v > short.max ? short.max
+        : v < short.min ? short.min
+        : cast(short)v;
 }
 
 uint readU32(const(ubyte)[] data, size_t offset)
@@ -71,6 +93,10 @@ bool tagEquals(const(ubyte)[] data, size_t offset, string tag)
     return true;
 }
 
+enum WAVE_FORMAT_PCM = 1;
+enum WAVE_FORMAT_IEEE_FLOAT = 3;
+enum WAVE_FORMAT_EXTENSIBLE = 0xFFFE;
+
 WavData readWav(string path)
 {
     auto raw = cast(const(ubyte)[]) read(path);
@@ -90,26 +116,47 @@ WavData readWav(string path)
     {
         uint chunkSize = readU32(raw, pos + 4);
         size_t start = pos + 8;
+        size_t available = raw.length - start;
 
-        enforce(chunkSize <= raw.length - start,
-            "WAV chunk extends beyond end of file");
-
-        if (tagEquals(raw, pos, "fmt "))
+        if (tagEquals(raw, pos, "data"))
         {
-            enforce(chunkSize >= 16, "Invalid WAV fmt chunk");
+            // Streaming writers may leave the data size as 0 or 0xFFFFFFFF,
+            // and truncated files are common: use whatever is really there.
+            if (!haveData)
+            {
+                dataOffset = start;
+                dataSize = chunkSize <= available ? chunkSize : available;
+                haveData = true;
+            }
 
-            formatTag = readU16(raw, start);
-            channels = readU16(raw, start + 2);
-            sampleRate = readU32(raw, start + 4);
-            blockAlign = readU16(raw, start + 12);
-            bits = readU16(raw, start + 14);
-            haveFmt = true;
+            if (chunkSize > available)
+                break;
         }
-        else if (tagEquals(raw, pos, "data"))
+        else
         {
-            dataOffset = start;
-            dataSize = chunkSize;
-            haveData = true;
+            // A damaged non-audio chunk at the end of the file is not fatal.
+            if (chunkSize > available)
+                break;
+
+            if (tagEquals(raw, pos, "fmt "))
+            {
+                enforce(chunkSize >= 16, "Invalid WAV fmt chunk");
+
+                formatTag = readU16(raw, start);
+                channels = readU16(raw, start + 2);
+                sampleRate = readU32(raw, start + 4);
+                blockAlign = readU16(raw, start + 12);
+                bits = readU16(raw, start + 14);
+
+                if (formatTag == WAVE_FORMAT_EXTENSIBLE)
+                {
+                    enforce(chunkSize >= 40, "Invalid WAVE_FORMAT_EXTENSIBLE fmt chunk");
+                    // The first two bytes of the SubFormat GUID hold the real format tag.
+                    formatTag = readU16(raw, start + 24);
+                }
+
+                haveFmt = true;
+            }
         }
 
         // RIFF chunks are padded to an even byte boundary.
@@ -118,39 +165,69 @@ WavData readWav(string path)
 
     enforce(haveFmt, "WAV fmt chunk not found");
     enforce(haveData, "WAV data chunk not found");
-    enforce(formatTag == 1, "Only uncompressed PCM WAV is supported");
+    enforce(formatTag == WAVE_FORMAT_PCM || formatTag == WAVE_FORMAT_IEEE_FLOAT,
+        "Only uncompressed PCM and float WAV are supported");
     enforce(channels == 1 || channels == 2,
         "Only mono and stereo WAV are supported");
-    enforce(bits == 8 || bits == 16,
-        "Only 8-bit and 16-bit PCM are supported");
+
+    if (formatTag == WAVE_FORMAT_IEEE_FLOAT)
+        enforce(bits == 32, "Only 32-bit float WAV is supported");
+    else
+        enforce(bits == 8 || bits == 16 || bits == 24 || bits == 32,
+            "Only 8, 16, 24 and 32-bit PCM are supported");
+
     enforce(sampleRate != 0, "Invalid sample rate");
-    enforce(blockAlign == channels * (bits / 8),
+
+    size_t bytesPerSample = bits / 8;
+    enforce(blockAlign == channels * bytesPerSample,
         "Invalid WAV block alignment");
-    enforce(dataSize % blockAlign == 0,
-        "Incomplete PCM sample frame");
+
+    // Drop a trailing partial frame, if any.
+    dataSize -= dataSize % blockAlign;
 
     WavData wav;
     wav.sampleRate = sampleRate;
     wav.channels = channels;
     wav.bitsPerSample = bits;
 
-    size_t count = dataSize / (bits / 8);
+    size_t count = dataSize / bytesPerSample;
     wav.samples.length = count;
 
     foreach (i; 0..count)
     {
-        size_t offset = dataOffset + i * (bits / 8);
+        size_t o = dataOffset + i * bytesPerSample;
+        short s;
 
-        if (bits == 8)
+        if (formatTag == WAVE_FORMAT_IEEE_FLOAT)
         {
-            // WAV 8-bit PCM is unsigned.
-            wav.samples[i] = cast(short)((cast(int)raw[offset] - 128) << 8);
+            uint u = readU32(raw, o);
+            float f = *cast(float*)&u;
+            s = floatToPcm16(f);
+        }
+        else if (bits == 8)
+        {
+            // 8-bit PCM is unsigned.
+            s = cast(short)((cast(int)raw[o] - 128) << 8);
+        }
+        else if (bits == 16)
+        {
+            // 16-bit PCM is signed little-endian.
+            s = cast(short)(raw[o] | (raw[o + 1] << 8));
+        }
+        else if (bits == 24)
+        {
+            int v = raw[o] | (raw[o + 1] << 8) | (raw[o + 2] << 16);
+            if (v & 0x800000)
+                v -= 0x1000000;
+            s = clampToShort((cast(long)v + 128) >> 8);
         }
         else
         {
-            // WAV 16-bit PCM is signed little-endian.
-            wav.samples[i] = cast(short)readU16(raw, offset);
+            int v = cast(int)readU32(raw, o);
+            s = clampToShort((cast(long)v + 32768) >> 16);
         }
+
+        wav.samples[i] = s;
     }
 
     return wav;

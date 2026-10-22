@@ -40,7 +40,7 @@ void main()
     if (cd_firstfile("cdrom:\\MUSIC\\FILE0.XA;1", &xaStream) != 0)
     {
         printf("Playing XA stream...\n");
-        cdPlayXA(xaStream.lba, 0, 0); // play file 0, channel 0
+        cdPlayXA(xaStream.lba, 0, 1); // play file 0, channel 1
     }
     
     while(1)

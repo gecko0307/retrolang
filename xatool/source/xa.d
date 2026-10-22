@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2026 Timur Gafarov 
+Copyright (c) 2026 Timur Gafarov
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -28,21 +28,94 @@ DEALINGS IN THE SOFTWARE.
 
 /*
  * XA stream encoder.
+ *
+ * Supported coding modes (4-bit ADPCM, "Level B/C" audio):
+ *
+ *   rate     channels  coding byte  sectors per cycle at 2x speed
+ *   37800    stereo    0x01         8
+ *   37800    mono      0x00         16
+ *   18900    stereo    0x05         16
+ *   18900    mono      0x04         32
  */
 module xa;
 
 import std.file: read;
 import std.format: format;
 import std.exception: enforce;
+import std.math: sin, cos, floor, ceil, PI;
 import wav;
 
 enum SECTOR = 2336;
 enum FILLER_CHANNEL = 31;
 
+enum XA_RATE_HIGH = 37800;
+enum XA_RATE_LOW = 18900;
+enum XA_GROUP_SIZE = 128;
+enum XA_GROUPS_PER_SECTOR = 18;
+enum XA_SAMPLES_PER_UNIT = 28;
+enum XA_SECTORS_PER_SECOND = 150; // double-speed drive
+
+/// XA coding mode: sample rate and channel layout.
+struct XaFormat
+{
+    uint sampleRate = XA_RATE_HIGH;
+    bool stereo = true;
+
+    /// Byte 3 of the sector subheader.
+    @property ubyte codingInfo() const
+    {
+        return cast(ubyte)((stereo ? 0x01 : 0x00)
+            | (sampleRate == XA_RATE_LOW ? 0x04 : 0x00));
+    }
+
+    /// Frames in one 128-byte sound group (8 units of 28 samples).
+    @property size_t framesPerGroup() const
+    {
+        // Stereo: 4 units per channel. Mono: all 8 units are consecutive.
+        return stereo ? 112 : 224;
+    }
+
+    @property size_t framesPerSector() const
+    {
+        return XA_GROUPS_PER_SECTOR * framesPerGroup;
+    }
+
+    /// Sectors per interleave cycle for real-time playback at double speed.
+    @property size_t channelSpan() const
+    {
+        size_t span = sampleRate == XA_RATE_LOW ? 16 : 8;
+        return stereo ? span : span * 2;
+    }
+
+    string toString() const
+    {
+        return format("%s Hz %s", sampleRate, stereo ? "stereo" : "mono");
+    }
+}
+
+XaFormat xaFormatFromCoding(ubyte coding, string path)
+{
+    enforce((coding & 0xF0) == 0,
+        format("%s: unsupported XA coding byte 0x%02X "
+            ~ "(8-bit ADPCM and emphasis are not supported)", path, coding));
+
+    uint layout = coding & 3;
+    uint rate = (coding >> 2) & 3;
+
+    enforce(layout <= 1 && rate <= 1,
+        format("%s: unsupported XA coding byte 0x%02X", path, coding));
+
+    XaFormat fmt;
+    fmt.stereo = layout == 1;
+    fmt.sampleRate = rate == 1 ? XA_RATE_LOW : XA_RATE_HIGH;
+    return fmt;
+}
+
 struct Stream
 {
     string path;
     ubyte[] data;
+    XaFormat fmt;
 
     @property size_t length() const
     {
@@ -55,6 +128,7 @@ struct Stream
     }
 }
 
+/// Loads a pre-encoded 2336-byte-sector XA file and validates its sectors.
 Stream readSectors(string path)
 {
     auto data = cast(ubyte[]) read(path);
@@ -67,17 +141,26 @@ Stream readSectors(string path)
             ~ "(encode with -t xa, not xacd)",
             path, data.length, SECTOR));
 
-    return Stream(path, data);
-}
+    Stream stream;
+    stream.path = path;
+    stream.data = data;
 
-enum XA_RATE = 37800;
-enum XA_CHANNELS = 2;
-enum XA_CODING_INFO = 0x01; // stereo, 37800 Hz, 4-bit
-enum XA_GROUP_SIZE = 128;
-enum XA_GROUPS_PER_SECTOR = 18;
-enum XA_SAMPLES_PER_UNIT = 28;
-enum XA_FRAMES_PER_GROUP = 112;
-enum XA_FRAMES_PER_SECTOR = XA_GROUPS_PER_SECTOR * XA_FRAMES_PER_GROUP;
+    ubyte coding = stream.sector(0)[3];
+
+    foreach (i; 0..stream.length)
+    {
+        auto sec = stream.sector(i);
+
+        enforce((sec[2] & 0x04) != 0,
+            format("%s: sector %s is not an audio sector", path, i));
+
+        enforce(sec[3] == coding,
+            format("%s: coding byte changes at sector %s", path, i));
+    }
+
+    stream.fmt = xaFormatFromCoding(coding, path);
+    return stream;
+}
 
 immutable int[2][4] XA_FILTERS = [
     [0, 0],
@@ -102,14 +185,6 @@ struct XaEncodedUnit
     long error;
 }
 
-int xaFloorDiv(int value, int divisor)
-{
-    int quotient = value / divisor;
-    return value < 0 && value % divisor != 0
-        ? quotient - 1
-        : quotient;
-}
-
 int xaClamp16(int value)
 {
     return value < -32768 ? -32768
@@ -117,6 +192,11 @@ int xaClamp16(int value)
         : value;
 }
 
+/*
+ * Encodes one 28-sample unit.
+ * Every filter and every shift (0..12) is tried in closed loop against the
+ * decoder's reconstruction; the combination with the lowest squared error wins.
+ */
 XaEncodedUnit encodeXaUnit(
     const(short)[] samples,
     int initialH1,
@@ -124,104 +204,81 @@ XaEncodedUnit encodeXaUnit(
 {
     assert(samples.length == XA_SAMPLES_PER_UNIT);
 
-    bool haveBest;
+    bool haveBest = false;
     XaEncodedUnit best;
 
     foreach (filterIndex, filter; XA_FILTERS)
     {
-        int p1 = initialH1;
-        int p2 = initialH2;
-        int maximum = 0;
-
-        // Estimate the residual range using the original samples, matching the WAV2VAG algorithm
-        foreach (sample; samples)
+        // From the finest quantization step (shift 12) to the coarsest (shift 0).
+        for (int shift = 12; shift >= 0; --shift)
         {
-            int prediction =
-                (p1 * filter[0] + p2 * filter[1] + 32) >> 6;
-
-            int difference = cast(int)sample - prediction;
-            int magnitude = difference < 0
-                ? -difference
-                : difference;
-
-            if (magnitude > maximum)
-                maximum = magnitude;
-
-            p2 = p1;
-            p1 = sample;
-        }
-
-        int shift = 12;
-
-        while (shift > 0 && maximum > 7 * (1 << (12 - shift)))
-        {
-            --shift;
-        }
-
-        int[2] shifts = [
-            shift,
-            shift > 0 ? shift - 1 : shift
-        ];
-
-        size_t shiftCount = shift > 0 ? 2 : 1;
-
-        foreach (candidateShift; shifts[0..shiftCount])
-        {
-            int step = 1 << (12 - candidateShift);
+            int sh = 12 - shift;
+            int step = 1 << sh;
             int half = step >> 1;
 
-            p1 = initialH1;
-            p2 = initialH2;
-
             XaEncodedUnit candidate;
-            candidate.shift = candidateShift;
+            candidate.shift = shift;
             candidate.filter = cast(int)filterIndex;
+
+            int p1 = initialH1;
+            int p2 = initialH2;
+            bool rejected = false;
 
             foreach (i, sample; samples)
             {
                 int prediction = (p1 * filter[0] + p2 * filter[1] + 32) >> 6;
 
-                int nibble = xaFloorDiv(
-                    cast(int)sample - prediction + half,
-                    step);
+                // Arithmetic shift performs floor division, so this rounds to nearest.
+                int nibble = (cast(int)sample - prediction + half) >> sh;
 
                 if (nibble < -8)
                     nibble = -8;
                 else if (nibble > 7)
                     nibble = 7;
 
-                int reconstructed = xaClamp16(
-                    nibble * step + prediction);
+                int reconstructed = xaClamp16(nibble * step + prediction);
 
                 long residual = cast(int)sample - reconstructed;
                 candidate.error += residual * residual;
 
-                candidate.nibbles[i] =
-                    cast(ubyte)(nibble & 0x0F);
+                // This candidate can no longer win.
+                if (haveBest && candidate.error >= best.error)
+                {
+                    rejected = true;
+                    break;
+                }
+
+                candidate.nibbles[i] = cast(ubyte)(nibble & 0x0F);
 
                 p2 = p1;
                 p1 = reconstructed;
             }
 
+            if (rejected)
+                continue;
+
             candidate.h1 = p1;
             candidate.h2 = p2;
 
-            if (!haveBest || candidate.error < best.error)
-            {
-                best = candidate;
-                haveBest = true;
-            }
+            best = candidate;
+            haveBest = true;
         }
     }
 
     return best;
 }
 
+/*
+ * Encodes one 128-byte sound group (8 units, 224 samples).
+ * Stereo: units alternate L, R, L, R... and each channel advances by 28 frames
+ * per two units. Mono: the eight units are consecutive 28-sample blocks.
+ */
 void encodeXaGroup(
     const(short)[] pcm,
     size_t firstFrame,
     ubyte[] dst,
-    ref XaState[2] states)
+    ref XaState[2] states,
+    bool stereo)
 {
     assert(dst.length >= XA_GROUP_SIZE);
 
@@ -232,13 +289,13 @@ void encodeXaGroup(
     {
         short[28] unitSamples;
 
-        size_t channel = unit & 1;
-        size_t chunk = unit / 2;
+        size_t channel = stereo ? (unit & 1) : 0;
+        size_t chunk = stereo ? unit / 2 : unit;
 
         foreach (i; 0..28)
         {
             size_t frame = firstFrame + chunk * 28 + i;
-            size_t index = frame * 2 + channel;
+            size_t index = stereo ? frame * 2 + channel : frame;
             unitSamples[i] = index < pcm.length ? pcm[index] : 0;
         }
 
@@ -279,82 +336,190 @@ void encodeXaGroup(
     }
 }
 
-short[] resampleStereo(const(short)[] input, uint srcRate, uint dstRate)
+// Windowed-sinc resampler parameters.
+private enum SINC_ZERO_CROSSINGS = 16;
+private enum SINC_TABLE_RES = 512;
+
+// Blackman-windowed sinc, sampled for x = 0..SINC_ZERO_CROSSINGS.
+private double[] buildSincTable()
+{
+    auto table = new double[SINC_ZERO_CROSSINGS * SINC_TABLE_RES + 2];
+
+    foreach (i, ref v; table)
+    {
+        double x = cast(double)i / SINC_TABLE_RES;
+        double t = x / SINC_ZERO_CROSSINGS;
+
+        double s = x == 0.0 ? 1.0 : sin(PI * x) / (PI * x);
+        double w = t >= 1.0
+            ? 0.0
+            : 0.42 + 0.5 * cos(PI * t) + 0.08 * cos(2.0 * PI * t);
+
+        v = s * w;
+    }
+
+    return table;
+}
+
+private double sincKernel(const(double)[] table, double x)
+{
+    if (x < 0.0)
+        x = -x;
+
+    double pos = x * SINC_TABLE_RES;
+    size_t idx = cast(size_t)pos;
+
+    if (idx >= SINC_ZERO_CROSSINGS * SINC_TABLE_RES)
+        return 0.0;
+
+    double frac = pos - idx;
+    return table[idx] + (table[idx + 1] - table[idx]) * frac;
+}
+
+private short roundToShort(double v)
+{
+    double r = floor(v + 0.5);
+    return r > 32767.0 ? short.max
+        : r < -32768.0 ? short.min
+        : cast(short)r;
+}
+
+/*
+ * High-quality sample rate conversion for interleaved PCM with any
+ * number of channels. When lowering the rate the sinc kernel is stretched,
+ * so content above the new Nyquist frequency is filtered out instead of
+ * aliasing (which is what plain linear interpolation would do).
+ */
+short[] resample(const(short)[] input, size_t channels, uint srcRate, uint dstRate)
 {
     enforce(srcRate > 0 && dstRate > 0, "XA encoding error: invalid sample rate");
-    enforce(input.length % 2 == 0, "XA encoding error: invalid stereo PCM data");
+    enforce(channels >= 1 && input.length % channels == 0,
+        "XA encoding error: invalid PCM data");
 
-    size_t inFrames = input.length / 2;
+    if (srcRate == dstRate)
+        return input.dup;
+
+    size_t inFrames = input.length / channels;
     if (inFrames == 0)
         return [];
 
     size_t outFrames = cast(size_t)((cast(ulong)inFrames * dstRate + srcRate / 2) / srcRate);
+    if (outFrames == 0)
+        outFrames = 1;
 
-    short[] output;
-    output.length = outFrames * 2;
+    // Source frames per output frame, and kernel cutoff relative to source Nyquist.
+    double step = cast(double)srcRate / dstRate;
+    double cutoff = dstRate < srcRate ? cast(double)dstRate / srcRate : 1.0;
+    double halfWidth = SINC_ZERO_CROSSINGS / cutoff;
+
+    auto table = buildSincTable();
+    auto output = new short[outFrames * channels];
+    auto acc = new double[channels];
 
     foreach (i; 0..outFrames)
     {
-        // Position of the output frame within the source signal.
-        ulong position = cast(ulong)i * srcRate;
-        size_t index = cast(size_t)(position / dstRate);
-        uint fraction = cast(uint)(position % dstRate);
+        double center = cast(double)i * step;
+        long first = cast(long)ceil(center - halfWidth);
+        long last = cast(long)floor(center + halfWidth);
 
-        if (index >= inFrames - 1)
+        acc[] = 0.0;
+        double weightSum = 0.0;
+
+        foreach (j; first..last + 1)
         {
-            output[i * 2]     = input[(inFrames - 1) * 2];
-            output[i * 2 + 1] = input[(inFrames - 1) * 2 + 1];
-            continue;
+            double w = sincKernel(table, (cast(double)j - center) * cutoff) * cutoff;
+            weightSum += w;
+
+            // Outside the signal counts as silence.
+            if (j < 0 || j >= cast(long)inFrames)
+                continue;
+
+            size_t base = cast(size_t)j * channels;
+            foreach (c; 0..channels)
+                acc[c] += w * input[base + c];
         }
 
-        foreach (ch; 0..2)
-        {
-            int a = input[index * 2 + ch];
-            int b = input[(index + 1) * 2 + ch];
+        // Normalizing removes the small gain ripple left by the window.
+        double norm = weightSum != 0.0 ? 1.0 / weightSum : 1.0;
 
-            long value = cast(long)a * (dstRate - fraction)
-                       + cast(long)b * fraction;
-
-            value = value >= 0
-                ? (value + dstRate / 2) / dstRate
-                : (value - dstRate / 2) / dstRate;
-
-            output[i * 2 + ch] = cast(short)value;
-        }
+        foreach (c; 0..channels)
+            output[i * channels + c] = roundToShort(acc[c] * norm);
     }
 
     return output;
 }
 
-Stream wavToXa(string path, uint sampleRate)
+short[] mixToMono(const(short)[] stereo)
 {
-    auto wav = readWav(path);
-    return wavToXa(wav, path, sampleRate);
+    auto mono = new short[stereo.length / 2];
+
+    foreach (i; 0..mono.length)
+        mono[i] = cast(short)((cast(int)stereo[i * 2] + cast(int)stereo[i * 2 + 1]) >> 1);
+
+    return mono;
 }
 
-Stream wavToXa(WavData wav, string path, uint sampleRate)
+short[] monoToStereo(const(short)[] mono)
 {
-    enforce(wav.channels == 2, format("XA encoding error: expected stereo", path));
-    enforce(wav.bitsPerSample == 16, format("%s: expected 16-bit PCM", path));
+    auto stereo = new short[mono.length * 2];
 
-    enforce(wav.channels == 2, format("XA encoding error: expected stereo", path));
-    enforce(wav.bitsPerSample == 16, format("XA encoding error: expected 16-bit PCM", path));
+    foreach (i; 0..mono.length)
+    {
+        stereo[i * 2] = mono[i];
+        stereo[i * 2 + 1] = mono[i];
+    }
 
-    auto pcm = wav.sampleRate == sampleRate?
-        wav.samples : resampleStereo(wav.samples, wav.sampleRate, sampleRate);
+    return stereo;
+}
 
-    size_t frames = pcm.length / 2;
-    
+Stream wavToXa(string path, XaFormat fmt)
+{
+    auto wav = readWav(path);
+    return wavToXa(wav, path, fmt);
+}
+
+Stream wavToXa(WavData wav, string path, XaFormat fmt)
+{
+    enforce(wav.channels == 1 || wav.channels == 2,
+        format("%s: XA encoding error: only mono and stereo input is supported", path));
+    enforce(wav.sampleRate > 0,
+        format("%s: XA encoding error: invalid sample rate", path));
+    enforce(wav.samples.length % wav.channels == 0,
+        format("%s: XA encoding error: incomplete sample frame", path));
+
+    size_t channels = wav.channels;
+    const(short)[] pcm = wav.samples;
+
+    // Downmix before resampling (less work), upmix after.
+    if (channels == 2 && !fmt.stereo)
+    {
+        pcm = mixToMono(pcm);
+        channels = 1;
+    }
+
+    if (wav.sampleRate != fmt.sampleRate)
+        pcm = resample(pcm, channels, wav.sampleRate, fmt.sampleRate);
+
+    if (channels == 1 && fmt.stereo)
+    {
+        pcm = monoToStereo(pcm);
+        channels = 2;
+    }
+
+    size_t frames = pcm.length / channels;
+
     size_t sectorCount =
-        (frames + XA_FRAMES_PER_SECTOR - 1) / XA_FRAMES_PER_SECTOR;
+        (frames + fmt.framesPerSector - 1) / fmt.framesPerSector;
 
-    // Don't create an empty XA file for a zero-length WAV.
-    enforce(sectorCount > 0, format("XA encoding error: input contains no samples", path));
+    // Don't create an empty XA file for a zero-length input.
+    enforce(sectorCount > 0,
+        format("%s: XA encoding error: input contains no samples", path));
 
     Stream result;
     result.path = path;
+    result.fmt = fmt;
     result.data.length = sectorCount * SECTOR;
-    
+
     XaState[2] states;
 
     foreach (sectorIndex; 0..sectorCount)
@@ -368,7 +533,7 @@ Stream wavToXa(WavData wav, string path, uint sampleRate)
         sector[0] = 0;
         sector[1] = 0;
         sector[2] = 0x64; // audio | Form 2 | realtime
-        sector[3] = 0x01; // stereo, 37800 Hz, 4-bit - TODO: support 18900 Hz
+        sector[3] = fmt.codingInfo;
 
         sector[4] = sector[0];
         sector[5] = sector[1];
@@ -379,19 +544,69 @@ Stream wavToXa(WavData wav, string path, uint sampleRate)
         foreach (groupIndex; 0..XA_GROUPS_PER_SECTOR)
         {
             size_t firstFrame =
-                sectorIndex * XA_FRAMES_PER_SECTOR
-                + groupIndex * XA_FRAMES_PER_GROUP;
+                sectorIndex * fmt.framesPerSector
+                + groupIndex * fmt.framesPerGroup;
 
             auto group = sector[
                 8 + groupIndex * XA_GROUP_SIZE ..
                 8 + (groupIndex + 1) * XA_GROUP_SIZE];
 
-            //encodeXaGroup(pcm, firstFrame, group);
-            encodeXaGroup(pcm, firstFrame, group, states);
+            encodeXaGroup(pcm, firstFrame, group, states, fmt.stereo);
         }
 
         // The remaining 24 bytes of the sector are already filled with zeros.
     }
 
     return result;
+}
+
+unittest
+{
+    assert(XaFormat(37800, true).codingInfo == 0x01);
+    assert(XaFormat(37800, false).codingInfo == 0x00);
+    assert(XaFormat(18900, true).codingInfo == 0x05);
+    assert(XaFormat(18900, false).codingInfo == 0x04);
+
+    assert(XaFormat(37800, true).channelSpan == 8);
+    assert(XaFormat(37800, false).channelSpan == 16);
+    assert(XaFormat(18900, true).channelSpan == 16);
+    assert(XaFormat(18900, false).channelSpan == 32);
+
+    foreach (rate; [37800u, 18900u])
+        foreach (stereo; [true, false])
+        {
+            auto f = XaFormat(rate, stereo);
+            assert(xaFormatFromCoding(f.codingInfo, "test") == f);
+        }
+}
+
+unittest
+{
+    // A constant signal must stay constant after resampling.
+    auto input = new short[1000];
+    input[] = 1000;
+
+    auto output = resample(input, 1, 44100, 18900);
+    assert(output.length == 429);
+    assert(output[200] >= 999 && output[200] <= 1001);
+}
+
+unittest
+{
+    // One second of silence at each mode produces a whole number of valid sectors.
+    WavData wav;
+    wav.sampleRate = 44100;
+    wav.channels = 2;
+    wav.bitsPerSample = 16;
+    wav.samples = new short[44100 * 2];
+
+    foreach (rate; [37800u, 18900u])
+        foreach (stereo; [true, false])
+        {
+            auto fmt = XaFormat(rate, stereo);
+            auto stream = wavToXa(wav, "test", fmt);
+            assert(stream.length > 0);
+            assert(stream.sector(0)[3] == fmt.codingInfo);
+            assert(stream.sector(0)[7] == fmt.codingInfo);
+        }
 }
