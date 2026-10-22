@@ -265,7 +265,7 @@ struct PsxGpu
     // Display output horizontal end relative to HSYNC
     ushort displayHorizEnd;
     
-    // Display output horizontal start relative to HSYNC
+    // Display output first line relative to VSYNC
     ushort displayLineStart;
     
     // Display output last line relative to VSYNC
@@ -332,8 +332,7 @@ struct PsxGpu
         // Bit 14 not supported
         r |= cast(uint)textureDisable << 15;
         r |= hResToStatus(hres);
-        // Temporary hack: f we don't emulate bit 31 correctly,
-        // setting vres to 1 locks the BIOS:
+        // Temporary hack: if we don't emulate bit 31 correctly, setting vres to 1 locks the BIOS:
         //r |= cast(uint)vres << 19;
         r |= cast(uint)vmode << 20;
         r |= cast(uint)displayDepth << 21;
@@ -703,27 +702,25 @@ void gp0_fill_rect_vram(PsxGpu* gpu, uint val)
     int w = cast(int)(wh & 0xffff);
     int h = cast(int)(wh >> 16);
 
-    // Quick fill operates in 16-pixel horizontal units.
+    // Quick fill operates in 16-pixel horizontal units
     x &= ~15;
     w = (w + 15) & ~15;
 
     if (w == 0 || h == 0)
         return;
 
-    // Clip the rectangle to VRAM bounds.
+    // Clip the rectangle to VRAM bounds
     if (x >= VRAM_WIDTH || y >= VRAM_HEIGHT)
         return;
 
     w = cast(int)min(w, VRAM_WIDTH - x);
     h = cast(int)min(h, VRAM_HEIGHT - y);
 
-    foreach (int dy; 0 .. h)
+    foreach (int dy; 0..h)
     {
-        foreach (int dx; 0 .. w)
+        foreach (int dx; 0..w)
         {
-            size_t offset =
-                (cast(size_t)(y + dy) * VRAM_WIDTH + x + dx) * 4;
-
+            size_t offset = (cast(size_t)(y + dy) * VRAM_WIDTH + x + dx) * 4;
             gpu.vram[offset + 0] = cast(ubyte)r;
             gpu.vram[offset + 1] = cast(ubyte)g;
             gpu.vram[offset + 2] = cast(ubyte)b;

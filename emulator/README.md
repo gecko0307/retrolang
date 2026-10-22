@@ -1,6 +1,6 @@
 # Gecko's PSX Emulator
 
-This is a work-in-progress PlayStation 1 emulator written just for fun. Don't expect it to run full-blown games (or even BIOS) at this point.
+This is a work-in-progress PlayStation 1 emulator written just for fun. Mostly done following Lionel Flandrin's excellent [PSX emulation guide](https://github.com/simias/psx-guide). Don't expect it to run full-blown games (or even BIOS) at this point.
 
 By default it runs a demo executable `PSX.EXE`. To run a custom binary, specify the pass as a command line argument.
 
