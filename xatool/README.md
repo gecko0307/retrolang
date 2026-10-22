@@ -18,7 +18,7 @@ Interleave span (sectors per cycle):
 - 16 = 18900 Hz stereo, or 37800 Hz mono
 - 32 = 18900 Hz mono
 
-XA Tool can transcode PCM WAV/MP3/FLAC/OGG files to XA format. Simply use audio files as inputs instead of *.xa:
+XA Tool can transcode PCM WAV/MP3/FLAC/OGG files to XA format by itself. Simply use audio files as inputs instead of *.xa:
 
 ```
 xatool -o MUSIC.XA --file 1 channel0.mp3 channel1.mp3
