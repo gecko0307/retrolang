@@ -162,7 +162,7 @@ See [doc folder](/doc) for more details on the language.
 
 ## Retrolib Standard Library
 
-Retrolang provides a minimal set of low-level functionality that aid with writing PlayStation programs.
+Retrolib is a minimal set of low-level functionality that aid with writing PlayStation programs (primarily for working with the hardware).
 
 Core modules:
 
