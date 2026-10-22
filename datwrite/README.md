@@ -7,9 +7,9 @@ Output: 12 sectors x 2336 bytes = 28032 bytes (CD-ROM XA Mode 2 Form 1 sectors w
 ## Usage
 
 ```
-datwrite -o license.dat -t logo.tmd -r e
+datwrite --output=license.dat --tmd=logo.tmd --region=e
 
-datwrite -o license.dat -t logo.tmd -l "Your custom license text"
+datwrite --output=license.dat --tmd=logo.tmd --license-text="Your custom license text"
 
 datwrite --verify license.dat
 ```
