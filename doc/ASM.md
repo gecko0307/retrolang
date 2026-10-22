@@ -1,6 +1,6 @@
 # Retrolang Assembler
 
-Retrolang implements a minimalistic MIPS R3000 assembler which can be used to write entire programs or separate functions.
+Retrolang implements a MIPS R3000 assembler which can be used to write entire programs or separate functions.
 
 ## Source format
 
@@ -164,18 +164,49 @@ COP2 (GTE) data registers:
 - `$RGB0` - Color CRGB-code/color FIFO stage1, 4 packed unsigned bytes
 - `$RGB1` - Color CRGB-code/color FIFO stage2, 4 packed unsigned bytes
 - `$RGB2` - Color CRGB-code/color FIFO stage3, 4 packed unsigned bytes
-- `$MAC0` - 32bit Maths Accumulators (Value), signed 32-bit integer
-- `$MAC1` - 32bit Maths Accumulators (Vector X), signed 32-bit integer
-- `$MAC2` - 32bit Maths Accumulators (Vector Y), signed 32-bit integer
-- `$MAC3` - 32bit Maths Accumulators (Vector Z), signed 32-bit integer
-- `$IRGB` - Convert RGB Color (48bit vs 15bit), unsigned 16-bit integer
-- `$ORGB` - 
+- `$MAC0` - 32-bit Maths Accumulators (Value), signed 32-bit integer
+- `$MAC1` - 32-bit Maths Accumulators (Vector X), signed 32-bit integer
+- `$MAC2` - 32-bit Maths Accumulators (Vector Y), signed 32-bit integer
+- `$MAC3` - 32-bit Maths Accumulators (Vector Z), signed 32-bit integer
+- `$IRGB` - Color conversion input (15-bit to 48-bit), unsigned 16-bit integer
+- `$ORGB` - Color conversion output (read-only mirror of IRGB)
 - `$LZCS` - Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
 - `$LZCR` - Count Leading-Zeroes/Ones (sign bits), 2 packed signed 32-bit integers
 
 COP2 (GTE) control registers:
 
-TODO
+- `$R11R12` - Rotation matrix 3x3 (r11, r12), 2 signed 16-bit integers
+- `$R13R21` - Rotation matrix 3x3 (r13, r21), 2 signed 16-bit integers
+- `$R22R23` - Rotation matrix 3x3 (r22, r23), 2 signed 16-bit integers
+- `$R31R32` - Rotation matrix 3x3 (r31, r32), 2 signed 16-bit integers
+- `$R33`    - Rotation matrix 3x3 (r33), signed 16-bit integer
+- `$TRX`    - Translation vector X, signed 32-bit integer
+- `$TRY`    - Translation vector Y, signed 32-bit integer
+- `$TRZ`    - Translation vector Z, signed 32-bit integer
+- `$L11L12` - Light source matrix 3x3 (l11, l12), 2 signed 16-bit integers
+- `$L13L21` - Light source matrix 3x3 (l13, l21), 2 signed 16-bit integers
+- `$L22L23` - Light source matrix 3x3 (l22, l23), 2 signed 16-bit integers
+- `$L31L32` - Light source matrix 3x3 (l31, l32), 2 signed 16-bit integers
+- `$L33`    - Light source matrix 3x3 (l33), signed 16-bit integer
+- `$RBK`    - Background color R, unsigned 32-bit integer
+- `$GBK`    - Background color G, unsigned 32-bit integer
+- `$BBK`    - Background color B, unsigned 32-bit integer
+- `$LR1LR2` - Light color matrix source (lr1, lr2), 2 signed 16-bit integers
+- `$LR3LG1` - Light color matrix source (lr3, lg1), 2 signed 16-bit integers
+- `$LG2LG3` - Light color matrix source (lg2, lg3), 2 signed 16-bit integers
+- `$LB1LB2` - Light color matrix source (lb1, lb2), 2 signed 16-bit integers
+- `$LB3`    - Light color matrix source (lb3), signed 16-bit integer
+- `$RFC`    - Far color R, unsigned 32-bit integer
+- `$GFC`    - Far color G, unsigned 32-bit integer
+- `$BFC`    - Far color B, unsigned 32-bit integer
+- `$OFX`    - Screen offset X, signed 32-bit integer
+- `$OFY`    - Screen offset Y, signed 32-bit integer
+- `$H`      - Projection plane distance, unsigned 16-bit integer
+- `$DQA`    - Depth queing parameter A (coefficient), signed 16-bit integer
+- `$DQB`    - Depth queing parameter B (offset), unsigned 32-bit integer
+- `$ZSF3`   - Z-averaging scale factor, signed 16-bit integer
+- `$ZSF4`   - Z-averaging scale factor, signed 16-bit integer
+- `$FLAG`   - Flag (read-only), returns any calculation errors, 20 bits
 
 ## Instructions
 
