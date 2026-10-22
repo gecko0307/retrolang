@@ -16,10 +16,10 @@ datwrite --verify license.dat
 
 ## TMD Logo
 
-A custom logo model can be exported from Blender 4.5 using the provided addon `io_export_psx_tmd.py`. Requirements are the following:
+A custom logo model (displayed on the boot splash screen) can be exported from Blender 4.5 using the provided addon `io_export_psx_tmd.py`. Requirements are the following:
 
 - The camera at the splash screen looks down the Y-axis in Blender, X-axis points right, and the Z-axis points up;
-- Maximum triangle is ~500;
+- Maximum triangle count is ~500;
 - The exporter uses material's viewport display color instead of the base color from nodes;
 - Textures are not allowed;
 - TMD size must be under 14 KiB.
