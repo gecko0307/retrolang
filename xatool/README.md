@@ -2,7 +2,13 @@
 
 XA stream encoder and interleaver. Combines 2336-byte sector XA files into one playable file.
 
-Usage:
+## Usage
+
+```
+xatool [options] input1 [input2...]
+```
+
+XA Tool can be used with a third-party XA encoder or on its own. Example that uses [psxavenc](https://github.com/WonderfulToolchain/psxavenc):
 
 ```
 psxavenc -t xa -f 37800 -b 4 -c 2 channel0.mp3 channel0.xa
@@ -23,3 +29,12 @@ XA Tool can transcode PCM WAV/MP3/FLAC/OGG files to XA format by itself. Simply 
 ```
 xatool -o MUSIC.XA --file 1 channel0.mp3 channel1.mp3
 ```
+
+## Parameters
+
+- `-o/--output <file>` - output XA path
+- `-r/--rate` - resample input PCM to this rate (37800 or 18900 Hz)
+- `-s/--stereo` - stereo output (true/false)
+- `--file` - stream file number (0-255)
+- `--span` - interleave span (sectors per cycle)
+- `-h/--help` - show help.
