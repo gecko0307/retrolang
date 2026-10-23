@@ -35,8 +35,11 @@ For more information, please refer to <https://unlicense.org>
 
 // A-functions
 macro exit(code)                    = bios_a(0x06, code);
+macro strcat(d, s)                  = bios_a(0x15, d, s);
+macro strncat(d, s, n)              = bios_a(0x16, d, s, n);
 macro strcmp(a, b)                  = bios_a(0x17, a, b);
 macro strcpy(d, s)                  = bios_a(0x19, d, s);
+macro strncpy(d, s, n)              = bios_a(0x1a, d, s, n);
 macro strlen(s)                     = bios_a(0x1b, s);
 macro memcpy(dst, src, n)           = bios_a(0x2a, dst, src, n);
 macro memset(dst, v, n)             = bios_a(0x2b, dst, v, n);
