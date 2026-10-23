@@ -48,6 +48,8 @@ Project goals:
 - Provide a modern, open, self-contained toolset with x86_64 replacements for legacy utilities;
 - Provide a clean-room SDK that doesn't depend on a single byte of proprietary software.
 
+Retrolang reimplements software in cases when existing solutions are outdated, unmaintained or not convenient enough. Otherwise, the SDK doesn't reinvent the wheel and relies on robust, time-proven tools. One example is [mkpsxiso](https://github.com/lameguy64/mkpsxiso).
+
 ## Tools
 
 ### RLC
@@ -68,7 +70,7 @@ rlc -o PSX.EXE src/main.s
 
 ### Retrobuild
 
-Build automation system. With Retrobuild, you don't have to call the compiler directly or write platform-specific scripts. It compiles a project, packs it into a CD-ROM image (CUE+BIN) using [mkpsxiso](https://github.com/lameguy64/mkpsxiso), and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe projects.
+Build automation system. With Retrobuild, you don't have to call the compiler directly or write platform-specific scripts. It compiles a project, packs it into a CD-ROM image (CUE+BIN) using mkpsxiso, and generates a CU2 sector index for [PSIO](https://psio.cybdyn-systems.com.au/). Uses TOML manifest files (`retrobuild.toml`) to describe projects.
 
 ### PSXDISASM
 
