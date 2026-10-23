@@ -35,10 +35,10 @@ enum PSX_EXE_HEADER_SIZE = 0x800;
 
 class PsxExe
 {
-    uint pc;          // initial PC (entry point)
-    uint gp;          // initial GP
-    uint loadAddr;    // destination address of the text segment
-    uint textSize;    // size of the code/data payload in bytes
+    uint pc;                   // initial PC (entry point)
+    uint gp;                   // initial GP
+    uint loadAddr;             // destination address of the text segment
+    uint textSize;             // size of the code/data payload in bytes
     uint dataAddr, dataSize;   // usually unused
     uint bssAddr, bssSize;     // usually unused
     uint spBase, spOffset;     // initial SP = spBase + spOffset (0 means "leave as is")

@@ -36,7 +36,7 @@ import symbol;
 import psxexe;
 import disasm;
 
-/// Little-endian words from a byte buffer (no alignment assumptions)
+/// Little-endian words from a byte buffer (no alignment assumptions).
 uint[] toWords(const(ubyte)[] data)
 {
     uint[] words = new uint[data.length / 4];
@@ -48,7 +48,7 @@ uint[] toWords(const(ubyte)[] data)
     return words;
 }
 
-/// Symbol names by offset for a given section
+/// Symbol names by offset for a given section.
 string[][uint] buildLabels(PsyqObject obj, Section s)
 {
     string[][uint] labels;
@@ -70,7 +70,7 @@ string[][uint] buildLabels(PsyqObject obj, Section s)
     return labels;
 }
 
-/// Relocation descriptions by offset for a given section
+/// Relocation descriptions by offset for a given section.
 string[uint] buildNotes(PsyqObject obj, Section s)
 {
     string[uint] notes;
@@ -85,6 +85,7 @@ string[uint] buildNotes(PsyqObject obj, Section s)
     return notes;
 }
 
+///
 void dumpData(PsyqObject obj, Section s)
 {
     auto labels = buildLabels(obj, s);
@@ -124,6 +125,7 @@ void dumpData(PsyqObject obj, Section s)
         writefln("  reloc +0x%04x: %s", r.offset, obj.describeRelocation(r));
 }
 
+///
 void printSymbols(PsyqObject obj)
 {
     if (obj.symbols.length == 0)
@@ -248,7 +250,6 @@ int main(string[] args)
         if (exe.bssSize != 0)
             writefln("  BSS:       0x%08X (0x%X bytes)", exe.bssAddr, exe.bssSize);
 
-        //auto disassembler = new MipsDisassembler(exe.trimmedCode.dup);
         auto disassembler = new MipsDisassembler(exe.code, exe.loadAddr, exe.pc);
         return 0;
     }

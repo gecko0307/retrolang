@@ -34,19 +34,25 @@ import bios;
 
 class MipsDisassembler
 {
-    public:
+   public:
     
-    /// text:     words to disassemble
-    /// baseAddr: address of text[0]
-    /// entry:    if given, only code reachable from this address is disassembled
-    ///           as code, everything else is printed as data. If uint.max,
-    ///           everything is disassembled linearly.
-    /// labels:   symbol names by address, printed as "name:" lines before the
-    ///           instruction at that address
-    /// notes:    free-form comments by address (e.g. relocation targets),
-    ///           appended to the line as "; note"
-    this(uint[] text, uint baseAddr = 0, uint entry = uint.max,
-         string[][uint] labels = null, string[uint] notes = null)
+    /**
+     * text:     words to disassemble
+     * baseAddr: address of text[0]
+     * entry:    if given, only code reachable from this address is disassembled
+     *           as code, everything else is printed as data. If uint.max,
+     *           everything is disassembled linearly.
+     * labels:   symbol names by address, printed as "name:" lines before the
+     *           instruction at that address
+     * notes:    free-form comments by address (e.g. relocation targets),
+     *           appended to the line as "; note"
+     */
+    this(
+        uint[] text,
+        uint baseAddr = 0,
+        uint entry = uint.max,
+        string[][uint] labels = null,
+        string[uint] notes = null)
     {
         this.text = text;
         this.baseAddr = baseAddr;
@@ -64,7 +70,7 @@ class MipsDisassembler
         }
     }
     
-    protected:
+   protected:
     
     uint[] text;
     uint baseAddr;

@@ -125,8 +125,10 @@ class Expression
         this.op = op;
     }
 
-    /// leafName (optional) maps (op, id) of an id-leaf to a readable name,
-    /// or returns an empty string if it doesn't know one.
+    /**
+     * leafName (optional) maps (op, id) of an id-leaf to a readable name,
+     * or returns an empty string if it doesn't know one.
+     */
     string describe(string delegate(ubyte, uint) leafName = null)
     {
         if (op == ExprOp.CONSTANT)

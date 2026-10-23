@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 module mips;
 
 /**
- * MIPS R3000 instruction codes
+ * MIPS R3000 instruction codes.
  */
 enum MipsInstr: ubyte
 {
