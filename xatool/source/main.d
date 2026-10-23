@@ -52,6 +52,13 @@ module main;
  * Simply use audio files as inputs instead of *.xa:
  *
  *   xatool -o MUSIC.XA --file 1 channel0.mp3 channel1.mp3
+ *
+ * Single stream mode (no interleaving, analogous to psxavenc -t xa):
+ *
+ *   xatool --single -o SOUND.XA --file 1 --channel 0 sound.wav
+ *
+ * Exactly one input is encoded and written as is: sectors follow each other
+ * without padding, and the last sector gets the EOF/EOR flags.
  */
 
 import std.stdio;
@@ -147,6 +154,8 @@ void printUsage()
     writeln("  -r, --rate <Hz>     resample input PCM to this rate (37800 or 18900)");
     writeln("  -s, --stereo        stereo output (true/false)");
     writeln("      --file          stream file number (0-255)");
+    writeln("      --single        encode one stream without interleaving");
+    writeln("      --channel <n>   channel number for --single (0-31, default 0)");
     writeln("      --span          interleave span (sectors per cycle)");
     writeln("  -h, --help          show this help");
 }
@@ -156,6 +165,8 @@ int main(string[] args)
     string output;
     int fileNo = 1;
     int span = 8;
+    int channelNo = 0;
+    bool single = false;
     uint sampleRate = 37800;
     bool stereo = true;
     bool help = false;
@@ -165,6 +176,8 @@ int main(string[] args)
         getopt(args,
             "o|output", &output,
             "file", &fileNo,
+            "single", &single,
+            "channel", &channelNo,
             "span", &span,
             "r|rate", &sampleRate,
             "s|stereo", &stereo,
@@ -210,20 +223,37 @@ int main(string[] args)
 
     auto n = args.length - 1;
 
-    if (n > span)
+    if (single)
     {
-        stderr.writeln(format(
-            "Error: %s streams do not fit an interleave span of %s",
-            n, span));
-        return 1;
-    }
+        if (n != 1)
+        {
+            stderr.writeln("Error: --single requires exactly one input file");
+            return 1;
+        }
 
-    if (n > FILLER_CHANNEL)
+        if (channelNo < 0 || channelNo > 31)
+        {
+            stderr.writeln("Error: --channel must be in range 0..31");
+            return 1;
+        }
+    }
+    else
     {
-        stderr.writeln(format(
-            "Error: at most %s streams are supported",
-            FILLER_CHANNEL));
-        return 1;
+        if (n > span)
+        {
+            stderr.writeln(format(
+                "Error: %s streams do not fit an interleave span of %s",
+                n, span));
+            return 1;
+        }
+
+        if (n > FILLER_CHANNEL)
+        {
+            stderr.writeln(format(
+                "Error: at most %s streams are supported",
+                FILLER_CHANNEL));
+            return 1;
+        }
     }
 
     Stream[] streams;
@@ -235,7 +265,7 @@ int main(string[] args)
         foreach (i, path; args[1..$])
         {
             writefln("XA channel %s (%s Hz, %s): from %s",
-                i,
+                single ? channelNo : cast(int)i,
                 targetFormat.sampleRate,
                 targetFormat.stereo? "stereo" : "mono",
                 path);
@@ -273,7 +303,7 @@ int main(string[] args)
             foreach (off; [0, 4])
             {
                 sec[off] = cast(ubyte)fileNo;
-                sec[off + 1] = cast(ubyte)ch;
+                sec[off + 1] = cast(ubyte)(single ? channelNo : cast(int)ch);
                 if (i == last)
                     sec[off + 2] |= 0x81; // EOF | EOR
             }
@@ -299,19 +329,30 @@ int main(string[] args)
             cycles = stream.length;
     }
     
-    ulong total = cast(ulong)cycles * cast(ulong)span;
+    ulong total = single
+        ? cast(ulong)streams[0].length
+        : cast(ulong)cycles * cast(ulong)span;
 
     try
     {
         auto outFile = File(output, "wb");
-        foreach (c; 0..cycles)
+        if (single)
         {
-            foreach (slot; 0..cast(size_t)span)
+            // No interleaving and no padding: just the stream's own sectors.
+            foreach (c; 0..streams[0].length)
+                outFile.rawWrite(streams[0].sector(c));
+        }
+        else
+        {
+            foreach (c; 0..cycles)
             {
-                if (slot < n && c < streams[slot].length)
-                    outFile.rawWrite(streams[slot].sector(c));
-                else
-                    outFile.rawWrite(pad[]);
+                foreach (slot; 0..cast(size_t)span)
+                {
+                    if (slot < n && c < streams[slot].length)
+                        outFile.rawWrite(streams[slot].sector(c));
+                    else
+                        outFile.rawWrite(pad[]);
+                }
             }
         }
 
@@ -323,10 +364,14 @@ int main(string[] args)
         return 1;
     }
 
-    writefln("Wrote \"%s\": %s sectors (%s bytes), %s stream(s), file %s, channels 0-%s",
-        output, total, total * SECTOR, n, fileNo, n - 1);
+    if (single)
+        writefln("Wrote \"%s\": %s sectors (%s bytes), single stream, file %s, channel %s",
+            output, total, total * SECTOR, fileNo, channelNo);
+    else
+        writefln("Wrote \"%s\": %s sectors (%s bytes), %s stream(s), file %s, channels 0-%s",
+            output, total, total * SECTOR, n, fileNo, n - 1);
 
-    writefln("Loop length: %s frames @60fps, %s frames @50fps (sectors*fps/150)",
+    writefln("Length: %s frames @60fps, %s frames @50fps (sectors*fps/150)",
         total * 60 / 150,
         total * 50 / 150);
 

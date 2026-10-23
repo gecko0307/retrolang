@@ -1,5 +1,9 @@
 Retrolang 0.10.0 - TBD
 ----------------------
+- **Retrolib**
+  - More BIOS functions in `bios.r`
+- **XA Tool**
+  - Ability to encode a single XA stream without interleaving (`--single` parameter)
 - **GPSXEmu**
   - Work-in-progress emulator project.
 

@@ -30,6 +30,12 @@ XA Tool can transcode PCM WAV/MP3/FLAC/OGG files to XA format by itself. Simply 
 xatool -o MUSIC.XA --file 1 channel0.mp3 channel1.mp3
 ```
 
+Single stream mode (no interleaving, analogous to `psxavenc -t xa`):
+
+```
+xatool --single -o channel0.xa --file 1 --channel 0 channel0.mp3
+```
+
 ## Parameters
 
 - `-o/--output <file>` - output XA path
