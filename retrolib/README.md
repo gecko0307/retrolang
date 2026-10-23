@@ -17,7 +17,8 @@ Core modules:
 
 Additional modules:
 
-* `pcsx.r` - PCSX-Redux API.
+* `pcsx.r` - PCSX-Redux API
+* `mdec.r` - MDEC module (work in progress).
 
 Usage (assuming you've pointed RLC to `retrolib` as an include/import directory):
 
