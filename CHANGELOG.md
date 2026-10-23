@@ -5,7 +5,9 @@ Retrolang 0.10.0 - TBD
 - **XA Tool**
   - Ability to encode a single XA stream without interleaving (`--single` parameter)
 - **GPSXEmu**
-  - Work-in-progress emulator project.
+  - Work-in-progress emulator project
+- **Examples**
+  - HTML5 level editor for the platformer example.
 
 Retrolang 0.9.0 - 22 Oct, 2026
 ------------------------------

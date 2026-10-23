@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Retrolang Level Editor</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --site-primary: #2864d7;
+  --site-on-primary: #ffffff;
+  --site-secondary: #25334a;
+  --site-on-secondary: #f5f7fb;
+  --site-background: #e9edf3;
+  --site-on-background: #172033;
+  --site-font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --site-font-heading: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --site-heading-scale: 1;
+  --site-spacing-scale: 1;
+  --site-radius-scale: 1;
+  --site-decoration-opacity: 1;
+  --panel: light-dark(#ffffff, #1b2029);
+  --panel-alt: light-dark(#f5f7fa, #242b36);
+  --border: light-dark(#d7dee8, #394352);
+  --muted: light-dark(#68758a, #a7b2c3);
+  --canvas-bg: light-dark(#e5eaf1, #12161d);
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--site-font-body); background: var(--site-background); color: var(--site-on-background); }
+#app { min-height: 100vh; width: 100%; background-color: var(--site-background); color: var(--site-on-background); }
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding: calc(14px * var(--site-spacing-scale)) calc(22px * var(--site-spacing-scale)); background:var(--site-secondary); color:var(--site-on-secondary); }
+.brand { display:flex; align-items:center; gap:12px; }
+.logo { width:34px; height:34px; display:grid; grid-template-columns:repeat(2,1fr); gap:3px; padding:4px; background:var(--site-primary); border-radius:calc(8px * var(--site-radius-scale)); }
+.logo i { background:#fff; border-radius:2px; opacity:.9; }
+h1 { font-size:calc(17px * var(--site-heading-scale)); line-height:1.2; margin:0; font-weight:750; letter-spacing:-.02em; }
+.subtitle { font-size:12px; color:#b9c6d9; margin-top:3px; }
+.top-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+button, .file-button, select, input[type=number] { font:inherit; }
+button, .file-button { border:1px solid var(--border); border-radius:calc(8px * var(--site-radius-scale)); background:var(--panel); color:var(--site-on-background); padding:8px 11px; cursor:pointer; font-size:13px; font-weight:650; transition:background .12s, transform .12s; }
+button:hover, .file-button:hover { background:var(--panel-alt); }
+button:active { transform:translateY(1px); }
+button.primary { background:var(--site-primary); color:var(--site-on-primary); border-color:var(--site-primary); }
+button.primary:hover { filter:brightness(1.08); }
+button:disabled { opacity:.4; cursor:not-allowed; }
+button.active { outline:2px solid var(--site-primary); outline-offset:1px; }
+button.icon-button { padding:7px 9px; min-width:34px; }
+.layout { display:grid; grid-template-columns:minmax(0,1fr) 500px; gap:16px; padding:16px; max-width:1600px; margin:0 auto; }
+.workspace { min-width:0; display:flex; flex-direction:column; gap:12px; }
+.toolbar, .panel { background:var(--panel); border:1px solid var(--border); border-radius:calc(12px * var(--site-radius-scale)); }
+.toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:10px; }
+.tool-separator { width:1px; height:26px; background:var(--border); margin:0 3px; }
+.workspace-title { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 2px; }
+.workspace-title h2 { font-size:14px; margin:0; }
+.hint { font-size:12px; color:var(--muted); }
+.canvas-wrap { position:relative; min-height:400px; height:min(65vh,760px); overflow:auto; background:var(--canvas-bg); border:1px solid var(--border); border-radius:calc(12px * var(--site-radius-scale)); padding:24px; display:flex; align-items:center; justify-content:center; }
+#mapCanvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; box-shadow:0 5px 25px #0002; cursor:crosshair; touch-action:none; }
+.empty-state { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; padding:30px; pointer-events:none; }
+.empty-card { max-width:360px; padding:22px; border:1px dashed var(--border); background:var(--panel); border-radius:12px; }
+.empty-card strong { display:block; margin-bottom:6px; }
+.empty-card p { color:var(--muted); font-size:13px; line-height:1.5; margin:0; }
+.sidebar { display:flex; flex-direction:column; gap:12px; min-width:0; }
+.panel { padding:14px; }
+.panel-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+.panel h3 { font-size:13px; margin:0; letter-spacing:.01em; }
+.count { color:var(--muted); font-size:11px; }
+.upload-area { display:flex; align-items:center; gap:10px; padding:10px; background:var(--panel-alt); border:1px dashed var(--border); border-radius:9px; }
+.upload-icon { display:grid; place-items:center; width:34px; height:34px; flex:0 0 34px; border-radius:8px; background:var(--site-primary); color:#fff; font-size:18px; }
+.upload-copy { min-width:0; flex:1; }
+.upload-copy b { display:block; font-size:12px; }
+.upload-copy span { display:block; color:var(--muted); font-size:11px; margin-top:3px; overflow-wrap:anywhere; }
+.file-button { display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; }
+input[type=file] { display:none; }
+.settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.field label { display:block; font-size:11px; color:var(--muted); margin-bottom:5px; }
+.field input[type=number], .field select { width:100%; min-width:0; padding:8px 9px; border:1px solid var(--border); border-radius:7px; background:var(--panel); color:var(--site-on-background); }
+.field input[type=number]:focus, .field select:focus { outline:2px solid #2864d755; border-color:var(--site-primary); }
+.full { grid-column:1 / -1; }
+.palette-grid { display:grid; grid-template-columns:repeat(10,minmax(0,1fr)); gap:5px; max-height: 300px; overflow-y: scroll; }
+.tile-button { min-width:0; padding:4px; border:1px solid var(--border); background:var(--panel-alt); border-radius:7px; cursor:pointer; }
+.tile-button.selected { border:2px solid var(--site-primary); padding:3px; box-shadow:0 0 0 2px #2864d722; }
+.tile-button canvas { display:block; width:100%; aspect-ratio:1; image-rendering:pixelated; background-color:var(--canvas-bg); background-image:linear-gradient(45deg,#8793a322 25%,transparent 25%),linear-gradient(-45deg,#8793a322 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#8793a322 75%),linear-gradient(-45deg,transparent 75%,#8793a322 75%); background-size:8px 8px; background-position:0 0,0 4px,4px -4px,-4px 0; border-radius:3px; }
+.tile-label { display:block; font-size:10px; color:var(--muted); text-align:center; margin-top:4px; font-variant-numeric:tabular-nums; }
+.palette-note { color:var(--muted); font-size:11px; line-height:1.45; margin:10px 0 0; }
+.status-row { display:flex; justify-content:space-between; gap:8px; color:var(--muted); font-size:11px; margin-top:9px; }
+.status-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#2cb67d; margin-right:6px; }
+.export-info { padding:10px; border-radius:8px; background:var(--panel-alt); font-size:11px; color:var(--muted); line-height:1.5; }
+.export-info code { color:var(--site-on-background); font-size:11px; }
+.export-actions { display:flex; gap:8px; margin-top:10px; }
+.export-actions button { flex:1; }
+.footer-note { font-size:11px; line-height:1.5; color:var(--muted); padding:0 3px 8px; }
+.toast { position:fixed; bottom:18px; left:50%; transform:translate(-50%,15px); opacity:0; pointer-events:none; background:var(--site-secondary); color:var(--site-on-secondary); padding:10px 14px; border-radius:9px; box-shadow:0 5px 24px #0003; font-size:13px; transition:all .2s; z-index:10; }
+.toast.show { opacity:1; transform:translate(-50%,0); }
+@media (max-width:900px) { .layout { grid-template-columns:1fr; } .sidebar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; } .sidebar .panel:last-child { grid-column:1/-1; } .canvas-wrap { height:55vh; min-height:300px; } }
+@media (max-width:560px) { .topbar { align-items:flex-start; padding:12px; } .top-actions { justify-content:flex-end; } .layout { padding:10px; gap:10px; } .sidebar { display:flex; } .canvas-wrap { padding:12px; min-height:260px; } .toolbar { gap:5px; } .toolbar button { padding:7px 8px; } .hint { display:none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div><h1>Retrolang Level Editor</h1><div class="subtitle">Prototype v0.1</div></div>
+    </div>
+    <div class="top-actions">
+      <button id="newBtn" title="Create a blank map">New map</button>
+      <button id="openMapBtn" title="Open previously saved map file">Open BIN</button>
+      <input id="mapFile" type="file" accept=".bin,.dat,application/octet-stream">
+      <button id="exportBtn" class="primary">↓ Download BIN</button>
+    </div>
+  </header>
+  <main class="layout">
+    <section class="workspace">
+      <div class="toolbar" role="toolbar" aria-label="Editor tools">
+        <button class="active" data-tool="brush" title="Draw tiles (B)">✎ Brush</button>
+        <button data-tool="erase" title="Delete tiles (E)">⌫ Eraser</button>
+        <button data-tool="fill" title="Fill (F)">▧ Fill</button>
+        <span class="tool-separator"></span>
+        <button id="undoBtn" class="icon-button" title="Undo (Ctrl+Z)" disabled>↶</button>
+        <button id="redoBtn" class="icon-button" title="Redo (Ctrl+Y)" disabled>↷</button>
+        <span class="tool-separator"></span>
+        <button id="gridBtn" class="active" title="Toggle grid">▦ Grid</button>
+        <button id="zoomOut" class="icon-button" title="Zoom out">−</button>
+        <button id="zoomIn" class="icon-button" title="Zoom in">+</button>
+        <span id="zoomLabel" class="hint">2×</span>
+      </div>
+      <div class="workspace-title"><h2>Work area</h2><span id="mapDimensions" class="hint">20 × 16 tiles · 320 bytes</span></div>
+      <div id="canvasWrap" class="canvas-wrap">
+        <canvas id="mapCanvas" width="640" height="512" aria-label="Map editor"></canvas>
+        <div id="emptyState" class="empty-state"><div class="empty-card"><strong>Load your tile map</strong><p>PNG, JPEG or WebP. After loading choose a tile an draw on the grid.</p></div></div>
+      </div>
+      <div class="status-row"><span id="statusText"><span class="status-dot"></span>Reeady to edit</span><span id="cursorText">X: —, Y: —</span></div>
+      <div class="footer-note">Controls: LMB — draw · Shift + LMB — temporary eraser · Ctrl+Z — undo · Ctrl+Y — redo · mouse wheel — zoom.</div>
+    </section>
+    <aside class="sidebar">
+      <section class="panel">
+        <div class="panel-head"><h3>Tile Map</h3><span id="atlasMeta" class="count">not loaded</span></div>
+        <div class="upload-area">
+          <div class="upload-icon">▧</div>
+          <div class="upload-copy"><b id="atlasName">Load an image</b><span id="atlasDimensions">Select a file</span></div>
+          <label for="atlasFile" class="file-button">Browse</label>
+          <input id="atlasFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+        </div>
+        <div class="settings-grid" style="margin-top:12px">
+          <div class="field"><label for="tileW">Tile width (px)</label><input id="tileW" type="number" min="1" max="256" value="16"></div>
+          <div class="field"><label for="tileH">Tile height (px)</label><input id="tileH" type="number" min="1" max="256" value="16"></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Tiles Palette</h3><span id="paletteCount" class="count">0 tiles</span></div>
+        <div id="paletteGrid" class="palette-grid"></div>
+        <p class="palette-note">Click on a tile to select it, then draw on the map. The coordinates of the tile within the atlas are written to the binary file: <code>(u &lt;&lt; 4) | v</code>. Therefore, indices from 0 to 15 are permissible for export along both axes.</p>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Level Parameters</h3><span class="count">in tiles</span></div>
+        <div class="settings-grid">
+          <div class="field"><label for="mapW">Width</label><input id="mapW" type="number" min="1" max="128" value="20"></div>
+          <div class="field"><label for="mapH">Height</label><input id="mapH" type="number" min="1" max="128" value="16"></div>
+          <div class="field full"><label for="emptyTile">Empty cell code</label><select id="emptyTile"><option value="175" selected>0xAF — TILE(10, 15)</option><option value="0">0x00 — TILE(0, 0)</option><option value="255">0xFF — reserved</option></select></div>
+          <div class="field full"><button id="resizeBtn" style="width:100%">Apply</button></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Export</h3><span class="count">raw binary</span></div>
+        <div class="export-info">Data order: rows from top to bottom, and within each row, from left to right. <br><br>Size: <code id="exportSize">320 bytes</code><br>The file contains only an array of tiles.</div>
+        <div class="export-actions"><button id="copyInfoBtn">Copy parameters</button><button id="exportBtn2" class="primary">Download BIN</button></div>
+      </section>
+    </aside>
+  </main>
+</div>
+<div id="toast" class="toast" role="status"></div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const mapCanvas = $('mapCanvas');
+  const ctx = mapCanvas.getContext('2d');
+  const wrap = $('canvasWrap');
+  const paletteGrid = $('paletteGrid');
+  const atlasFile = $('atlasFile');
+  const mapFile = $('mapFile');
+  let atlas = null;
+  let atlasURL = null;
+  let tileW = 16, tileH = 16;
+  let mapW = 20, mapH = 16;
+  let emptyCode = 0xAF;
+  let tiles = new Uint8Array(mapW * mapH).fill(emptyCode);
+  let selected = {u:0,v:0};
+  let tool = 'brush';
+  let showGrid = true;
+  let zoom = 2;
+  let drawing = false;
+  let lastCell = '';
+  let history = [], future = [];
+  let atlasTiles = [];
+  const MAX_HISTORY = 80;
+
+  function toast(message) {
+    const el = $('toast'); el.textContent = message; el.classList.add('show');
+    clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('show'), 2300);
+  }
+  function status(message) { $('statusText').innerHTML = '<span class="status-dot"></span>' + message; }
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+  function codeFor(u,v) { return ((u & 15) << 4) | (v & 15); }
+  function decode(code) { return {u:(code >> 4) & 15, v:code & 15}; }
+  function cellIndex(x,y) { return y * mapW + x; }
+  function snapshot() { history.push({w:mapW,h:mapH,data:tiles.slice()}); if(history.length>MAX_HISTORY) history.shift(); future=[]; updateUndoButtons(); }
+  function restore(s) { mapW=s.w; mapH=s.h; tiles=s.data.slice(); $('mapW').value=mapW; $('mapH').value=mapH; syncMapSize(); drawMap(); }
+  function undo() { if(!history.length)return; future.push({w:mapW,h:mapH,data:tiles.slice()}); restore(history.pop()); updateUndoButtons(); status('Undo'); }
+  function redo() { if(!future.length)return; history.push({w:mapW,h:mapH,data:tiles.slice()}); restore(future.pop()); updateUndoButtons(); status('Redo'); }
+  function updateUndoButtons() { $('undoBtn').disabled=!history.length; $('redoBtn').disabled=!future.length; }
+  function syncMapSize() {
+    $('mapDimensions').textContent=`${mapW} × ${mapH} тайлов · ${tiles.length} byte(s)`;
+    $('exportSize').textContent=`${tiles.length} byte(s)`;
+    mapCanvas.width=mapW*tileW*zoom; mapCanvas.height=mapH*tileH*zoom;
+    mapCanvas.style.width=mapCanvas.width+'px'; mapCanvas.style.height=mapCanvas.height+'px';
+    drawMap();
+  }
+  function resizeMap(newW,newH) {
+    newW=clamp(Math.floor(newW)||1,1,128); newH=clamp(Math.floor(newH)||1,1,128);
+    snapshot(); const next=new Uint8Array(newW*newH).fill(emptyCode);
+    for(let y=0;y<Math.min(mapH,newH);y++) for(let x=0;x<Math.min(mapW,newW);x++) next[y*newW+x]=tiles[y*mapW+x];
+    mapW=newW;mapH=newH;tiles=next;$('mapW').value=mapW;$('mapH').value=mapH;syncMapSize();status('Map size changed');
+  }
+  function drawTileImage(target, x, y, w, h, code) {
+    if(code===emptyCode) return;
+    const {u,v}=decode(code);
+    if(atlas && u*tileW<atlas.width && v*tileH<atlas.height) {
+      target.drawImage(atlas,u*tileW,v*tileH,tileW,tileH,x,y,w,h);
+    } else {
+      const hue=(u*37+v*71)%360;
+      target.fillStyle=`hsl(${hue} 45% 47%)`;target.fillRect(x,y,w,h);
+      target.strokeStyle='rgba(255,255,255,.35)';target.strokeRect(x+.5,y+.5,w-1,h-1);
+      target.fillStyle='#fff';target.font=`${Math.max(8,Math.min(w,h)*.28)}px monospace`;target.textAlign='center';target.textBaseline='middle';target.fillText(`${u},${v}`,x+w/2,y+h/2);
+    }
+  }
+  function drawMap() {
+    const w=mapW*tileW*zoom,h=mapH*tileH*zoom;
+    if(mapCanvas.width!==w || mapCanvas.height!==h){mapCanvas.width=w;mapCanvas.height=h;mapCanvas.style.width=w+'px';mapCanvas.style.height=h+'px';}
+    ctx.clearRect(0,0,w,h);
+    // Checkerboard lets transparent atlas pixels remain visible.
+    const checker=Math.max(4,zoom*4);
+    for(let y=0;y<h;y+=checker) for(let x=0;x<w;x+=checker) { if(((x/checker)+(y/checker))%2===0){ctx.fillStyle='rgba(120,135,155,.12)';ctx.fillRect(x,y,checker,checker);} }
+    for(let y=0;y<mapH;y++) for(let x=0;x<mapW;x++) drawTileImage(ctx,x*tileW*zoom,y*tileH*zoom,tileW*zoom,tileH*zoom,tiles[cellIndex(x,y)]);
+    if(showGrid) { ctx.beginPath();ctx.strokeStyle='rgba(100,120,145,.55)';ctx.lineWidth=1;for(let x=0;x<=mapW;x++){ctx.moveTo(x*tileW*zoom+.5,0);ctx.lineTo(x*tileW*zoom+.5,h);}for(let y=0;y<=mapH;y++){ctx.moveTo(0,y*tileH*zoom+.5);ctx.lineTo(w,y*tileH*zoom+.5);}ctx.stroke(); }
+    $('emptyState').style.display=atlas?'none':'flex';
+  }
+  function renderPalette() {
+    paletteGrid.innerHTML='';atlasTiles=[];
+    if(!atlas) {
+      for(let v=0;v<4;v++) for(let u=0;u<4;u++) atlasTiles.push({u,v});
+    } else {
+      const cols=Math.floor(atlas.width/tileW), rows=Math.floor(atlas.height/tileH);
+      for(let v=0;v<Math.min(rows,16);v++) for(let u=0;u<Math.min(cols,16);u++) atlasTiles.push({u,v});
+    }
+    $('paletteCount').textContent=`${atlasTiles.length} тайлов`;
+    atlasTiles.forEach(({u,v})=>{
+      const b=document.createElement('button');b.className='tile-button'+(selected.u===u&&selected.v===v?' selected':'');b.type='button';b.title=`TILE(${u}, ${v}) · 0x${codeFor(u,v).toString(16).toUpperCase().padStart(2,'0')}`;
+      const c=document.createElement('canvas');c.width=tileW;c.height=tileH;
+      const cctx=c.getContext('2d');
+      if(atlas) cctx.drawImage(atlas,u*tileW,v*tileH,tileW,tileH,0,0,tileW,tileH);
+      else { cctx.fillStyle=`hsl(${(u*37+v*71)%360} 45% 47%)`;cctx.fillRect(0,0,tileW,tileH);cctx.fillStyle='#fff';cctx.font='5px monospace';cctx.fillText(`${u},${v}`,2,9); }
+      const label=document.createElement('span');label.className='tile-label';label.textContent=`${u}, ${v}`;
+      b.append(c,label);b.addEventListener('click',()=>{selected={u,v};tool='brush';updateTools();renderPalette();status(`Выбран тайл (${u}, ${v})`);});paletteGrid.append(b);
+    });
+  }
+  function updateTools(){document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));}
+  function setTool(next){tool=next;updateTools();}
+  function getCell(e) { const r=mapCanvas.getBoundingClientRect();const x=Math.floor((e.clientX-r.left)/(tileW*zoom));const y=Math.floor((e.clientY-r.top)/(tileH*zoom));return {x,y}; }
+  function paintCell(x,y,activeTool=tool) {
+    if(x<0||y<0||x>=mapW||y>=mapH)return;
+    const i=cellIndex(x,y);let value=activeTool==='erase'?emptyCode:codeFor(selected.u,selected.v);
+    if(tiles[i]===value)return;
+    tiles[i]=value;drawMap();
+  }
+  function floodFill(startX,startY) {
+    if(startX<0||startY<0||startX>=mapW||startY>=mapH)return;
+    const target=tiles[cellIndex(startX,startY)], replacement=codeFor(selected.u,selected.v);if(target===replacement)return;
+    snapshot();const stack=[[startX,startY]];while(stack.length){const [x,y]=stack.pop();if(x<0||y<0||x>=mapW||y>=mapH)continue;const i=cellIndex(x,y);if(tiles[i]!==target)continue;tiles[i]=replacement;stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);}drawMap();status('Area filled');
+  }
+  mapCanvas.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;const {x,y}=getCell(e);if(x<0||y<0||x>=mapW||y>=mapH)return;
+    mapCanvas.setPointerCapture(e.pointerId);
+    if(tool==='fill'){floodFill(x,y);return;}
+    snapshot();drawing=true;lastCell='';const active=e.shiftKey?'erase':tool;paintCell(x,y,active);lastCell=`${x},${y}`;status(active==='erase'?'Erasing…':'Drawing…');
+  });
+  mapCanvas.addEventListener('pointermove',e=>{const {x,y}=getCell(e);$('cursorText').textContent=`X: ${x>=0&&x<mapW?x:'—'}, Y: ${y>=0&&y<mapH?y:'—'}`;if(!drawing)return;const key=`${x},${y}`;if(key===lastCell)return;lastCell=key;paintCell(x,y,e.shiftKey?'erase':tool);});
+  function stopDrawing(){if(drawing){drawing=false;drawMap();updateUndoButtons();status('Changes applied');}}
+  mapCanvas.addEventListener('pointerup',stopDrawing);mapCanvas.addEventListener('pointercancel',stopDrawing);window.addEventListener('pointerup',stopDrawing);
+  document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
+  $('gridBtn').addEventListener('click',()=>{showGrid=!showGrid;$('gridBtn').classList.toggle('active',showGrid);drawMap();});
+  $('undoBtn').addEventListener('click',undo);$('redoBtn').addEventListener('click',redo);
+  $('zoomIn').addEventListener('click',()=>{zoom=clamp(zoom+1,1,6);$('zoomLabel').textContent=zoom+'×';syncMapSize();});
+  $('zoomOut').addEventListener('click',()=>{zoom=clamp(zoom-1,1,6);$('zoomLabel').textContent=zoom+'×';syncMapSize();});
+  mapCanvas.addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();zoom=clamp(zoom+(e.deltaY<0?1:-1),1,6);$('zoomLabel').textContent=zoom+'×';syncMapSize();},{passive:false});
+  $('resizeBtn').addEventListener('click',()=>resizeMap(Number($('mapW').value),Number($('mapH').value)));
+  $('newBtn').addEventListener('click',()=>{if(!confirm('Create a blank map? Unsaved changes will be lost.'))return;snapshot();mapW=clamp(Number($('mapW').value)||20,1,128);mapH=clamp(Number($('mapH').value)||16,1,128);tiles=new Uint8Array(mapW*mapH).fill(emptyCode);syncMapSize();status('New map created');});
+  $('emptyTile').addEventListener('change',()=>{emptyCode=Number($('emptyTile').value);status(`Пустая ячейка: 0x${emptyCode.toString(16).toUpperCase().padStart(2,'0')}`);});
+  function updateTileSize(){const nw=clamp(Number($('tileW').value)||16,1,256),nh=clamp(Number($('tileH').value)||16,1,256);tileW=nw;tileH=nh;syncMapSize();renderPalette();if(atlas)updateAtlasInfo();}
+  $('tileW').addEventListener('change',updateTileSize);$('tileH').addEventListener('change',updateTileSize);
+  function updateAtlasInfo(){if(!atlas)return;const cols=Math.floor(atlas.width/tileW),rows=Math.floor(atlas.height/tileH);$('atlasDimensions').textContent=`${atlas.width} × ${atlas.height} px · ${cols} × ${rows} тайлов`;$('atlasMeta').textContent=`${cols} × ${rows}`;}
+  atlasFile.addEventListener('change',()=>{const file=atlasFile.files&&atlasFile.files[0];if(!file)return;if(atlasURL)URL.revokeObjectURL(atlasURL);atlasURL=URL.createObjectURL(file);const img=new Image();img.onload=()=>{atlas=img;$('atlasName').textContent=file.name;$('emptyState').style.display='none';updateAtlasInfo();renderPalette();drawMap();status('Tile map loaded');toast('Tile map loaded');};img.onerror=()=>toast('Failed to load the image');img.src=atlasURL;});
+  function exportBin(){const bytes=tiles.slice();const blob=new Blob([bytes],{type:'application/octet-stream'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`level_${mapW}x${mapH}.bin`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`Скачан BIN: ${bytes.length} byte(s)`);status('Binary exported');}
+  $('exportBtn').addEventListener('click',exportBin);$('exportBtn2').addEventListener('click',exportBin);
+  $('openMapBtn').addEventListener('click',()=>mapFile.click());
+  mapFile.addEventListener('change',()=>{const file=mapFile.files&&mapFile.files[0];if(!file)return;file.arrayBuffer().then(buf=>{const data=new Uint8Array(buf);if(data.length!==mapW*mapH){if(!confirm(`File contains ${data.length} bytes, current map — ${mapW*mapH}. Open as map with width ${mapW}, automatically computing the height?`))return;const h=Math.ceil(data.length/mapW);snapshot();mapH=clamp(h,1,128);tiles=new Uint8Array(mapW*mapH).fill(emptyCode);tiles.set(data.slice(0,tiles.length));$('mapH').value=mapH;}else{snapshot();tiles=data;}syncMapSize();status(`Loaded ${data.length} bytes`);toast('Binary opened');}).catch(()=>toast('Failed to read the file'));mapFile.value='';});
+  $('copyInfoBtn').addEventListener('click',()=>{const text=`#define LEVEL_WIDTH ${mapW}\n#define LEVEL_HEIGHT ${mapH}\n// Raw level data: ${tiles.length} bytes\n// Tile code: (u << 4) | v; empty = 0x${emptyCode.toString(16).toUpperCase().padStart(2,'0')}`;if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(()=>toast('Parameters copied')).catch(()=>prompt('Cope parameters:',text));else prompt('Copy parameters:',text);});
+  window.addEventListener('keydown',e=>{const tag=document.activeElement&&document.activeElement.tagName;if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}else if((e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==='y'||(e.shiftKey&&e.key.toLowerCase()==='z'))){e.preventDefault();redo();}else if(e.key.toLowerCase()==='b')setTool('brush');else if(e.key.toLowerCase()==='e')setTool('erase');else if(e.key.toLowerCase()==='f')setTool('fill');});
+  renderPalette();syncMapSize();updateUndoButtons();
+})();
+</script>
+</body>
+</html>

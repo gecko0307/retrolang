@@ -206,7 +206,7 @@ Usage (assuming you've pointed RLC to `retrolib` as an include/import directory)
 - [dma](/examples/dma) - classic colored triangle demo (queued rendering via command buffer)
 - [sprite](/examples/sprite) - TIM texture loading and sprite rendering (direct rendering via GP0)
 - [text](/examples/text) - bitmap font loading and text rendering (queued rendering via a command buffer)
-- [platform_game](/examples/platform_game) - 2D platform game
+- [platform_game](/examples/platform_game) - 2D platform game demo with a level editor
 - [mesh](/examples/mesh) - walkable 3D scene with a first person camera
 - [memcard](/examples/memcard) - memory card reading and writing
 - [vag](/examples/vag) - VAG sound playback example
