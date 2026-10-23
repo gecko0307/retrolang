@@ -32,8 +32,8 @@ For more information, please refer to <https://unlicense.org>
 
 #import "core.r"
 
-int* I_MASK = 0x1F801074; // Interrupt mask register
 int* I_STAT = 0x1F801070; // Interrupt status register
+int* I_MASK = 0x1F801074; // Interrupt mask register
 
 // This is only needed if you don't call padInit, which is unlikely.
 void irqEnable()
