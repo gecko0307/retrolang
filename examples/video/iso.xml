@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="game.bin" cue_sheet="game.cue">
+	<track type="data">
+		<identifiers
+			system ="PLAYSTATION"
+			application ="PLAYSTATION"
+			volume ="RL14_VIDEO"
+		/>
+		<license file="../licenses/default.dat"/>
+		<directory_tree>
+			<file name="PSX.EXE" type="data" source="iso/PSX.EXE"/>
+			<dir name="STR">
+				<file name="VIDEO.STR" source="iso/STR/VIDEO.STR" type="mixed"/>
+			</dir>
+			<dummy sectors="1024"/>
+		</directory_tree>
+	</track>
+</iso_project>
