@@ -1,5 +1,5 @@
-Retrolang 0.10.0 - TBD
-----------------------
+Retrolang 0.10.0 - 24 Oct, 2026
+-------------------------------
 - **Retrolib**
   - Experimental MDEC/STR support (`mdec.r`, `vlc.r`, `str.r`)
   - More BIOS functions in `bios.r`
