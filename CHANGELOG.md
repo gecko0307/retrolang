@@ -8,6 +8,7 @@ Retrolang 0.10.0 - TBD
 - **GPSXEmu**
   - Work-in-progress emulator project
 - **Examples**
+  - STR video playback example
   - HTML5 level editor for the platformer example.
 
 Retrolang 0.9.0 - 22 Oct, 2026
