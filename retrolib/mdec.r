@@ -25,9 +25,9 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /**
- * MDEC (Motion Decoder) driver.
+ * MDEC driver.
  *
- * Decodes MDEC macroblock data (the output of a VLC/bitstream decoder) and
+ * Decodes macroblocks (the output of a VLC/bitstream decoder) and
  * uploads the resulting pixels to VRAM, one macroblock column (16 pixels wide)
  * at a time. The MDEC cannot feed the GPU by itself, so the pixels pass through
  * a small pair of RAM buffers, but the CPU never touches them: MDEC input,
