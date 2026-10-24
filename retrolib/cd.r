@@ -67,12 +67,12 @@ void cdReadResponse()
 //
 void cdAck()
 {
+    // Acknowledge all interrupt flags. 0x1F is what the BIOS writes; the
+    // flags register holds the interrupt type as a number, not a bit mask, so
+    // writing the type back (what this function did before) only works by
+    // accident and is rejected by accurate emulators and CD-ROM controller clones.
     *CD_INDEX = 1;
-    int currentIrq = *CD_REG3 & 7;
-    if (currentIrq > 0)
-    {
-        *CD_REG3 = currentIrq;
-    }
+    *CD_REG3 = 0x1F;
     *I_STAT = ~4; // clear the CDROM bit in I_STAT (0 = clear)
 }
 

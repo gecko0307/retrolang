@@ -9,7 +9,7 @@ In jurisdictions that recognize copyright laws, the author or authors
 of this software dedicate any and all copyright interest in the software
 to the public domain. We make this dedication for the benefit of the
 public at large and to the detriment of our heirs and successors.
-We intend this dedication to be an overt act of relinquishment in 
+We intend this dedication to be an overt act of relinquishment in
 perpetuity of all present and future rights to this software under
 copyright law.
 
@@ -25,13 +25,13 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /**
- * MDEC driver.
+ * MDEC (Motion Decoder) driver.
  *
  * Decodes MDEC macroblock data (the output of a VLC/bitstream decoder) and
  * uploads the resulting pixels to VRAM, one macroblock column (16 pixels wide)
- * at a time. The pixels pass through a small pair of RAM buffers,
- * but the CPU never touches them: MDEC input, MDEC output and the GPU upload
- * are all DMA transfers.
+ * at a time. The MDEC cannot feed the GPU by itself, so the pixels pass through
+ * a small pair of RAM buffers, but the CPU never touches them: MDEC input,
+ * MDEC output and the GPU upload are all DMA transfers.
  */
 
 // MDEC I/O ports
@@ -69,6 +69,9 @@ For more information, please refer to <https://unlicense.org>
 // Busy-wait limit for DMA completion (iterations)
 #define MDEC_TIMEOUT        4000000
 
+// Same for the polled frame decoder (number of polls)
+#define MDEC_POLL_LIMIT     2000000
+
 /*
  * Two column buffers at fixed RAM addresses. Each holds a fake 3-word TIM data
  * header followed by one decoded macroblock column: up to 6144 words
@@ -78,7 +81,6 @@ For more information, please refer to <https://unlicense.org>
 #define MDEC_BUF1        0x801A8000
 #define MDEC_BUF_WORDS   6160
 #define MDEC_BUF_BYTES   24640
-
 macro MDECRegionBuffer0 = (MDEC_BUF0, MDEC_BUF_BYTES);
 macro MDECRegionBuffer1 = (MDEC_BUF1, MDEC_BUF_BYTES);
 
@@ -146,13 +148,13 @@ uint mdecDefaultScale[32] =
     0xb8e318f8, 0x82756a6d, 0x95927d8a, 0xe707471c
 };
 
-// Returns the MDEC status register.
+/// Returns the MDEC status register.
 int mdecStatus()
 {
     return *mdec1;
 }
 
-// Writes one word to MDEC0, waiting while the data-in FIFO is full.
+/// Writes one word to MDEC0, waiting while the data-in FIFO is full.
 void mdecPutWord(uint w)
 {
     int guard = 0;
@@ -161,7 +163,7 @@ void mdecPutWord(uint w)
     *mdec0 = w;
 }
 
-// Waits until a DMA channel is idle. Returns 0, or -1 on timeout.
+/// Waits until a DMA channel is idle. Returns 0, or -1 on timeout.
 int mdecWaitDma(int* chcr)
 {
     int guard = 0;
@@ -174,7 +176,26 @@ int mdecWaitDma(int* chcr)
     return 0;
 }
 
-// Resets the MDEC and enables its DMA requests.
+// Staging buffer for the quantization tables (luma and chroma must be contiguous)
+uint mdecQuantBuf[32];
+
+/**
+ * Sends words to the MDEC with DMA0 and waits until the transfer is done.
+ * The number of words must be a multiple of 32.
+ * Parameters of MDEC commands must go this way: the MDEC takes the command
+ * from the port, but only reads its parameters from the DMA stream (and so do
+ * accurate emulators), so writing them to MDEC0 with the CPU doesn't work.
+ * Returns 0, or -1 on timeout.
+ */
+int mdecDmaIn(uint* data, int words)
+{
+    *dma0Madr = (uint)data & 0xffffff;
+    *dma0Bcr = MDEC_BLOCK_WORDS | ((words >> 5) << 16);
+    *dma0Chcr = MDEC_DMA_IN_START;
+    return mdecWaitDma(dma0Chcr);
+}
+
+/// Resets the MDEC and enables its DMA requests.
 void mdecReset()
 {
     *mdec1 = MDEC_CTRL_RESET;
@@ -188,28 +209,25 @@ void mdecReset()
 void mdecSetQuantTable(uint* luma, uint* chroma)
 {
     int i;
-    if (chroma == null)
-        mdecPutWord(MDEC_CMD_SET_QUANT);
-    else
-        mdecPutWord(MDEC_CMD_SET_QUANT | 1);
-
     for (i = 0; i < 16; i++)
-        mdecPutWord(luma[i]);
-
-    if (chroma != null)
     {
-        for (i = 0; i < 16; i++)
-            mdecPutWord(chroma[i]);
+        mdecQuantBuf[i] = luma[i];
+        if (chroma == null)
+            mdecQuantBuf[16 + i] = luma[i];
+        else
+            mdecQuantBuf[16 + i] = chroma[i];
     }
+
+    // The command goes through the port, the table itself through DMA0
+    mdecPutWord(MDEC_CMD_SET_QUANT | 1);
+    mdecDmaIn(mdecQuantBuf, 32);
 }
 
-// Sets the IDCT scale table (32 words = 64 signed halfwords).
+/// Sets the IDCT scale table (32 words = 64 signed halfwords).
 void mdecSetScaleTable(uint* table)
 {
-    int i;
     mdecPutWord(MDEC_CMD_SET_SCALE);
-    for (i = 0; i < 32; i++)
-        mdecPutWord(table[i]);
+    mdecDmaIn(table, 32);
 }
 
 /**
@@ -258,7 +276,7 @@ int mdecVramWidth(struct MdecFrame* f)
         return 24;
     return 16;
 }
- 
+
 // Number of words in one decoded macroblock column
 int mdecColumnWords(struct MdecFrame* f)
 {
@@ -281,95 +299,161 @@ void mdecUploadColumn(struct MdecFrame* f, uint* buf, int column)
     gpuQueueMemToVram(hdr, hdr->size);
 }
 
+// State of the resumable frame decoder (see mdecFrameBegin)
+struct MdecFrame* mdecJob = 0;
+int mdecPhase = 0;    // 0 idle, 1 decoding columns, 2 waiting for MDECin DMA
+int mdecCol = 0;      // column that is being decoded
+int mdecCols = 0;     // total number of columns
+int mdecColWords = 0; // size of one decoded column in words
+int mdecGuard = 0;    // number of polls spent waiting for the hardware
+int mdecTrace = 0;    // set to 1 to log timeouts to the TTY (BIOS printf)
+
+// Counts a poll that found the hardware busy. Returns 0, or -1 on timeout.
+int mdecBusy()
+{
+    mdecGuard++;
+    if (mdecGuard > MDEC_POLL_LIMIT)
+    {
+        if (mdecTrace != 0)
+            bios_a(0x3f, "mdec: timeout, phase=%d column=%d\n", mdecPhase, mdecCol);
+        mdecAbort();
+        mdecPhase = 0;
+        return -1;
+    }
+    return 0;
+}
+
 /**
- * Decodes a frame and uploads it to VRAM.
- *
+ * Starts decoding a frame. The work is then advanced by mdecFramePoll().
  * The frame is decoded as a sequence of 16-pixel wide columns, in the order
  * macroblocks are stored in the bitstream. While column N is being uploaded to
  * VRAM, the MDEC is already decoding column N+1.
  *
- * This function flushes the GPU command queue, so call it at the start of the
- * frame, before sorting primitives.
+ * The MdecFrame struct must stay valid until the frame is finished.
+ * This function flushes the GPU command queue (gpuQueueMemToVram does so
+ * for every column), so call it at the start of the frame, before sorting
+ * primitives.
  *
- * Returns 0 on success, -1 on invalid parameters or a transfer timeout.
+ * Returns 0 if started, -1 on invalid parameters or a timeout.
  */
-int mdecDecodeFrame(struct MdecFrame* f)
+int mdecFrameBegin(struct MdecFrame* f)
 {
-    int c;
-    int cols;
-    int vramWidth;
     int colWords;
     uint cmd;
     uint blocks;
- 
+
+    mdecPhase = 0;
+
     if (f->data == null || f->words < 1 || f->words > 0xffff)
         return -1;
     if ((f->width & 15) != 0 || (f->height & 15) != 0 || f->width < 16 || f->height < 16)
         return -1;
- 
+
     if (f->depth == MDEC_DEPTH_15BIT)
     {
         cmd = MDEC_CMD_DECODE | MDEC_OUT_15BIT;
-        vramWidth = 16;
         colWords = f->height * 8;
     }
     else if (f->depth == MDEC_DEPTH_24BIT)
     {
         cmd = MDEC_CMD_DECODE | MDEC_OUT_24BIT;
-        vramWidth = 24;
         colWords = f->height * 12;
     }
     else
     {
         return -1;
     }
- 
+
     if (colWords + 3 > MDEC_BUF_WORDS)
         return -1;
- 
-    cols = f->width >> 4;
- 
+
     // Make sure the previous frame is completely done
     if (mdecWaitDma(dma0Chcr) < 0 || mdecWaitDma(dma1Chcr) < 0)
     {
         mdecAbort();
         return -1;
     }
- 
+
+    mdecJob = f;
+    mdecCols = f->width >> 4;
+    mdecColWords = colWords;
+    mdecCol = 0;
+    mdecGuard = 0;
+
     // Decode command, then the macroblock data via DMA0
     mdecPutWord(cmd | f->words);
- 
+
     blocks = (f->words + MDEC_BLOCK_WORDS - 1) >> 5;
     *dma0Madr = (uint)f->data & 0xffffff;
     *dma0Bcr = MDEC_BLOCK_WORDS | (blocks << 16);
     *dma0Chcr = MDEC_DMA_IN_START;
- 
+
     // Start decoding the first column
     mdecStartOut(mdecColumnBuffer(0), colWords);
- 
-    for (c = 0; c < cols; c++)
+
+    mdecPhase = 1;
+    return 0;
+}
+
+/**
+ * Advances the frame started by mdecFrameBegin. Never blocks for long: one call
+ * uploads at most one column, so the caller can do other work (for example
+ * service the CD-ROM) between the calls.
+ * Returns 0 while the frame is in progress, 1 when it is complete,
+ * -1 on a timeout.
+ */
+int mdecFramePoll()
+{
+    int c;
+    uint* cur;
+
+    if (mdecPhase == 0)
+        return 1;
+
+    if (mdecPhase == 1)
     {
-        if (mdecWaitDma(dma1Chcr) < 0)
-        {
-            mdecAbort();
-            return -1;
-        }
- 
-        uint* cur = mdecColumnBuffer(c);
- 
+        if ((*dma1Chcr & DMA_BUSY) != 0)
+            return mdecBusy();
+
+        c = mdecCol;
+        cur = mdecColumnBuffer(c);
+
         // Let the MDEC work on the next column while this one goes to VRAM
-        if (c + 1 < cols)
-            mdecStartOut(mdecColumnBuffer(c + 1), colWords);
- 
-        mdecUploadColumn(f, cur, c);
+        if (c + 1 < mdecCols)
+            mdecStartOut(mdecColumnBuffer(c + 1), mdecColWords);
+
+        mdecUploadColumn(mdecJob, cur, c);
+
+        mdecCol = c + 1;
+        mdecGuard = 0;
+        if (mdecCol >= mdecCols)
+            mdecPhase = 2;
+        return 0;
     }
- 
-    if (mdecWaitDma(dma0Chcr) < 0)
-    {
-        mdecAbort();
+
+    // All columns are out, wait until the input DMA has finished too
+    if ((*dma0Chcr & DMA_BUSY) != 0)
+        return mdecBusy();
+
+    mdecPhase = 0;
+    return 1;
+}
+
+/**
+ * Decodes a frame and uploads it to VRAM, waiting until it is done.
+ * Returns 0 on success, -1 on invalid parameters or a transfer timeout.
+ */
+int mdecDecodeFrame(struct MdecFrame* f)
+{
+    int r = mdecFrameBegin(f);
+    if (r < 0)
         return -1;
-    }
- 
+
+    while (r == 0)
+        r = mdecFramePoll();
+
+    if (r < 0)
+        return -1;
     return 0;
 }
 
