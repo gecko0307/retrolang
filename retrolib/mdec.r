@@ -87,6 +87,7 @@ macro MDECRegionBuffer1 = (MDEC_BUF1, MDEC_BUF_BYTES);
 #if import
 
 #import "core.r"
+#import "bios.r"
 #import "dma.r"
 #import "gpu.r"
 
@@ -306,7 +307,7 @@ int mdecCol = 0;      // column that is being decoded
 int mdecCols = 0;     // total number of columns
 int mdecColWords = 0; // size of one decoded column in words
 int mdecGuard = 0;    // number of polls spent waiting for the hardware
-int mdecTrace = 0;    // set to 1 to log timeouts to the TTY (BIOS printf)
+int mdecTrace = 0;    // 1 = log timeouts to the TTY with printf, set to 0 to silence
 
 // Counts a poll that found the hardware busy. Returns 0, or -1 on timeout.
 int mdecBusy()
@@ -315,7 +316,7 @@ int mdecBusy()
     if (mdecGuard > MDEC_POLL_LIMIT)
     {
         if (mdecTrace != 0)
-            bios_a(0x3f, "mdec: timeout, phase=%d column=%d\n", mdecPhase, mdecCol);
+            printf("mdec: timeout, phase=%d column=%d\n", mdecPhase, mdecCol);
         mdecAbort();
         mdecPhase = 0;
         return -1;

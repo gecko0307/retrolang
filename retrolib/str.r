@@ -98,6 +98,7 @@ For more information, please refer to <https://unlicense.org>
 #define STR_MDEC_ADDR       0x801B0000
 #define STR_DEMUX0_ADDR     0x801D0000
 #define STR_DEMUX1_ADDR     0x801E0000
+
 macro StrRegionSector  = (STR_SECTOR_ADDR, 2048);
 macro StrRegionMdec    = (STR_MDEC_ADDR,   STR_MDEC_BYTES);
 macro StrRegionDemux0  = (STR_DEMUX0_ADDR, STR_DEMUX_BYTES);
@@ -106,6 +107,7 @@ macro StrRegionDemux1  = (STR_DEMUX1_ADDR, STR_DEMUX_BYTES);
 #if import
 
 #import "core.r"
+#import "bios.r"
 #import "dma.r"
 #import "cd.r"
 #import "vlc.r"
@@ -122,7 +124,7 @@ int strEof = 0;           // the end of the movie was detected (see strFinished)
 int strTail = 0;          // non-video sectors since the last video sector
 int strMaskSaved = 0;     // CD-ROM bit of the CPU interrupt mask before strStart
 int strErrors = 0;        // CD-ROM errors, bad sectors, corrupt frames
-int strTrace = 0;         // set to 1 to log the first frames to the TTY (BIOS printf)
+int strTrace = 0;         // 1 = log the first frames to the TTY with printf, set to 0 to silence
 int strDropped = 0;       // frames that were lost
 int strFramesReceived = 0;
 int strFramesDecoded = 0;
@@ -133,6 +135,7 @@ int strHeight = 0;
 int strStartStep = 0;     // strStart: 0 = ok, otherwise the step that failed
                           // (1 setfilter, 2 setmode, 3 setloc, 4 reads)
 int strPolls = 0;         // number of strPoll calls made while streaming
+int strHeartbeats = 0;    // trace lines printed by strPoll so far
 int strInts[8];           // how many INT1..INT5 were seen by strPoll
 
 // CPU interrupt mask register
@@ -278,7 +281,7 @@ void strDemuxSector()
         return;
 
     if (strTrace != 0 && strFramesReceived < 2)
-        bios_a(0x3f, "str: sector chunk=%d count=%d\n", chunk, count);
+        printf("str: sector chunk=%d count=%d\n", chunk, count);
 
     if (strAsmBuf < 0 || frame != strAsmFrame)
     {
@@ -340,7 +343,7 @@ void strDemuxSector()
         strAsmBuf = -1;
         strIgnoreFrame = frame;
         if (strTrace != 0 && strFramesReceived < 8)
-            bios_a(0x3f, "str: frame %d complete, %d bytes\n", frame, used);
+            printf("str: frame %d complete, %d bytes\n", frame, used);
         strFramesReceived++;
     }
 }
@@ -362,7 +365,7 @@ void strSectorReady()
         *CD_REG3 = 0;
         strErrors++;
         if (strTrace != 0)
-            bios_a(0x3f, "str: no data request after BFRD, status=%x\n", *CD_INDEX);
+            printf("str: no data request after BFRD, status=%x\n", *CD_INDEX);
         return;
     }
 
@@ -400,6 +403,12 @@ void strPoll()
         return;
 
     strPolls++;
+    if (strTrace != 0 && (strPolls & 0x7fff) == 0 && strHeartbeats < 12)
+    {
+        strHeartbeats++;
+        printf("str: polls=%d sectors=%d\n", strPolls, strInts[1]);
+        printf("str: frames received=%d decoded=%d\n", strFramesReceived, strFramesDecoded);
+    }
     n = cdIntPending();
     if (n == 0)
         return;
@@ -442,6 +451,7 @@ int strStart(int lba)
     strIgnoreFrame = 0;
     strStartStep = 0;
     strPolls = 0;
+    strHeartbeats = 0;
     strTail = 0;
     for (i = 0; i < 8; i++)
         strInts[i] = 0;
@@ -491,7 +501,7 @@ int strStart(int lba)
         return -1;
     }
     if (strTrace != 0)
-        bios_a(0x3f, "str: started, lba=%d mode=%x\n", lba, mode);
+        printf("str: started, lba=%d mode=%x\n", lba, mode);
     return 0;
 }
 
@@ -564,7 +574,7 @@ int strUpdate(int x, int y, int depth)
     strBufState[b] = 3;
 
     if (strTrace != 0 && strFramesDecoded < 8)
-        bios_a(0x3f, "str: decode frame, %d bytes, %d dropped\n", strBufBytes[b], strDropped);
+        printf("str: decode frame, %d bytes, %d dropped\n", strBufBytes[b], strDropped);
 
     // VLC decoding, in small steps
     buf = strDemuxBuffer(b);
@@ -594,7 +604,7 @@ int strUpdate(int x, int y, int depth)
     strBufState[b] = 0;
 
     if (strTrace != 0 && strFramesDecoded < 8)
-        bios_a(0x3f, "str: vlc r=%d words=%d\n", r, vlcOutWords);
+        printf("str: vlc r=%d words=%d\n", r, vlcOutWords);
 
     if (r < 0)
     {
@@ -613,7 +623,7 @@ int strUpdate(int x, int y, int depth)
 
     r = mdecFrameBegin(&f);
     if (strTrace != 0 && strFramesDecoded < 8)
-        bios_a(0x3f, "str: mdec begin r=%d (%d words)\n", r, f.words);
+        printf("str: mdec begin r=%d (%d words)\n", r, f.words);
     if (r < 0)
     {
         strErrors++;
@@ -627,7 +637,7 @@ int strUpdate(int x, int y, int depth)
     }
 
     if (strTrace != 0 && strFramesDecoded < 8)
-        bios_a(0x3f, "str: mdec done r=%d, frames received=%d\n", r, strFramesReceived);
+        printf("str: mdec done r=%d, frames received=%d\n", r, strFramesReceived);
     if (r < 0)
     {
         strErrors++;
