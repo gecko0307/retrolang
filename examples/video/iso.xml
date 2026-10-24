@@ -8,6 +8,7 @@
 		/>
 		<license file="../licenses/default.dat"/>
 		<directory_tree>
+			<file name="SYSTEM.CNF" type="data" source="iso/SYSTEM.CNF"/>
 			<file name="PSX.EXE" type="data" source="iso/PSX.EXE"/>
 			<dir name="STR">
 				<file name="VIDEO.STR" source="iso/STR/VIDEO.STR" type="mixed"/>
