@@ -32,8 +32,8 @@ void main()
     mdecInit();
     cdInit();
     
-    strTrace = 0;
-    mdecTrace = 0;
+    strTrace = 1;
+    mdecTrace = 1;
     
     struct DirEntry vStream;
     if (cd_firstfile("cdrom:\\STR\\VIDEO.STR;1", &vStream) != 0)

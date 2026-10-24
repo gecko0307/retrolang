@@ -98,7 +98,6 @@ For more information, please refer to <https://unlicense.org>
 #define STR_MDEC_ADDR       0x801B0000
 #define STR_DEMUX0_ADDR     0x801D0000
 #define STR_DEMUX1_ADDR     0x801E0000
-
 macro StrRegionSector  = (STR_SECTOR_ADDR, 2048);
 macro StrRegionMdec    = (STR_MDEC_ADDR,   STR_MDEC_BYTES);
 macro StrRegionDemux0  = (STR_DEMUX0_ADDR, STR_DEMUX_BYTES);
@@ -124,7 +123,7 @@ int strEof = 0;           // the end of the movie was detected (see strFinished)
 int strTail = 0;          // non-video sectors since the last video sector
 int strMaskSaved = 0;     // CD-ROM bit of the CPU interrupt mask before strStart
 int strErrors = 0;        // CD-ROM errors, bad sectors, corrupt frames
-int strTrace = 0;         // 1 = log the first frames to the TTY with printf, set to 0 to silence
+int strTrace = 1;         // 1 = log the first frames to the TTY with printf, set to 0 to silence
 int strDropped = 0;       // frames that were lost
 int strFramesReceived = 0;
 int strFramesDecoded = 0;
@@ -136,6 +135,8 @@ int strStartStep = 0;     // strStart: 0 = ok, otherwise the step that failed
                           // (1 setfilter, 2 setmode, 3 setloc, 4 reads)
 int strPolls = 0;         // number of strPoll calls made while streaming
 int strHeartbeats = 0;    // trace lines printed by strPoll so far
+int strVideoSectors = 0;  // video sectors accepted by the demuxer
+int strVlcErrors = 0;     // frames that failed to decode in the VLC stage
 int strInts[8];           // how many INT1..INT5 were seen by strPoll
 
 // CPU interrupt mask register
@@ -261,6 +262,7 @@ void strDemuxSector()
         return;
     }
     strTail = 0;
+    strVideoSectors++;
 
     chunk = s[1] & 0xffff;
     count = s[1] >> 16;
@@ -281,7 +283,7 @@ void strDemuxSector()
         return;
 
     if (strTrace != 0 && strFramesReceived < 2)
-        printf("str: sector chunk=%d count=%d\n", chunk, count);
+        printf("str: sector chunk %d count %d\n", chunk, count);
 
     if (strAsmBuf < 0 || frame != strAsmFrame)
     {
@@ -343,7 +345,7 @@ void strDemuxSector()
         strAsmBuf = -1;
         strIgnoreFrame = frame;
         if (strTrace != 0 && strFramesReceived < 8)
-            printf("str: frame %d complete, %d bytes\n", frame, used);
+            printf("str: frame complete, frame %d, bytes %d\n", frame, used);
         strFramesReceived++;
     }
 }
@@ -365,7 +367,7 @@ void strSectorReady()
         *CD_REG3 = 0;
         strErrors++;
         if (strTrace != 0)
-            printf("str: no data request after BFRD, status=%x\n", *CD_INDEX);
+            printf("str: no data request after BFRD, status %d\n", *CD_INDEX);
         return;
     }
 
@@ -406,8 +408,8 @@ void strPoll()
     if (strTrace != 0 && (strPolls & 0x7fff) == 0 && strHeartbeats < 12)
     {
         strHeartbeats++;
-        printf("str: polls=%d sectors=%d\n", strPolls, strInts[1]);
-        printf("str: frames received=%d decoded=%d\n", strFramesReceived, strFramesDecoded);
+        printf("str: polls %d, sectors %d\n", strPolls, strInts[1]);
+        printf("str: frames received %d, decoded %d\n", strFramesReceived, strFramesDecoded);
     }
     n = cdIntPending();
     if (n == 0)
@@ -437,6 +439,9 @@ int strStart(int lba)
     int mode = STR_MODE_SPEED | STR_MODE_XA;
     int i;
 
+    if (strTrace != 0)
+        printf("str: strStart entered, lba %d\n", lba);
+
     strActive = 0;
     strEof = 0;
     strErrors = 0;
@@ -452,6 +457,8 @@ int strStart(int lba)
     strStartStep = 0;
     strPolls = 0;
     strHeartbeats = 0;
+    strVideoSectors = 0;
+    strVlcErrors = 0;
     strTail = 0;
     for (i = 0; i < 8; i++)
         strInts[i] = 0;
@@ -476,6 +483,8 @@ int strStart(int lba)
         if (cdCommand(STR_CD_SETFILTER, 0, 0) < 0)
         {
             strStartStep = 1;
+            if (strTrace != 0)
+                printf("str: strStart failed at step %d\n", 1);
             return -1;
         }
         mode = mode | STR_MODE_FILTER;
@@ -484,12 +493,16 @@ int strStart(int lba)
     if (cdCommand(STR_CD_SETMODE, mode, 1) < 0)
     {
         strStartStep = 2;
+        if (strTrace != 0)
+            printf("str: strStart failed at step %d\n", 2);
         return -1;
     }
 
     if (strCdSetloc(lba) < 0)
     {
         strStartStep = 3;
+        if (strTrace != 0)
+            printf("str: strStart failed at step %d\n", 3);
         return -1;
     }
 
@@ -498,10 +511,12 @@ int strStart(int lba)
     {
         strActive = 0;
         strStartStep = 4;
+        if (strTrace != 0)
+            printf("str: strStart failed at step %d\n", 4);
         return -1;
     }
     if (strTrace != 0)
-        printf("str: started, lba=%d mode=%x\n", lba, mode);
+        printf("str: started, lba %d, mode %d\n", lba, mode);
     return 0;
 }
 
@@ -574,7 +589,7 @@ int strUpdate(int x, int y, int depth)
     strBufState[b] = 3;
 
     if (strTrace != 0 && strFramesDecoded < 8)
-        printf("str: decode frame, %d bytes, %d dropped\n", strBufBytes[b], strDropped);
+        printf("str: decode frame, bytes %d, dropped %d\n", strBufBytes[b], strDropped);
 
     // VLC decoding, in small steps
     buf = strDemuxBuffer(b);
@@ -589,6 +604,7 @@ int strUpdate(int x, int y, int depth)
     {
         strBufState[b] = 0;
         strErrors++;
+        strVlcErrors++;
         return -1;
     }
 
@@ -604,11 +620,12 @@ int strUpdate(int x, int y, int depth)
     strBufState[b] = 0;
 
     if (strTrace != 0 && strFramesDecoded < 8)
-        printf("str: vlc r=%d words=%d\n", r, vlcOutWords);
+        printf("str: vlc result %d, words %d\n", r, vlcOutWords);
 
     if (r < 0)
     {
         strErrors++;
+        strVlcErrors++;
         return -1;
     }
 
@@ -623,7 +640,7 @@ int strUpdate(int x, int y, int depth)
 
     r = mdecFrameBegin(&f);
     if (strTrace != 0 && strFramesDecoded < 8)
-        printf("str: mdec begin r=%d (%d words)\n", r, f.words);
+        printf("str: mdec begin result %d, words %d\n", r, f.words);
     if (r < 0)
     {
         strErrors++;
@@ -637,7 +654,7 @@ int strUpdate(int x, int y, int depth)
     }
 
     if (strTrace != 0 && strFramesDecoded < 8)
-        printf("str: mdec done r=%d, frames received=%d\n", r, strFramesReceived);
+        printf("str: mdec done result %d, frames received %d\n", r, strFramesReceived);
     if (r < 0)
     {
         strErrors++;
@@ -648,6 +665,94 @@ int strUpdate(int x, int y, int depth)
     strHeight = job.height;
     strFramesDecoded++;
     return 1;
+}
+
+/**
+ * Debugging aid that doesn't need the TTY: returns the driver state as 16 flags.
+ * strDrawStatus() shows them as squares. A square is dark when the flag is off.
+ *
+ *   0  streaming is on                     8  a frame has been decoded
+ *   1  strPoll has run                     9  2 frames have been decoded
+ *   2  an INT1 (sector ready) was seen    10  10 frames have been decoded
+ *   3  an INT5 (drive error) was seen *   11  frames have been dropped
+ *   4  strErrors is not zero *            12  the end of the movie was detected
+ *   5  a video sector was accepted        13  the MDEC timed out *
+ *   6  a frame has been received          14  the VLC stage failed *
+ *   7  2 frames have been received        15  100 sectors have been read
+ *
+ * The flags marked with * are errors and are drawn red, the others green.
+ */
+int strStatusBits()
+{
+    int s = 0;
+
+    if (strActive != 0)              s = s | 0x0001;
+    if (strPolls > 0)                s = s | 0x0002;
+    if (strInts[1] > 0)              s = s | 0x0004;
+    if (strInts[5] > 0)              s = s | 0x0008;
+    if (strErrors > 0)               s = s | 0x0010;
+    if (strVideoSectors > 0)         s = s | 0x0020;
+    if (strFramesReceived > 0)       s = s | 0x0040;
+    if (strFramesReceived > 1)       s = s | 0x0080;
+    if (strFramesDecoded > 0)        s = s | 0x0100;
+    if (strFramesDecoded > 1)        s = s | 0x0200;
+    if (strFramesDecoded > 9)        s = s | 0x0400;
+    if (strDropped > 0)              s = s | 0x0800;
+    if (strEof != 0)                 s = s | 0x1000;
+    if (mdecTimeouts > 0)            s = s | 0x2000;
+    if (strVlcErrors > 0)            s = s | 0x4000;
+    if (strInts[1] >= 100)           s = s | 0x8000;
+    return s;
+}
+
+int strLastStatus = -1;
+int strLastDrawn = -1;
+
+/**
+ * Draws the status flags as 16 squares at the top of both frame buffers
+ * (VRAM rows 0 and display height). Call it every iteration of the main loop,
+ * after strUpdate; it redraws only when something has changed.
+ * Needs the display to be 16-pixel aligned and at least 256 pixels wide.
+ */
+void strDrawStatus()
+{
+    struct GpuRect r;
+    int s = strStatusBits();
+    int i;
+    int color;
+
+    if (s == strLastStatus && strFramesDecoded == strLastDrawn)
+        return;
+    strLastStatus = s;
+    strLastDrawn = strFramesDecoded;
+
+    r.width = 16;
+    r.height = 8;
+    for (i = 0; i < 16; i++)
+    {
+        if (((s >> i) & 1) == 0)
+        {
+            color = 0x202020;
+            if ((i & 1) != 0)
+                color = 0x484848;
+        }
+        else if (i == 3 || i == 4 || i == 13 || i == 14)
+        {
+            color = 0x0000ff;
+        }
+        else
+        {
+            color = 0x00a000;
+            if ((i & 1) != 0)
+                color = 0x00ff00;
+        }
+
+        r.x = i * 16;
+        r.y = 0;
+        gpuFillRectFast(&r, color);
+        r.y = __gpuSettings->display.height;
+        gpuFillRectFast(&r, color);
+    }
 }
 
 #endif

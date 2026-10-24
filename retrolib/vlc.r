@@ -44,7 +44,7 @@ For more information, please refer to <https://unlicense.org>
  * The lookup tables are generated and verified by vlcgen.py.
  */
 
-#define VLC_LINK 0xffff // L1 entry that redirects to the L2 table
+#define VLC_LINK      0xffff // L1 entry that redirects to the L2 table
 
 // The source buffer must be readable for 256 bytes past srcBytes
 // (the decoder prefetches, and corrupt data can make it read past the end).
@@ -257,119 +257,6 @@ int      vlcBlocksLeft = 0;
 int      vlcOutWords = 0;
 
 /**
- * Decodes one block (DC and all AC codes up to the end-of-block code).
- * Returns 0 on success, -1 on a corrupt code.
- */
-int vlcBlock()
-{
-    uint win = vlcWin;
-    int cnt = vlcCnt;
-    ushort* src = vlcSrc;
-    ushort* dst = vlcDst;
-    uint e;
-    uint top;
-    uint h;
-    int len;
-    int lvl;
-    int run;
-    int k = 0;
-    int ok = 1;
-
-    // Keep at least 17 bits in the window: the longest code (16) plus a sign.
-    while (cnt <= 16)
-    {
-        win = win | ((uint)(*src) << (16 - cnt));
-        src += 1;
-        cnt += 16;
-    }
-
-    // DC: 10 bits, stored as is
-    *dst = vlcQ | (win >> 22);
-    dst += 1;
-    win = win << 10;
-    cnt -= 10;
-
-    while (1)
-    {
-        while (cnt <= 16)
-        {
-            win = win | ((uint)(*src) << (16 - cnt));
-            src += 1;
-            cnt += 16;
-        }
-
-        top = win >> 24;
-        e = vlcL1[top];
-        if (e == VLC_LINK)
-            e = vlcL2[(top << 8) | ((win >> 16) & 255)];
-
-        if (e == 0)
-        {
-            ok = 0;
-            break;
-        }
-
-        lvl = e & 63;
-        if (lvl == 0)
-        {
-            // End of block
-            win = win << 2;
-            cnt -= 2;
-            *dst = 0xfe00;
-            dst += 1;
-            break;
-        }
-
-        if (lvl == 63)
-        {
-            // Escape: the next 16 bits are the MDEC code (6-bit run, 10-bit level)
-            win = win << 6;
-            cnt -= 6;
-            while (cnt <= 16)
-            {
-                win = win | ((uint)(*src) << (16 - cnt));
-                src += 1;
-                cnt += 16;
-            }
-            h = win >> 16;
-            run = h >> 10;
-            win = win << 16;
-            cnt -= 16;
-            *dst = h;
-        }
-        else
-        {
-            len = e >> 11;
-            run = (e >> 6) & 31;
-            if (((win << len) >> 31) != 0)
-                *dst = (run << 10) | ((0 - lvl) & 0x3ff);
-            else
-                *dst = (run << 10) | lvl;
-            win = win << (len + 1);
-            cnt -= len + 1;
-        }
-        dst += 1;
-
-        // The block holds 64 coefficients: DC plus run + 1 per AC code
-        k += run + 1;
-        if (k > 63)
-        {
-            ok = 0;
-            break;
-        }
-    }
-
-    vlcWin = win;
-    vlcCnt = cnt;
-    vlcSrc = src;
-    vlcDst = dst;
-
-    if (ok == 0)
-        return -1;
-    return 0;
-}
-
-/**
  * Starts decoding a frame. Returns 0, or -1 if the header is invalid, the
  * version is not 2 or the output buffer is too small.
  */
@@ -426,22 +313,122 @@ void vlcFinish()
  * Decodes up to the given number of blocks (6 blocks = 1 macroblock).
  * Returns 0 if there is more to decode, 1 when the frame is complete
  * (the result is in the output buffer, its size in vlcOutWords),
- * -1 on error.
+ * -1 on error (corrupt data or the output buffer is too small).
+ *
+ * This is the hot loop of the player, so it is written with 8 variables at
+ * most (including the argument): RLC keeps only $s0-$s7 in registers, the
+ * others would live in the stack frame, and every access to it is a RAM read
+ * (there is no data cache). The bit window and the pointers are loaded once
+ * per call, not per block.
  */
 int vlcStep(int count)
 {
-    while (count > 0 && vlcBlocksLeft > 0)
+    uint win = vlcWin;
+    int cnt = vlcCnt;
+    ushort* src = vlcSrc;
+    ushort* dst = vlcDst;
+    uint e;
+    uint t;
+    int k;
+
+    if (count > vlcBlocksLeft)
+        count = vlcBlocksLeft;
+    vlcBlocksLeft = vlcBlocksLeft - count;
+
+    while (count > 0)
     {
         // a block writes at most 65 halfwords
-        if (vlcDst + 66 > vlcDstEnd)
+        if (dst + 66 > vlcDstEnd)
             return -1;
-        if (vlcSrc > vlcSrcEnd + 2)
+        if (src > vlcSrcEnd + 2)
             return -1;
-        if (vlcBlock() < 0)
-            return -1;
-        vlcBlocksLeft = vlcBlocksLeft - 1;
+
+        // Keep at least 17 bits in the window: the longest code (16) plus a sign.
+        while (cnt <= 16)
+        {
+            win = win | ((uint)(*src) << (16 - cnt));
+            src += 1;
+            cnt += 16;
+        }
+
+        // DC: 10 bits, stored as is
+        *dst = vlcQ | (win >> 22);
+        dst += 1;
+        win = win << 10;
+        cnt -= 10;
+
+        k = 0;
+        while (1)
+        {
+            while (cnt <= 16)
+            {
+                win = win | ((uint)(*src) << (16 - cnt));
+                src += 1;
+                cnt += 16;
+            }
+
+            t = win >> 24;
+            e = vlcL1[t];
+            if (e == VLC_LINK)
+                e = vlcL2[(t << 8) | ((win >> 16) & 255)];
+
+            if (e == 0)
+                return -1; // invalid code
+
+            t = e & 63;
+            if (t == 0)
+            {
+                // End of block
+                win = win << 2;
+                cnt -= 2;
+                *dst = 0xfe00;
+                dst += 1;
+                break;
+            }
+
+            if (t == 63)
+            {
+                // Escape: the next 16 bits are the MDEC code (6-bit run, 10-bit level)
+                win = win << 6;
+                cnt -= 6;
+                while (cnt <= 16)
+                {
+                    win = win | ((uint)(*src) << (16 - cnt));
+                    src += 1;
+                    cnt += 16;
+                }
+                t = win >> 16;
+                *dst = t;
+                win = win << 16;
+                cnt -= 16;
+                k = k + (t >> 10) + 1;
+            }
+            else
+            {
+                // e = (code length << 11) | (run << 6) | level, then the sign bit
+                t = e >> 11;
+                if (((win << t) >> 31) != 0)
+                    *dst = ((e & 0x7c0) << 4) | ((0 - (e & 63)) & 0x3ff);
+                else
+                    *dst = ((e & 0x7c0) << 4) | (e & 63);
+                win = win << (t + 1);
+                cnt -= t + 1;
+                k = k + ((e >> 6) & 31) + 1;
+            }
+            dst += 1;
+
+            // The block holds 64 coefficients: DC plus run + 1 per AC code
+            if (k > 63)
+                return -1;
+        }
+
         count = count - 1;
     }
+
+    vlcWin = win;
+    vlcCnt = cnt;
+    vlcSrc = src;
+    vlcDst = dst;
 
     if (vlcBlocksLeft > 0)
         return 0;
