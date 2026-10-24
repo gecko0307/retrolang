@@ -25,7 +25,7 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /**
- * MDEC (Motion Decoder) driver.
+ * MDEC driver.
  *
  * Decodes MDEC macroblock data (the output of a VLC/bitstream decoder) and
  * uploads the resulting pixels to VRAM, one macroblock column (16 pixels wide)
@@ -149,13 +149,13 @@ uint mdecDefaultScale[32] =
     0xb8e318f8, 0x82756a6d, 0x95927d8a, 0xe707471c
 };
 
-/// Returns the MDEC status register.
+// Returns the MDEC status register.
 int mdecStatus()
 {
     return *mdec1;
 }
 
-/// Writes one word to MDEC0, waiting while the data-in FIFO is full.
+// Writes one word to MDEC0, waiting while the data-in FIFO is full.
 void mdecPutWord(uint w)
 {
     int guard = 0;
@@ -164,7 +164,7 @@ void mdecPutWord(uint w)
     *mdec0 = w;
 }
 
-/// Waits until a DMA channel is idle. Returns 0, or -1 on timeout.
+// Waits until a DMA channel is idle. Returns 0, or -1 on timeout.
 int mdecWaitDma(int* chcr)
 {
     int guard = 0;
@@ -196,7 +196,7 @@ int mdecDmaIn(uint* data, int words)
     return mdecWaitDma(dma0Chcr);
 }
 
-/// Resets the MDEC and enables its DMA requests.
+// Resets the MDEC and enables its DMA requests.
 void mdecReset()
 {
     *mdec1 = MDEC_CTRL_RESET;
@@ -224,7 +224,7 @@ void mdecSetQuantTable(uint* luma, uint* chroma)
     mdecDmaIn(mdecQuantBuf, 32);
 }
 
-/// Sets the IDCT scale table (32 words = 64 signed halfwords).
+// Sets the IDCT scale table (32 words = 64 signed halfwords).
 void mdecSetScaleTable(uint* table)
 {
     mdecPutWord(MDEC_CMD_SET_SCALE);

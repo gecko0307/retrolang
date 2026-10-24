@@ -15,10 +15,12 @@ Core modules:
 * `xa.r` - XA playback API
 * `save.r` - memory card save/load API.
 
-Additional modules:
+Additional experimental modules (not included to `retrolib.r`):
 
 * `pcsx.r` - PCSX-Redux API
-* `mdec.r` - MDEC module (work in progress).
+* `mdec.r` - MDEC module
+* `vlc.r` - VLC decoder
+* `str.r` - STR video streaming.
 
 Usage (assuming you've pointed RLC to `retrolib` as an include/import directory):
 

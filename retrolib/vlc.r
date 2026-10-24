@@ -44,7 +44,7 @@ For more information, please refer to <https://unlicense.org>
  * The lookup tables are generated and verified by vlcgen.py.
  */
 
-#define VLC_LINK      0xffff // L1 entry that redirects to the L2 table
+#define VLC_LINK 0xffff // L1 entry that redirects to the L2 table
 
 // The source buffer must be readable for 256 bytes past srcBytes
 // (the decoder prefetches, and corrupt data can make it read past the end).

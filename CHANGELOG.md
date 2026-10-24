@@ -1,6 +1,7 @@
 Retrolang 0.10.0 - TBD
 ----------------------
 - **Retrolib**
+  - MDEC and STR video playback support (`mdec.r`, `vlc.r`, `str.r`)
   - More BIOS functions in `bios.r`
 - **XA Tool**
   - Ability to encode a single XA stream without interleaving (`--single` parameter)

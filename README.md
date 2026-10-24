@@ -8,16 +8,17 @@ Retrolang tools are written entirely in [D language](https://dlang.org/).
 
 What you can do with Retrolang:
 
+- Work with the BIOS
 - Render 2D and 3D graphics via command buffers and the DMA
 - Upload TIM files to VRAM
 - Work with the GTE
 - Query the gamepad buttons and analog sticks
 - Load files from the CD-ROM
+- Access memory cards
 - Play VAG sounds
 - Play CDDA tracks
 - Play XA audio streams
-- Access memory cards
-- Work with the BIOS.
+- Play STR video streams (experimental).
 
 All provided software is experimental and is in alpha stage.
 
@@ -185,9 +186,12 @@ Core modules:
 * `xa.r` - XA playback API
 * `save.r` - memory card save/load API.
 
-Additional modules:
+Additional experimental modules (not included to `retrolib.r`):
 
-* `pcsx.r` - PCSX-Redux API.
+* `pcsx.r` - PCSX-Redux API
+* `mdec.r` - MDEC module
+* `vlc.r` - VLC decoder
+* `str.r` - STR video streaming.
 
 Usage (assuming you've pointed RLC to `retrolib` as an include/import directory):
 
@@ -240,7 +244,6 @@ What is not implemented yet:
 
 - Matrix math
 - TMD models support
-- MDEC support
 
 ## License
 
