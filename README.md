@@ -38,7 +38,7 @@ Custom boot logo:
 
 ## Rationale
 
-Retrolang is a result of 10+ years of tinkering with the console, different SDKs, custom GPU libraries and related tools. It was initially created as an assembler, but eventually got many improvements. I always wanted to write my own programs for PSX, but the tooling was frustratingly clunky, so I eventually decided to make my own everything, right down to the machine code.
+Retrolang is a result of 10+ years of tinkering with the console, different SDKs, custom GPU libraries and related tools. It was initially created as an assembler, but eventually got many improvements. I've always wanted to write programs for PSX, but the tooling was frustratingly clunky, so I eventually decided to make my own everything, right down to the machine code.
 
 Main philosophy of the project: PSX programming doesn't require a full-fledged C with all of its baggage. A subset is sufficient. What's really needed are platform-specific language capabilities, as well as a simple, readable and easily hackable standard library. Popular C toolchains also tend to be bulky; Retrolang produces tiny executables that can run via [FreePSXBoot](https://github.com/brad-lin/FreePSXBoot).
 
