@@ -42,8 +42,6 @@ Retrolang is a result of 10+ years of tinkering with the console, different SDKs
 
 Main philosophy of the project: PSX programming doesn't require a full-fledged C with all of its baggage. A subset is sufficient. What's really needed are platform-specific language capabilities, as well as a simple, readable and easily hackable standard library. Popular C toolchains also tend to be bulky; Retrolang produces tiny executables that can run via [FreePSXBoot](https://github.com/brad-lin/FreePSXBoot).
 
-Unlike C, Retrolang is a language with **predictable semantics**. The compiler translates your program verbatim, without optimizations and unexpected changes behind your back, which is important for bare-metal programming. For example, it doesn't implicitly inline functions and optimize memory access. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
-
 Project goals:
 - Provide a convenient domain-specific language as a trade-off between C and assembly for hobby R3000 programming, with straightforward, unhindered hardware access;
 - Provide a modern, open, self-contained toolset with x86_64 replacements for legacy utilities;
@@ -99,7 +97,7 @@ Work-in-progress PlayStation emulator.
 
 ## The Language
 
-Retrolang can be called "ANSI C from an alternate universe". It is a simple curly-bracket procedural language largely inspired by C, but based on different architectural decisions and designed to run in extremely memory-constrained environments.
+Retrolang can be called "ANSI C from an alternate universe". It is a simple curly-bracket procedural language largely inspired by C, but based on different architectural decisions and designed to run in extremely memory-constrained environments. Unlike C, Retrolang is a language with **predictable semantics**. The compiler translates your program verbatim, without optimizations and unexpected changes behind your back, which is important for bare-metal programming. For example, it doesn't implicitly inline functions and optimize memory access. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
 
 **Primitive types**: `int`, `short`, `char`, `uint`, `ushort`, `uchar`, `void`, and pointers to them. Pointers compare as unsigned. Literals above `0x7FFFFFFF`, or with a 'u' suffix, are unsigned. Like C, `uchar`/`ushort` promote to (signed) `int` in arithmetic; only `uint` makes `/`, `%`, `>>` and comparisons unsigned. C-style type casts are supported.
 
