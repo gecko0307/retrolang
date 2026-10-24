@@ -26,8 +26,7 @@ void main()
     
     gpuWaitIdle();
 
-    // Fills the screen with middle-gray color
-    gpuClear(0x808080);
+    gpuClear(0x000000);
     
     mdecInit();
     cdInit();

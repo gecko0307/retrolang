@@ -243,6 +243,7 @@ duckstation -fastboot -- %~dp0/iso/PSX.EXE
 
 What is not implemented yet:
 
+- SEQ music playback
 - Matrix math
 - TMD models support
 
