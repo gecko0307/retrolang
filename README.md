@@ -20,7 +20,7 @@ What you can do with Retrolang:
 - Play XA audio streams
 - Play STR video streams (experimental).
 
-All provided software is experimental and is in alpha stage.
+All provided software is in alpha stage.
 
 ## Screenshots
 
