@@ -98,6 +98,7 @@ For more information, please refer to <https://unlicense.org>
 #define STR_MDEC_ADDR       0x801B0000
 #define STR_DEMUX0_ADDR     0x801D0000
 #define STR_DEMUX1_ADDR     0x801E0000
+
 macro StrRegionSector  = (STR_SECTOR_ADDR, 2048);
 macro StrRegionMdec    = (STR_MDEC_ADDR,   STR_MDEC_BYTES);
 macro StrRegionDemux0  = (STR_DEMUX0_ADDR, STR_DEMUX_BYTES);
@@ -123,7 +124,7 @@ int strEof = 0;           // the end of the movie was detected (see strFinished)
 int strTail = 0;          // non-video sectors since the last video sector
 int strMaskSaved = 0;     // CD-ROM bit of the CPU interrupt mask before strStart
 int strErrors = 0;        // CD-ROM errors, bad sectors, corrupt frames
-int strTrace = 1;         // 1 = log the first frames to the TTY with printf, set to 0 to silence
+int strTrace = 0;         // 1 = log the first frames to the TTY with printf, set to 0 to silence
 int strDropped = 0;       // frames that were lost
 int strFramesReceived = 0;
 int strFramesDecoded = 0;

@@ -251,9 +251,9 @@ ushort*  vlcDstEnd = 0;
 uint     vlcQ = 0;          // quant scale, positioned for the DC word
 int      vlcBlocksLeft = 0;
 
-// Number of words of MDEC data produced by the last finished frame. The data
-// is followed by zero words up to a multiple of 32 words, which is what
-// mdecDecodeFrame expects.
+// Number of words of MDEC data produced by the last finished frame, including
+// the padding of 0xfe00 (end-of-data) halfwords up to a multiple of 32 words,
+// which is what mdecDecodeFrame expects.
 int      vlcOutWords = 0;
 
 /**
@@ -283,7 +283,11 @@ int vlcBegin(struct VlcJob* job)
     return 0;
 }
 
-// Pads the output to a whole word and then to a multiple of 32 words.
+// Pads the output with MDEC end-of-data halfwords (0xfe00) to a whole word and
+// then to a multiple of 32 words. Zero words would not do: the MDEC (and the
+// emulators that model it closely) treats 0xfe00 at the start of a block as
+// the end of the data and finishes the command there, while zeros look like
+// more blocks to come and the transfer never completes.
 void vlcFinish()
 {
     uint half = ((uint)vlcDst - (uint)vlcDstStart) >> 1;
@@ -298,15 +302,17 @@ void vlcFinish()
     }
 
     words = half >> 1;
-    vlcOutWords = words;
 
     p = (uint*)vlcDst;
     while ((words & 31) != 0)
     {
-        *p = 0;
+        *p = 0xfe00fe00;
         p += 1;
         words += 1;
     }
+
+    // the padding is part of the MDEC data, so it is counted as well
+    vlcOutWords = words;
 }
 
 /**

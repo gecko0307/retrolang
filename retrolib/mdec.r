@@ -81,6 +81,7 @@ For more information, please refer to <https://unlicense.org>
 #define MDEC_BUF1        0x801A8000
 #define MDEC_BUF_WORDS   6160
 #define MDEC_BUF_BYTES   24640
+
 macro MDECRegionBuffer0 = (MDEC_BUF0, MDEC_BUF_BYTES);
 macro MDECRegionBuffer1 = (MDEC_BUF1, MDEC_BUF_BYTES);
 
@@ -103,10 +104,12 @@ uint mdecColumnBuf1[MDEC_BUF_WORDS] @MDECRegionBuffer1;
  * Frame description for mdecDecodeFrame.
  *
  * data   - macroblock data in MDEC format (VLC-decoded bitstream without the
- *          frame header). The buffer must be padded with zero words up to a
- *          multiple of 32 words (128 bytes), because MDEC input DMA works in
- *          blocks of 32 words; the padding is read as no-op MDEC commands.
- * words  - number of meaningful words in data (1..65535)
+ *          frame header). The buffer must be padded with 0xfe00 halfwords
+ *          (the MDEC end-of-data code) up to a multiple of 32 words (128 bytes),
+ *          because MDEC input DMA works in blocks of 32 words. Zero padding
+ *          doesn't work: the MDEC takes it for more blocks and the transfer
+ *          never completes.
+ * words  - number of words in data, including the padding (1..65535)
  * x, y   - destination in VRAM (in 16-bit VRAM pixels)
  * width  - frame width in pixels, multiple of 16
  * height - frame height in pixels, multiple of 16
@@ -149,13 +152,13 @@ uint mdecDefaultScale[32] =
     0xb8e318f8, 0x82756a6d, 0x95927d8a, 0xe707471c
 };
 
-/// Returns the MDEC status register.
+// Returns the MDEC status register.
 int mdecStatus()
 {
     return *mdec1;
 }
 
-/// Writes one word to MDEC0, waiting while the data-in FIFO is full.
+// Writes one word to MDEC0, waiting while the data-in FIFO is full.
 void mdecPutWord(uint w)
 {
     int guard = 0;
@@ -164,7 +167,7 @@ void mdecPutWord(uint w)
     *mdec0 = w;
 }
 
-/// Waits until a DMA channel is idle. Returns 0, or -1 on timeout.
+// Waits until a DMA channel is idle. Returns 0, or -1 on timeout.
 int mdecWaitDma(int* chcr)
 {
     int guard = 0;
@@ -196,7 +199,7 @@ int mdecDmaIn(uint* data, int words)
     return mdecWaitDma(dma0Chcr);
 }
 
-/// Resets the MDEC and enables its DMA requests.
+// Resets the MDEC and enables its DMA requests.
 void mdecReset()
 {
     *mdec1 = MDEC_CTRL_RESET;
@@ -224,7 +227,7 @@ void mdecSetQuantTable(uint* luma, uint* chroma)
     mdecDmaIn(mdecQuantBuf, 32);
 }
 
-/// Sets the IDCT scale table (32 words = 64 signed halfwords).
+// Sets the IDCT scale table (32 words = 64 signed halfwords).
 void mdecSetScaleTable(uint* table)
 {
     mdecPutWord(MDEC_CMD_SET_SCALE);
@@ -308,17 +311,23 @@ int mdecCols = 0;     // total number of columns
 int mdecColWords = 0; // size of one decoded column in words
 int mdecGuard = 0;    // number of polls spent waiting for the hardware
 int mdecTimeouts = 0; // number of frames aborted by a timeout
-int mdecTrace = 1;    // 1 = log timeouts to the TTY with printf, set to 0 to silence
+int mdecTrace = 0;    // 1 = log timeouts to the TTY with printf, set to 0 to silence
 
 // Counts a poll that found the hardware busy. Returns 0, or -1 on timeout.
 int mdecBusy()
 {
     mdecGuard++;
+    if (mdecGuard == 20000 && mdecTrace != 0)
+    {
+        printf("mdec: waiting, phase=%d column=%d status=%x\n", mdecPhase, mdecCol, *mdec1);
+        printf("mdec: dma0 chcr=%x bcr=%x\n", *dma0Chcr, *dma0Bcr);
+        printf("mdec: dma1 chcr=%x madr=%x bcr=%x\n", *dma1Chcr, *dma1Madr, *dma1Bcr);
+    }
     if (mdecGuard > MDEC_POLL_LIMIT)
     {
         mdecTimeouts++;
         if (mdecTrace != 0)
-            printf("mdec: timeout, phase %d, column %d", mdecPhase, mdecCol);
+            printf("mdec: timeout, phase=%d column=%d\n", mdecPhase, mdecCol);
         mdecAbort();
         mdecPhase = 0;
         return -1;
