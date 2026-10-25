@@ -24,7 +24,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
-#import "retrolib.r"
+#import "retrolib_mini.r"
 
 uchar levelTiles[20 * 16] @("assets/level.bin");
 uchar tiles[] @("assets/tiles.tim");

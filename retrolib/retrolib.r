@@ -25,8 +25,7 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /*
- * Retrolib - a standard library for Retrolang.
- * This is a minimal set of functionality that aid with writing PlayStation programs.
+ * Retrolib - a system library for Retrolang.
  */
 
 #import "core.r"
@@ -38,4 +37,8 @@ For more information, please refer to <https://unlicense.org>
 #import "spu.r"
 #import "save.r"
 #import "cd.r"
+#import "iso.r"
 #import "xa.r"
+#import "mdec.r"
+#import "vlc.r"
+#import "str.r"

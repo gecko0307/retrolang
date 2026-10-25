@@ -13,14 +13,15 @@ Core modules:
 * `spu.r` - SPU driver / sound API
 * `cd.r` - CD audio API
 * `xa.r` - XA playback API
-* `save.r` - memory card save/load API.
+* `save.r` - memory card save/load API
+* `mdec.r` - MDEC module
+* `vlc.r` - VLC decoder
+* `str.r` - STR video streaming
+* `iso.r` - ISO 9660 file lookup.
 
 Additional experimental modules (not included to `retrolib.r`):
 
-* `pcsx.r` - PCSX-Redux API
-* `mdec.r` - MDEC module
-* `vlc.r` - VLC decoder
-* `str.r` - STR video streaming.
+* `pcsx.r` - PCSX-Redux API.
 
 Usage (assuming you've pointed RLC to `retrolib` as an include/import directory):
 
