@@ -242,6 +242,15 @@ or
 duckstation -fastboot -- %~dp0/iso/PSX.EXE
 ```
 
+All examples are tested in the following emulators:
+
+- DuckStation
+- PCSX-ReARMed
+- PCSX-Redux
+- XEBRA
+- no$psx
+- ePSXe
+
 ## TODO
 
 What is not implemented yet:
