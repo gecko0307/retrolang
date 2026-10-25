@@ -1,5 +1,5 @@
-Retrolang 0.11.0 - TBD
-----------------------
+Retrolang 0.11.0 - 26 Oct, 2026
+-------------------------------
 - **RLC**
   - Support for taking function address.
 - **Retrolib**
