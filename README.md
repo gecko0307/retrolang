@@ -19,7 +19,7 @@ What you can do with Retrolang:
 - Play VAG sounds
 - Play CDDA tracks
 - Play XA audio streams
-- Play STR video streams (experimental).
+- Play STR video streams.
 
 All provided software is in alpha stage.
 
@@ -175,6 +175,7 @@ Retrolib is a system library that simplifies working with the PlayStation hardwa
 Core modules:
 
 * `retrolib.r` - imports entire library at once
+* `retrolib_mini.r` - imports a minimal part of the library to reduce executable size
 * `core.r` - core definitions
 * `bios.r` - macros for some common BIOS calls
 * `irq.r` - interrupts API

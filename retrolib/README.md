@@ -5,6 +5,7 @@ Retrolang provides a minimal set of low-level functionality that aid with writin
 Core modules:
 
 * `retrolib.r` - imports entire library at once
+* `retrolib_mini.r` - imports a minimal part of the library to reduce executable size
 * `core.r` - core definitions
 * `bios.r` - macros for some common BIOS calls
 * `irq.r` - interrupts API
