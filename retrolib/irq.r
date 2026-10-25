@@ -32,6 +32,15 @@ For more information, please refer to <https://unlicense.org>
 
 #import "core.r"
 
+// Interrupt procedure
+struct IntRP
+{
+    struct IntRP* next; // next IntRP in the linked list
+    void* func2; // executed if func1 returns != 0
+    void* func1; // executed first
+    int flag; // should be zero
+};
+
 int* I_STAT = 0x1F801070; // Interrupt status register
 int* I_MASK = 0x1F801074; // Interrupt mask register
 

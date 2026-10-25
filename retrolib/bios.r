@@ -90,8 +90,8 @@ macro cd_delete(filename)           = bios_b(0x45, filename);
 macro cd_rename(f_old, f_new)       = bios_b(0x44, f_old, f_new);
 
 // C-functions
-macro enqueueIrqHandler(priorityIndex, handler) = bios_c(0x02, priorityIndex, handler); // SysEnqIntRP
-macro dequeueIrqHandler(priorityIndex, handler) = bios_c(0x03, priorityIndex, handler); // SysDeqIntRP
+macro sysEnqIntRP(priorityIndex, handler) = bios_c(0x02, priorityIndex, handler);
+macro sysDeqIntRP(priorityIndex, handler) = bios_c(0x03, priorityIndex, handler);
 
 /*
  * For code that must not be interrupted by the hardware,
