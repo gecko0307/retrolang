@@ -6,7 +6,8 @@ Retrolang 0.11.0 - TBD
   - `iso.r` - ISO 9660 file lookup
   - More BIOS functions in `bios.r`
   - Update `irq.r`
-  - `retrolib_mini.r` - minimal part of the library to make smaller executables.
+  - `retrolib_mini.r` - minimal part of the library to make smaller executables
+  - Some fixes in `cd.r`.
 
 Retrolang 0.10.0 - 24 Oct, 2026
 -------------------------------
