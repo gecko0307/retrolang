@@ -25,14 +25,27 @@ For more information, please refer to <https://unlicense.org>
 */
 
 /**
- * Interrupts (WIP).
+ * Interrupts API.
  */
+
+// Interrupt line bits (in I_STAT/I_MASK)
+macro IRQ_VBLANK = (1 << 0);  // PAL = 50 Hz, NTSC = 60 Hz
+macro IRQ_GPU    = (1 << 1);  // Can be requested via GP0(1Fh) command
+macro IRQ_CDROM  = (1 << 2);  // 
+macro IRQ_DMA    = (1 << 3);  // 
+macro IRQ_TMR0   = (1 << 4);  // Timer 0
+macro IRQ_TMR1   = (1 << 5);  // Timer 1
+macro IRQ_TMR2   = (1 << 6);  // Timer 2
+macro IRQ_ACK    = (1 << 7);  // Pad/memcard acknowledge
+macro IRQ_SIO    = (1 << 8);  // 
+macro IRQ_SPU    = (1 << 9);  // 
+macro IRQ_GUN    = (1 << 10); // Lightgun input
 
 #if import
 
 #import "core.r"
 
-// Interrupt procedure
+// Interrupt handler (used by sysEnqIntRP/sysDeqIntRP)
 struct IntRP
 {
     struct IntRP* next; // next IntRP in the linked list
