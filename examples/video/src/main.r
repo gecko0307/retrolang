@@ -82,6 +82,13 @@ void main()
         }
         strStop();
         
+        printf("Video finished\n");
+        
         // Normal game rendering here, after the end of the video...
+        while (1)
+        {
+            padWaitSync();
+            int pad1 = padRead1();
+        }
     }
 }
