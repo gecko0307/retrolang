@@ -89,14 +89,14 @@ macro cd_nextfile(entry)            = bios_b(0x43, entry);
 macro cd_delete(filename)           = bios_b(0x45, filename);
 macro cd_rename(f_old, f_new)       = bios_b(0x44, f_old, f_new);
 
-/*
-// TODO
+// C-functions
 macro enqueueIrqHandler(prio, handler) = bios_c(0x02, prio, handler);   // SysEnqIntRP
 macro dequeueIrqHandler(prio, handler) = bios_c(0x03, prio, handler);   // SysDeqIntRP
-*/
 
-// For code that must not be interrupted by the hardware,
-// to protect data shared between the main code and an interrupt handler.
+/*
+ * For code that must not be interrupted by the hardware,
+ * to protect data shared between the main code and an interrupt handler.
+ */
 macro enterCriticalSection()        = syscall(0x01);
 macro exitCriticalSection()         = syscall(0x02);
 

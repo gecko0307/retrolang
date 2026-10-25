@@ -279,9 +279,9 @@ void log_value(char* label, int v);   // prototype
 - `f()` and `f(void)` both mean "no parameters".
 - Recursion is supported.
 - Argument count is checked at each call; argument types are not.
-- Only named global functions can be called. There are no function pointers.
+- Typeless function address (`void*`) can be taken using the `&` operator. Typed function pointers are not supported yet. A variable with the same name still wins over a function.
+- Only named global functions can be called. Indirect calls through a pointer are not supported yet.
 - A `void` function cannot `return` a value. Flowing off the end of a non-`void` function returns whatever is in `$v0`.
-- Typeless function address (`void*`) can be taken using the `&` operator. Typed function pointers are not supported yet.
 - `main` may be declared `void` or `int`.
 
 ---
