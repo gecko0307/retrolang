@@ -55,6 +55,7 @@ macro puts(s)                       = bios_a(0x3e, s);
 macro printf(fmt, a1=0, a2=0, a3=0) = bios_a(0x3f, fmt, a1, a2, a3);
 macro flushCache()                  = bios_a(0x44);
 macro cd_init()                     = bios_a(0x54); //_96_init
+macro _bu_init()                    = bios_a(0x70);
 
 // B-functions
 macro event_deliver(cls, spec)      = bios_b(0x07, cls, spec);
@@ -64,6 +65,10 @@ macro event_wait(ev)                = bios_b(0x0a, ev);
 macro event_test(ev)                = bios_b(0x0b, ev);
 macro event_enable(ev)              = bios_b(0x0c, ev);
 macro event_disable(ev)             = bios_b(0x0d, ev);
+
+macro returnFromException()         = bios_b(0x17);
+macro resetEntryInt()               = bios_b(0x18);
+macro hookEntryInt(addr)            = bios_b(0x19, addr);
 
 macro open(filename, access_mode)   = bios_b(0x32, filename, access_mode);
 macro lseek(fd, pos, seektype)      = bios_b(0x33, fd, pos, seektype);
@@ -77,7 +82,6 @@ macro rename(f_old, f_new)          = bios_b(0x44, f_old, f_new);
 macro card_init()                   = bios_b(0x4a, 0);
 macro card_start()                  = bios_b(0x4b);
 macro card_stop()                   = bios_b(0x4c);
-macro _bu_init()                    = bios_a(0x70);
 
 macro cd_open(filename)             = bios_b(0x32, filename, FREAD);
 macro cd_lseek(fd, pos, seektype)   = bios_b(0x33, fd, pos, seektype);
