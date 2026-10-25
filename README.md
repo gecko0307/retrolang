@@ -8,8 +8,6 @@ Retrolang tools are written entirely in [D language](https://dlang.org/).
 
 What you can do with Retrolang:
 
-- Work with the BIOS
-- Set custom interrupt handlers
 - Render 2D and 3D graphics via command buffers and the DMA
 - Upload TIM files to VRAM
 - Work with the GTE
@@ -19,7 +17,9 @@ What you can do with Retrolang:
 - Play VAG sounds
 - Play CDDA tracks
 - Play XA audio streams
-- Play STR video streams.
+- Play STR video streams
+- Work with the BIOS
+- Set custom interrupt handlers.
 
 All provided software is in alpha stage.
 
@@ -209,7 +209,7 @@ Usage (assuming you've pointed RLC to `retrolib` as an include/import directory)
 - [inline_asm](/examples/inline_asm) - assembly function example (printing an argument to TTY and returning a value)
 - [pad](/examples/pad) - gamepad test, logs pressed buttons to TTY
 - [triangle](/examples/triangle) - classic colored triangle demo (direct rendering via GP0)
-- [dma](/examples/dma) - classic colored triangle demo (queued rendering via command buffer)
+- [dma](/examples/dma) - classic colored triangle demo (queued rendering via a command buffer)
 - [sprite](/examples/sprite) - TIM texture loading and sprite rendering (direct rendering via GP0)
 - [text](/examples/text) - bitmap font loading and text rendering (queued rendering via a command buffer)
 - [platform_game](/examples/platform_game) - 2D platform game demo with a level editor
