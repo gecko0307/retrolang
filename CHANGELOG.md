@@ -2,6 +2,10 @@ Retrolang 0.11.0 - TBD
 ----------------------
 - **RLC**
   - Support for taking function address.
+- **Retrolib**
+  - `iso.r` - ISO 9660 file lookup
+  - More BIOS functions in `bios.r`
+  - `retrolib_mini.r` - minimal part of the library to make smaller executables.
 
 Retrolang 0.10.0 - 24 Oct, 2026
 -------------------------------
