@@ -281,6 +281,7 @@ void log_value(char* label, int v);   // prototype
 - Argument count is checked at each call; argument types are not.
 - Only named global functions can be called. There are no function pointers.
 - A `void` function cannot `return` a value. Flowing off the end of a non-`void` function returns whatever is in `$v0`.
+- Typeless function address (`void*`) can be taken using the `&` operator. Typed function pointers are not supported yet.
 - `main` may be declared `void` or `int`.
 
 ---
@@ -516,7 +517,6 @@ Not available:
 - `switch`
 - `goto`
 - the comma operator
-- function pointers
 - multi-dimensional arrays
 - array parameters
 - `sizeof(expression)`

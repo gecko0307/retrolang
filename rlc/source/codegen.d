@@ -477,6 +477,23 @@ class CodeGen
         savedS = savedS[0..$-1];
     }
 
+    /// Is the name a declared variable (as opposed to, for example, a function)?
+    bool isVarName(string name)
+    {
+        foreach_reverse (ref sc; scopes)
+        {
+            if (name in sc)
+                return true;
+        }
+        return (name in globals) !is null;
+    }
+
+    /// Is the expression the name of a function (and not shadowed by a variable)?
+    bool isFuncName(Expr e)
+    {
+        return e.kind == EK.Var && !isVarName(e.name) && (e.name in funcs) !is null;
+    }
+
     Var lookup(string name, string file, int line)
     {
         foreach_reverse (ref sc; scopes)
@@ -580,6 +597,8 @@ class CodeGen
                 }
                 if (e.op == "&")
                 {
+                    if (isFuncName(e.a))
+                        return CType(Base.Void, 1);
                     if (e.a.kind == EK.Var && lookup(e.a.name, e.a.file, e.a.line).isArray)
                         return typeOf(e.a);
                     if (e.a.kind == EK.Member && memberField(e.a).isArray)
@@ -1232,6 +1251,15 @@ class CodeGen
     Val genAddrOf(Expr e, int want)
     {
         Expr t = e.a;
+        if (isFuncName(t))
+        {
+            // Address of a function: its entry label, resolved by the linker
+            if (!funcs[t.name].defined)
+                throw err(t.file, t.line, "function \"" ~ t.name ~ "\" is declared but never defined");
+            Val df = dest0(want);
+            liLabel(df.r, "f_" ~ t.name);
+            return df;
+        }
         if (t.kind == EK.Var)
         {
             Var v = lookup(t.name, t.file, t.line);
