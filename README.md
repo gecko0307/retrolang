@@ -9,6 +9,7 @@ Retrolang tools are written entirely in [D language](https://dlang.org/).
 What you can do with Retrolang:
 
 - Work with the BIOS
+- Set custom interrupt handlers
 - Render 2D and 3D graphics via command buffers and the DMA
 - Upload TIM files to VRAM
 - Work with the GTE
@@ -176,6 +177,7 @@ Core modules:
 * `retrolib.r` - imports entire library at once
 * `core.r` - core definitions
 * `bios.r` - macros for some common BIOS calls
+* `irq.r` - interrupts API
 * `dma.r` - DMA API
 * `pad.r` - gamepad driver
 * `gpu.r` - GPU driver / graphics API

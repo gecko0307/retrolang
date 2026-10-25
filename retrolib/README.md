@@ -7,6 +7,7 @@ Core modules:
 * `retrolib.r` - imports entire library at once
 * `core.r` - core definitions
 * `bios.r` - macros for some common BIOS calls
+* `irq.r` - interrupts API
 * `dma.r` - DMA API
 * `pad.r` - gamepad driver
 * `gpu.r` - GPU driver / graphics API
