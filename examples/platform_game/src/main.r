@@ -168,14 +168,18 @@ void main()
 {
     padInit();
     
+    int timeStep;
+    int frameTime = 3333; //1/30 * 100000
     if (*(char*)0xbfc7ff52 == 'E')
     {
         gpu.videoMode = VMODE_PAL;
+        timeStep = 2000; //1/50 * 100000
         printf("Video mode: PAL\n");
     }
     else
     {
         gpu.videoMode = VMODE_NTSC;
+        timeStep = 1666; //1/60 * 100000
         printf("Video mode: NTSC\n");
     }
     
@@ -252,152 +256,191 @@ void main()
     int canJump = 1;
     int jumpAccel = 0;
     int fallAccel = 0;
-    int jumpAccelTimer = 0;
     int onGround = 0;
+    int speed = 3;
+    int jumpForce = 4;
+    int maxJumpForce = 5;
+    int maxFallAccel = 5;
+    int jumpTimer = 0;
+    int maxJumpTimer = 8;
     
     int animCounter = 0;
     
     char* scoreStr = "00000000";
     int score = 0;
     
+    int timer = 0;
     while(1)
     {
         padWaitSync();
         int pad1 = padRead1();
-
-        int dx = 0;
-        if (pad1 & PAD_LEFT)  { dx = -2; chDir = -1; }
-        if (pad1 & PAD_RIGHT) { dx = 2;  chDir = 1; }
-
-        int jumpPressed = (pad1 & PAD_CROSS) > 0;
-        if (jumpPressed)
-        {
-            if (onGround && canJump)
-            {
-                jumpAccel = 3;
-                jumpAccelTimer = 0;
-                canJump = 0;
-                if (jumpVoice = -1)
-                    spuStop(jumpVoice);
-                jumpVoice = spuPlay(sndJump, 0x3FFF);
-            }
-        }
-        else
-        {
-            canJump = 1;
-        }
         
-        if (jumpAccel > 0 && jumpPressed)
+        timer += timeStep;
+        if (timer >= frameTime)
         {
-            if (jumpAccelTimer < 15)
-            {
-                jumpAccel++;
-                jumpAccelTimer++;
-            }
-        }
+            timer -= frameTime;
 
-        int dy = 0;
-        if (jumpAccel > 0)
-        {
-            dy = -jumpAccel;
-            jumpAccel--;
-        }
-        else if (!onGround)
-        {
-            if (fallAccel < 4)
-                fallAccel++;
-            dy = fallAccel;
-        }
-
-        // horizontal: one pixel at a time
-        int sx = 1;
-        int nx = dx;
-        if (dx < 0)
-        {
-            sx = -1;
-            nx = -dx;
-        }
-        for (int i = 0; i < nx; i++)
-        {
-            if (boxHitsSolid(chx + sx, chy))
-                break;
-            chx += sx;
-        }
-
-        // vertical: one pixel at a time
-        onGround = 0;
-        int sy = 1;
-        int ny = dy;
-        if (dy < 0)
-        {
-            sy = -1;
-            ny = -dy;
-        }
-        for (int i = 0; i < ny; i++)
-        {
-            if (boxHitsSolid(chx, chy + sy))
-            {
-                if (sy > 0)
-                {
-                    // landed
-                    onGround = 1;
-                    fallAccel = 0;
-                    dy = 0;
-                }
-                else
-                {
-                    // hit ceiling
-                    jumpAccel = 0;
-                }
-                break;
-            }
-            chy += sy;
-        }
-        
-        int animStep = 0;
-        animCounter++;
-        if (animCounter >= 3)
-        {
-            animStep = 20;
-            animCounter = 0;
-        }
-        
-        if (dy == 0)
-        {
-            if (dx == 0)
-            {
-                if (chDir > 0) chv = 0;
-                else chv = 20;
-                chu = 0;
-                animCounter = 0;
-                animStep = 0;
-            }
-            else if (chDir > 0)
-            {
-                chu += animStep;
-                chv = 0;
-                if (chu > 60)
-                    chu = 0;
-            }
-            else if (chDir < 0)
-            {
-                chu -= animStep;
-                chv = 20;
-                if (chu < 0)
-                    chu = 60;
-            }
-        }
-        else
-        {
-            if (chDir > 0)
-                chv = 40;
-            else if (chDir < 0)
-                chv = 60;
+            int dx = 0;
+            int dy = 0;
             
+            if (pad1 & PAD_LEFT)  { dx = -speed; chDir = -1; }
+            if (pad1 & PAD_RIGHT) { dx = speed;  chDir = 1; }
+
+            int jumpPressed = (pad1 & PAD_CROSS) > 0;
+            if (jumpPressed)
+            {
+                if (onGround && canJump)
+                {
+                    jumpAccel = jumpForce;
+                    canJump = 0;
+                    if (jumpVoice = -1)
+                        spuStop(jumpVoice);
+                    jumpVoice = spuPlay(sndJump, 0x3FFF);
+                    jumpTimer = 0;
+                }
+            }
+            else
+            {
+                canJump = 1;
+            }
+            
+            if (jumpAccel > 0 && jumpPressed)
+            {
+                if (jumpTimer < maxJumpTimer)
+                {
+                    jumpAccel++;
+                    jumpTimer++;
+                }
+            }
+
+            if (jumpAccel > 0)
+            {
+                dy = -jumpAccel;
+                jumpAccel--;
+            }
+            else if (!onGround)
+            {
+                jumpAccel = 0;
+                if (fallAccel < maxFallAccel)
+                    fallAccel++;
+                dy = fallAccel;
+            }
+
+            // horizontal: one pixel at a time
+            int sx = 1;
+            int nx = dx;
+            if (dx < 0)
+            {
+                sx = -1;
+                nx = -dx;
+            }
+            for (int i = 0; i < nx; i++)
+            {
+                if (boxHitsSolid(chx + sx, chy))
+                    break;
+                chx += sx;
+            }
+
+            // vertical: one pixel at a time
+            onGround = 0;
+            int sy = 1;
+            int ny = dy;
             if (dy < 0)
-                chu = 0;
-            else if (dy > 0)
-                chu = 20;
+            {
+                sy = -1;
+                ny = -dy;
+            }
+            for (int i = 0; i < ny; i++)
+            {
+                if (boxHitsSolid(chx, chy + sy))
+                {
+                    if (sy > 0)
+                    {
+                        // landed
+                        onGround = 1;
+                        fallAccel = 0;
+                        dy = 0;
+                    }
+                    else
+                    {
+                        // hit ceiling
+                        jumpAccel = 0;
+                    }
+                    break;
+                }
+                chy += sy;
+            }
+            
+            // Animation
+            int animStep = 0;
+            animCounter++;
+            if (animCounter >= 2)
+            {
+                animStep = 20;
+                animCounter = 0;
+            }
+            
+            if (dy == 0)
+            {
+                if (dx == 0)
+                {
+                    if (chDir > 0) chv = 0;
+                    else chv = 20;
+                    chu = 0;
+                    animCounter = 0;
+                    animStep = 0;
+                }
+                else if (chDir > 0)
+                {
+                    chu += animStep;
+                    chv = 0;
+                    if (chu > 60)
+                        chu = 0;
+                }
+                else if (chDir < 0)
+                {
+                    chu -= animStep;
+                    chv = 20;
+                    if (chu < 0)
+                        chu = 60;
+                }
+            }
+            else
+            {
+                if (chDir > 0)
+                    chv = 40;
+                else if (chDir < 0)
+                    chv = 60;
+                
+                if (dy < 0)
+                    chu = 0;
+                else if (dy > 0)
+                    chu = 20;
+            }
+            
+            // Pickups
+            int chCenterX = chx + 8;
+            int chCenterY = chy + 8;
+            for (int i = 0; i < numPickups; i++)
+            {
+                struct Pickup* pickup = &pickups[i];
+                if (!pickup->active)
+                    continue;
+                if (chCenterX >= (pickup->x + 4) && chCenterX <= (pickup->x + 12) &&
+                    chCenterY >= (pickup->y + 4) && chCenterY <= (pickup->y + 12))
+                {
+                    pickup->active = 0;
+                    score += pickup->value;
+                    if (pickupVoice = -1)
+                        spuStop(pickupVoice);
+                    pickupVoice = spuPlay(sndPickup, 0x3FFF);
+                }
+            }
+            
+            charSprite.x = chx - 3;
+            charSprite.y = chy - 2;
+            charSprite.u = chu;
+            charSprite.v = chv;
         }
         
         // Render
@@ -415,32 +458,13 @@ void main()
                 drawTile(&tile, 2);
             }
         }
-        
-        int chCenterX = chx + 8;
-        int chCenterY = chy + 8;
         for (int i = 0; i < numPickups; i++)
         {
             struct Pickup* pickup = &pickups[i];
-            if (!pickup->active)
-                continue;
-            if (chCenterX >= (pickup->x + 4) && chCenterX <= (pickup->x + 12) &&
-                chCenterY >= (pickup->y + 4) && chCenterY <= (pickup->y + 12))
-            {
-                pickup->active = 0;
-                score += pickup->value;
-                if (pickupVoice = -1)
-                    spuStop(pickupVoice);
-                pickupVoice = spuPlay(sndPickup, 0x3FFF);
-            }
-            
             if (pickup->active)
                 drawPickup(pickup, 1);
         }
         
-        charSprite.x = chx - 3;
-        charSprite.y = chy - 2;
-        charSprite.u = chu;
-        charSprite.v = chv;
         gpuSortSprite2(&charSprite, 0);
         intToStr(scoreStr, 8, score);
         drawText(&font, 5, 5, scoreStr);
