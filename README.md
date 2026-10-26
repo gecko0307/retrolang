@@ -27,7 +27,7 @@ All provided software is in alpha stage.
 
 Platformer game example:
 
-![Platformer](media/platformer.png)
+![Platformer](media/platformer.jpg)
 
 3D rendering example:
 
