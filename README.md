@@ -242,7 +242,9 @@ or
 duckstation -fastboot -- %~dp0/iso/PSX.EXE
 ```
 
-All examples are tested in the following emulators:
+## Testing
+
+Retrolang is tested on the real hardware and in the following emulators:
 
 - DuckStation
 - PCSX-ReARMed
