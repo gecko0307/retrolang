@@ -98,6 +98,7 @@ For more information, please refer to <https://unlicense.org>
 #define STR_MDEC_ADDR       0x801B0000
 #define STR_DEMUX0_ADDR     0x801D0000
 #define STR_DEMUX1_ADDR     0x801E0000
+
 macro StrRegionSector  = (STR_SECTOR_ADDR, 2048);
 macro StrRegionMdec    = (STR_MDEC_ADDR,   STR_MDEC_BYTES);
 macro StrRegionDemux0  = (STR_DEMUX0_ADDR, STR_DEMUX_BYTES);
