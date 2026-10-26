@@ -244,7 +244,7 @@ duckstation -fastboot -- %~dp0/iso/PSX.EXE
 
 ## Testing
 
-Retrolang is tested on the real hardware and in the following emulators:
+Retrolang is tested on a real hardware and in the following emulators:
 
 - DuckStation
 - PCSX-ReARMed
