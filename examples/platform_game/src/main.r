@@ -467,7 +467,7 @@ void main()
         
         gpuSortSprite2(&charSprite, 0);
         intToStr(scoreStr, 8, score);
-        drawText(&font, 5, 5, scoreStr);
+        drawText(&font, 16, 16, scoreStr);
         gpuEndFrame();
     }
 }

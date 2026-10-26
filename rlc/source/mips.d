@@ -362,8 +362,7 @@ Word opCop2(uint command)                   { return 0x4A000000 | (command & 0x0
 
 Word opRtps()                               { return opCop2(0x00180001); } // Rotate, Translate, Perpective Transformation of 1 point
 Word opRtpt()                               { return opCop2(0x00280030); } // Rotate, Translate, Perpective Transformation of 3 points
-// Matrix-Vector Multiplication and Addition. `fields` are the optional sf/mx/v/cv/lm bits (already shifted).
-Word opMvmva(uint fields = 0)               { return opCop2(0x00400012 | fields); }
+Word opMvmva(uint fields = 0)               { return opCop2(0x00400012 | fields); } // Matrix-Vector Multiplication and Addition. `fields` are the optional sf/mx/v/cv/lm bits (already shifted).
 Word opDcpl()                               { return opCop2(0x00680029); } // Depth Cue Light Color
 Word opDpcs()                               { return opCop2(0x00780010); } // Depth Cue Single
 Word opDpct()                               { return opCop2(0x00f8002a); } // Depth Cue Triple
