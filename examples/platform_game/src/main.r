@@ -168,7 +168,17 @@ void main()
 {
     padInit();
     
-    gpu.videoMode = VMODE_PAL;
+    if (*(char*)0xbfc7ff52 == 'E')
+    {
+        gpu.videoMode = VMODE_PAL;
+        printf("Video mode: PAL\n");
+    }
+    else
+    {
+        gpu.videoMode = VMODE_NTSC;
+        printf("Video mode: NTSC\n");
+    }
+    
     gpu.display.width = 320;
     gpu.display.height = 240;
     gpu.display.x = 0;
