@@ -28,7 +28,7 @@ For more information, please refer to <https://unlicense.org>
  * Mesh rendering test
  */
 
-#import "retrolib.r"
+#import "retrolib_mini.r"
 #import "math.r"
 
 // Model-space vertex
