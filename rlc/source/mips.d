@@ -27,8 +27,8 @@ DEALINGS IN THE SOFTWARE.
 */
 
 /**
- * MIPS R3000 instruction set.
- * Provides register enums and instruction encoding.
+ * MIPS R3000 ISA.
+ * Register enums and instruction encoding.
  */
 module mips;
 
