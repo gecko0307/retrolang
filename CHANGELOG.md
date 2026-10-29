@@ -1,3 +1,11 @@
+Retrolang 0.12.0 - TBD
+----------------------
+- **Retrolib**
+  - `gpu.r`: new function `gpuDetectVMode`
+- **Examples**
+  - PAL/NTSC detection in all examples that use the GPU
+  - Compensate overscan for the score in the platformer example.
+
 Retrolang 0.11.0 - 26 Oct, 2026
 -------------------------------
 - **RLC**
