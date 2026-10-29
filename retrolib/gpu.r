@@ -313,6 +313,15 @@ int  gpuOT1[OT_SIZE_WORDS] @GPURegionOT1;
 
 int* gpuOt = GPU_OT0;             // Pointer to the current ordering table.
 
+// Detects video mode via the BIOS
+int gpuDetectVMode()
+{
+    if (*(char*)0xbfc7ff52 == 'E')
+        return VMODE_PAL;
+    else
+        return VMODE_NTSC;
+}
+
 /**
  * Initialize the GPU.
  * The pointer to the GpuSettings struct must be valid till the end of the program.

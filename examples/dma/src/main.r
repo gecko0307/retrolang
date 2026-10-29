@@ -34,7 +34,13 @@ struct GpuSettings gpu;
 
 void main()
 {
-    gpu.videoMode = VMODE_PAL;
+    gpu.videoMode = gpuDetectVMode();
+    
+    if (gpu.videoMode == VMODE_PAL)
+        printf("Video mode: PAL\n");
+    else
+        printf("Video mode: NTSC\n");
+    
     gpu.display.width = 320;
     gpu.display.height = 240;
     gpu.display.x = 0;

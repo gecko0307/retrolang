@@ -320,16 +320,12 @@ void trSetCameraY(
 
 void main()
 {
-    if (*(char*)0xbfc7ff52 == 'E')
-    {
-        gpu.videoMode = VMODE_PAL;
+    gpu.videoMode = gpuDetectVMode();
+    
+    if (gpu.videoMode == VMODE_PAL)
         printf("Video mode: PAL\n");
-    }
     else
-    {
-        gpu.videoMode = VMODE_NTSC;
         printf("Video mode: NTSC\n");
-    }
     
     gpu.display.width = SCREEN_WIDTH;
     gpu.display.height = SCREEN_HEIGHT;

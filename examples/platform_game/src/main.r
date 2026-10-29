@@ -168,17 +168,17 @@ void main()
 {
     padInit();
     
+    gpu.videoMode = gpuDetectVMode();
+    
     int timeStep;
     int frameTime = 3333; //1/30 * 100000
-    if (*(char*)0xbfc7ff52 == 'E')
+    if (gpu.videoMode == VMODE_PAL)
     {
-        gpu.videoMode = VMODE_PAL;
         timeStep = 2000; //1/50 * 100000
         printf("Video mode: PAL\n");
     }
     else
     {
-        gpu.videoMode = VMODE_NTSC;
         timeStep = 1666; //1/60 * 100000
         printf("Video mode: NTSC\n");
     }
