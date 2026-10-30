@@ -1,6 +1,4 @@
-# Retrolang SDK
-
-<img align="left" alt="controller" src="https://raw.githubusercontent.com/gecko0307/retrolang/main/media/controller.png" height="127px" style="image-rendering:pixelated" />
+<img align="center" alt="banner" src="https://raw.githubusercontent.com/gecko0307/retrolang/main/media/banner.png" height="127px" style="image-rendering:pixelated" />
 
 The goal of this project is to build a PlayStation 1 development toolchain completely from scratch, without relying on GCC, LLVM, or other similar compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code.
 
