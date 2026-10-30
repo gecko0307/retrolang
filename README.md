@@ -221,7 +221,8 @@ Usage (assuming you've pointed RLC to `retrolib` as an include/import directory)
 - [vag](/examples/vag) - VAG sound playback example
 - [cd_audio](/examples/cd_audio) - CD audio playback example
 - [xa](/examples/xa) - XA audio playback example
-- [video](/examples/video) - STR video playback example.
+- [video](/examples/video) - STR video playback example
+- [seq](/examples/seq) - SEQ music playback example.
 
 All examples support building with Retrobuild. RLC must be available system-wide or locally as `/rlc/rlc.exe` in the repository. Optionally, to build a CD-ROM image, mkpsxiso must be available system-wide or locally as `/mkpsxiso/mkpsxiso.exe` in the repository. Some examples depend on PNG2TIM, WAV2VAG, XA Tool and other utilities to convert assets.
 
