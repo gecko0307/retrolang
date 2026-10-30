@@ -25,6 +25,10 @@ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
+
+/**
+ * Retrolang Compiler (RLC) for MIPS R3000 / PlayStation 1.
+ */
 module main;
 
 import std.stdio;
@@ -197,7 +201,7 @@ int main(string[] args)
         return 1;
     }
 
-    // Save PSX-EXE to file
+    // Save PS-X EXE to file
     printInfo("Saving to \"%s\"...", outputFile);
     write(outputFile, exe.binary); 
 

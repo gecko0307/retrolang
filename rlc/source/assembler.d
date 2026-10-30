@@ -79,8 +79,6 @@ DEALINGS IN THE SOFTWARE.
  *   sll/srl/sra with a register shift amount
  *   lb/lbu/lh/lhu/lw/sb/sh/sw/lwl/lwr/swl/swr with a label or absolute address
  *
- * The assembler never reorders instructions and never fills delay slots; write the nops yourself.
- *
  * If used in a broad context (e.g., with a compiler), a unique `labelPrefix` should be provided
  * to avoid label collisions across multiple files.
  */

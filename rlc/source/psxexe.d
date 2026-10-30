@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 */
 
 /**
- * Generate PSX.EXE from machine code.
+ * Generate PSX.EXE from raw binary.
  */
 module psxexe;
 

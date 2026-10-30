@@ -2876,8 +2876,6 @@ class CodeGen
         {
             if (f.body_ !is null)
                 genFunc(f);
-            //else if (f.attrFilename != "")
-            //    genAsmFunc(f);
         }
 
         ass.instructions = program;
