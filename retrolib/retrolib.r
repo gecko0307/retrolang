@@ -42,3 +42,5 @@ For more information, please refer to <https://unlicense.org>
 #import "mdec.r"
 #import "vlc.r"
 #import "str.r"
+#import "vab.r"
+#import "seq.r"

@@ -97,6 +97,10 @@ int  sndCount;
 // Which sound each of the 24 voices is playing (-1 = free)
 int voiceSound[24];
 
+// Bit mask of voices that spuPlay must not touch (e.g. owned by the
+// music sequencer, see seq.r). Bit n = voice n.
+int spuVoiceReserved;
+
 ///
 struct VAGHeader
 {
@@ -227,6 +231,33 @@ void spuInit()
 
     spuNextAddr = 0x1000;
     sndCount = 0;
+    spuVoiceReserved = 0;
+}
+
+/**
+ * Reserves `count` voices starting at `first` for exclusive use by other
+ * modules. spuPlay will never pick them. Replaces the previous reservation.
+ */
+void spuReserveVoices(int first, int count)
+{
+    int mask = 0;
+    for (int v = first; v < first + count && v < 24; v++)
+        mask = mask | (1 << v);
+    spuVoiceReserved = mask;
+}
+
+/**
+ * Allocates `size` bytes of SPU RAM (rounded up to 64 bytes) and returns
+ * the byte address, or 0 if there is not enough memory left.
+ * Memory is released by spuFreeAll.
+ */
+uint spuAlloc(uint size)
+{
+    uint aligned = (size + 63) & ~63;
+    if (spuNextAddr + aligned > 0x80000) return 0;
+    uint addr = spuNextAddr;
+    spuNextAddr += aligned;
+    return addr;
 }
 
 /// 0..127
@@ -347,6 +378,7 @@ int spuPlay(int sound, int volume)
 {
     for (int v = 0; v < 24; v++)
     {
+        if ((spuVoiceReserved >> v) & 1) continue;
         if (!spuVoicePlaying(v))
         {
             spuPlayVoice(sound, v, volume, volume);

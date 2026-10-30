@@ -15,6 +15,7 @@ What you can do with Retrolang:
 - Load files from the CD-ROM
 - Access memory cards
 - Play VAG sounds
+- Play SEQ music files
 - Play CDDA tracks
 - Play XA audio streams
 - Play STR video streams
@@ -189,7 +190,9 @@ Core modules:
 * `mdec.r` - MDEC driver
 * `vlc.r` - VLC decoder
 * `str.r` - STR video API
-* `iso.r` - ISO 9660 file lookup.
+* `iso.r` - ISO 9660 file lookup
+* `vab.r` - VAB sound bank loader
+* `seq.r` - SEQ music sequencer.
 
 Additional modules (not included to `retrolib.r`):
 
@@ -257,7 +260,6 @@ Retrolang is tested on a real hardware and in the following emulators:
 
 What is not implemented yet:
 
-- SEQ music playback
 - Matrix math
 - TMD models support
 

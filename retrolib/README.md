@@ -19,7 +19,9 @@ Core modules:
 * `mdec.r` - MDEC module
 * `vlc.r` - VLC decoder
 * `str.r` - STR video streaming
-* `iso.r` - ISO 9660 file lookup.
+* `iso.r` - ISO 9660 file lookup
+* `vab.r` - VAB sound bank loader
+* `seq.r` - SEQ music sequencer.
 
 Additional experimental modules (not included to `retrolib.r`):
 
