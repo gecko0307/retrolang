@@ -1,8 +1,11 @@
 Retrolang 0.12.0 - TBD
 ----------------------
 - **Retrolib**
+  - `vab.r` - VAB sound bank loader
+  - `seq.r` - SEQ music sequencer
   - `gpu.r`: new function `gpuDetectVMode`
 - **Examples**
+  - SEQ music example
   - PAL/NTSC detection in all examples that use the GPU
   - Compensate overscan for the score in the platformer example.
 
