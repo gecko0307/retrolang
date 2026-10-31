@@ -27,7 +27,7 @@ For more information, please refer to <https://unlicense.org>
 /*
  * VAB sound bank loader.
  *
- * A VAB (Sony's instrument bank) is split into a header part (VH) and a
+ * A VAB (instrument bank file) is split into a header part (VH) and a
  * body part (VB) with raw SPU-ADPCM samples. They can live in two files
  * (*.vh + *.vb) or in a single *.vab file.
  *
