@@ -20,14 +20,14 @@ Available commands:
 Available options for the `convert` command:
 
 - `-o/--output <file>` - specify output SEQ file name (default is input name with a ".seq" extension)
-- `--bank-out <name>` - specify MOD VAB bank base name (default is output name without extension)
-- `--vab` - write the MOD bank as a single .vab file instead of .vh + .vb
-- `--map-out <file>` - for MIDI input: write a program map for seqtool bank (default filename is output name with a ".map" extension)
-- `--map-in <file>` - for MIDI input: use an existing program map (e.g. of a ready sound bank) instead of generating one; notes without an instrument are dropped
+- `--bank-out <name>` - MOD: specify MOD VAB bank base name (default is output name without extension)
+- `--vab` - MOD: write the bank as a single .vab file instead of .vh + .vb
+- `--map-out <file>` - MIDI: write a program map for seqtool bank (default filename is output name with a ".map" extension)
+- `--map-in <file>` - MIDI: use an existing program map (e.g. of a ready sound bank) instead of generating one; notes without an instrument are dropped
 - `--loop` - loop the whole song if no loop markers/order loop exists
-- `--drum-channel <n>` - MIDI channel (1..16) that carries drums, 0 for none (default 10)
-- `--ppqn <n>` - rescale the time resolution (ticks per quarter note)
-- `--tones <n>` - maximum drum keys per program, 1..16 (default 16).
+- `--drum-channel <n>` - MIDI: channel (1..16) that carries drums, 0 for none (default 10)
+- `--ppqn <n>` - rescale the time resolution (ticks per quarter note). MOD default: 96
+- `--tones <n>` - MIDI: maximum drum keys per program, 1..16 (default 16).
 
 Available options for the `bank` command:
 
@@ -52,15 +52,74 @@ seqtool convert song.mid
 seqtool bank soundfont.sf2 song.map
 ```
 
-Use `seqtool convert --map-in <file>` to use an existing program map instead of generating one. Notes for instruments missing from that map are dropped.
+### Notes
+
+- Drum keys are grouped into programs of up to `--tones` keys each.
+- Use `seqtool convert --map-in <file>` to use an existing program map instead of generating one. Notes for instruments missing from that map are dropped.
+- Loop points: MIDI markers named `loopStart` / `loopEnd`, or controller 111 (loop start). Without a loop end, the end of the song is used.
+- Supported controllers: bank select, volume (7), pan (10), expression (11), sustain (64), all notes off (120/123). Pitch bend is passed through; the bend range is fixed per tone (RPN changes are dropped). Other controllers and aftertouch are dropped and reported.
+- SMPTE time division and type 2 files are not supported.
 
 ## Converting MOD to SEQ
 
-For MOD files, the VAB is built from samples embedded in the module, so a separate bank generation step is not needed. The MOD bank uses one program per sample; sample loops and tuning are preserved, and sample-header/channel volume is applied through SEQ channel volume. Common effects are converted, while unsupported effects are reported as warnings and can cause output to differ from the source module. Input is limited to standard 31-sample, 4-channel modules.
+For MOD files, the VAB is built from samples embedded in the module, so a separate bank generation step is not needed.
 
 ```
 seqtool convert song.mod
 ```
+
+### How a module is mapped
+
+- The four MOD channels become SEQ channels 1-4 with the classic L-R-R-L panning.
+- Every non-empty sample becomes one VAB program with a single tone. Program `n` plays sample `n+1`, so a tracker instrument number maps directly to a program number (instruments 1-31 → programs 0-30).
+- Samples are converted from 8-bit PCM to SPU ADPCM. The tone's center note and fine tune are computed from the Amiga (PAL) clock and the sample's finetune value, so a note sounds at the pitch it has in the tracker.
+- Row timing is derived from tempo and speed: a quarter note is always 24 module ticks, so tempo changes (`Fxx`) become SEQ tempo events and speed changes only affect row length.
+- Pitch effects (slides, portamento, vibrato, arpeggio) are written as pitch bend events. The tone's bend range is ±15 semitones, so slides larger than that are clamped.
+
+### Looping
+
+- If the pattern order jumps back to a position that was already played (`Bxx`, or a song that repeats), that point becomes the SEQ loop. Tempo, channel volumes and pans are restored at the loop start. `E6x` pattern loops are expanded, and their counters are part of the position, so they don't confuse loop detection.
+- `--loop` loops the whole song when it simply ends.
+- `F00` stops the song, as in ProTracker.
+
+The SPU can only loop over whole 28-sample ADPCM blocks, while module loops can have any length. To keep the pitch right:
+
+- If the loop length isn't a multiple of 28, the loop is unrolled until it is (up to lcm(loop, 28) samples). This is exact, but can make short single-cycle waveforms take more space in the bank than in the module.
+- If unrolling would be too long (more than 16384 samples), the sample is stretched very slightly so the loop becomes a multiple of 28, and the tone's pitch is corrected to compensate.
+
+The first block of a loop is encoded without prediction, so every pass of the loop decodes identically.
+
+### Supported effects
+
+| Effect | Notes |
+|---|---|
+| `0xy` | Arpeggio, via pitch bend |
+| `1xx`, `2xx` | Pitch slide up/down (no parameter memory, as in ProTracker) |
+| `3xx` | Tone portamento (speed is remembered) |
+| `4xy` | Vibrato (speed/depth are remembered, ProTracker depth) |
+| `5xy`, `6xy` | Tone portamento / vibrato + volume slide |
+| `8xx` | Panning (not standard ProTracker, but widely used) |
+| `Axy` | Volume slide |
+| `Bxx`, `Dxx` | Position jump, pattern break |
+| `Cxx` | Set volume |
+| `Fxx` | Speed (1–31) and tempo (32–255); `F00` stops the song |
+| `E1x`, `E2x` | Fine pitch slide |
+| `E6x` | Pattern loop |
+| `E8x` | Panning |
+| `E9x` | Retrigger |
+| `EAx`, `EBx` | Fine volume slide |
+| `ECx` | Note cut (also sets the volume to 0) |
+| `EDx` | Note delay |
+| `EEx` | Pattern delay (per-tick effects are not repeated) |
+
+**Not supported:** `7xy` tremolo, `9xy` sample offset, and the `E0x`, `E3x`, `E4x`, `E5x`, `E7x`, `EFx` effects. They are ignored, and a warning with the number of affected rows is printed for each.
+
+### Limits and notes
+
+- Input is limited to standard 31-sample, 4-channel modules.
+- The whole bank has to fit into SPU RAM (512 KB, shared with everything else your program loads), so check the size of the `.vb`/`.vab`. Sample-heavy modules and unrolled loops are the usual reason it grows.
+- Truncated modules are accepted: missing sample data is simply shorter.
+- Volume is linear MOD volume (0-64) mapped to MIDI volume (0-127).
 
 ## Building a VAB from SoundFont
 
