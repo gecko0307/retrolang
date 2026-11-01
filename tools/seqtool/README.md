@@ -34,7 +34,7 @@ Available options for the `bank` command:
 - `-o/--output <file>` - output base name (default is the input map name)
 - `--vab` - write a single .vab file instead of .vh + .vb
 - `--rate <hz>` - highest sample rate to keep (default 22050)
-- `--budget <bytes>` - SPU RAM available for samples (default 400000); the rate and sample length are reduced to fit
+- `--budget <bytes>` - SPU memory available for samples (default 400000); the rate and sample length are reduced to fit
 - `--velocity <1..127>` - velocity used to choose velocity layers (default 100)
 - `--layers <n>` - layered samples per key (default 1)
 - `--max-seconds <s>` - trim samples that do not loop to this length (default 6)
@@ -117,7 +117,7 @@ The first block of a loop is encoded without prediction, so every pass of the lo
 ### Limits and notes
 
 - Input is limited to standard 31-sample, 4-channel modules.
-- The whole bank has to fit into SPU RAM (512 KB, shared with everything else your program loads), so check the size of the `.vb`/`.vab`. Sample-heavy modules and unrolled loops are the usual reason it grows.
+- The whole bank has to fit into SPU memory (512 KB, shared with everything else your program loads), so check the size of the `.vb`/`.vab`. Sample-heavy modules and unrolled loops are the usual reason it grows.
 - Truncated modules are accepted: missing sample data is simply shorter.
 - Volume is linear MOD volume (0-64) mapped to MIDI volume (0-127).
 
@@ -129,7 +129,7 @@ The first block of a loop is encoded without prediction, so every pass of the lo
 seqtool bank soundfont.sf2 song.map
 ```
 
-SoundFont 3 is not supported. If the samples exceed the configured SPU RAM budget, the tool reduces sample rate and length to fit or reports an error.
+SoundFont 3 is not supported. If the samples exceed the configured SPU memory budget, the tool reduces sample rate and length to fit or reports an error.
 
 ## Program map format
 
