@@ -8,6 +8,10 @@ Retrolang 0.12.0 - TBD
   - SEQ music example
   - PAL/NTSC detection in all examples that use the GPU
   - Compensate overscan for the score in the platformer example.
+- **MID2SEQ**
+  - New tool: MIDI to SEQ converter
+- **SF2TOVAB**
+  - New tool: SF2 to VAB converter.
 
 Retrolang 0.11.0 - 26 Oct, 2026
 -------------------------------
