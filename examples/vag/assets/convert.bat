@@ -1,1 +1,1 @@
-"../../../wav2vag/wav2vag.exe" camera.wav
+"../../../tools/wav2vag/wav2vag.exe" camera.wav
