@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2026 Timur Gafarov 
+Copyright (c) 2026 Timur Gafarov
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -33,6 +33,7 @@ import std.algorithm : max, min, sort;
 import std.exception : enforce;
 import std.file : write;
 import std.math : abs, ceil, log2, round, sin;
+import std.numeric : gcd;
 import std.path : stripExtension;
 import std.stdio : stderr, writefln;
 import std.string : format;
@@ -66,12 +67,30 @@ struct ModEvent
     bool meta;
 }
 
+/** Channel state at a loop start, restored when the SEQ jumps back there. */
+struct ModLoopState
+{
+    int bpm;
+    int[4] volume;
+    int[4] pan;
+}
+
+/** An encoded sample. stretch > 1 means the PCM was lengthened by that factor. */
+struct ModVag
+{
+    ubyte[] data;
+    double stretch = 1.0;
+}
+
 immutable int[] modPeriods =
 [
     856, 808, 762, 720, 678, 640, 604, 570, 538, 508, 480, 453,
     428, 404, 381, 360, 339, 320, 302, 285, 269, 254, 240, 226,
     214, 202, 190, 180, 170, 160, 151, 143, 135, 127, 120, 113
 ];
+
+enum int modMinPeriod = 113;
+enum int modMaxPeriod = 856;
 
 bool isModFile(const(ubyte)[] d)
 {
@@ -113,12 +132,19 @@ ModFile parseMod(const(ubyte)[] d)
 
     uint songLength = d[950];
     enforce(songLength > 0 && songLength <= 128, "bad MOD song length");
-    uint maxPattern;
     foreach (order; d[952 .. 952 + songLength])
-    {
         mod.orders ~= order;
+
+    // The amount of stored patterns is defined by the highest pattern number in
+    // the whole 128-entry order table, not only in the part that is played.
+    uint maxPattern, maxPlayedPattern;
+    foreach (order; d[952 .. 952 + 128])
         maxPattern = max(maxPattern, cast(uint)order);
-    }
+    foreach (order; mod.orders)
+        maxPlayedPattern = max(maxPlayedPattern, cast(uint)order);
+    // Fall back to the played part if the unused part of the table is garbage
+    if (1084 + cast(size_t)(maxPattern + 1) * 1024 > d.length)
+        maxPattern = maxPlayedPattern;
     mod.patternCount = maxPattern + 1;
     size_t patternBytes = cast(size_t)mod.patternCount * 64 * 4 * 4;
     size_t samplePos = 1084 + patternBytes;
@@ -127,10 +153,19 @@ ModFile parseMod(const(ubyte)[] d)
 
     foreach (ref s; mod.samples)
     {
-        enforce(samplePos + s.length <= d.length, "MOD sample data is truncated");
-        s.pcm = d[samplePos .. samplePos + s.length].dup;
+        // Truncated files are common, play what is there
+        size_t start = min(samplePos, d.length);
+        size_t stop = min(samplePos + s.length, d.length);
         samplePos += s.length;
-        if (s.loopStart + s.loopLength > s.length || s.loopLength <= 4)
+        s.pcm = d[start .. stop].dup;
+        s.length = cast(uint)s.pcm.length;
+
+        if (s.loopStart >= s.length)
+            s.loopLength = 0;
+        else
+            s.loopLength = min(s.loopLength, s.length - s.loopStart);
+        // a loop of one word (2 bytes) or less means "no loop"
+        if (s.loopLength <= 2)
         {
             s.loopStart = 0;
             s.loopLength = 0;
@@ -173,12 +208,19 @@ struct ModAdpcmBlock
     long error;
 }
 
-ModAdpcmBlock encodeModBlock(const(int)[] block, int initialH1, int initialH2)
+/**
+ * Encodes 28 samples. filter0Only is used for the loop start block: it makes
+ * the block independent of the preceding history, so every pass of the loop
+ * decodes identically.
+ */
+ModAdpcmBlock encodeModBlock(const(int)[] block, int initialH1, int initialH2, bool filter0Only)
 {
     bool haveBest;
     ModAdpcmBlock best;
     foreach (size_t filterIndex, filter; modAdpcmFilters)
     {
+        if (filter0Only && filterIndex != 0)
+            break;
         int p1 = initialH1, p2 = initialH2, maximum;
         foreach (sample; block)
         {
@@ -224,39 +266,91 @@ ModAdpcmBlock encodeModBlock(const(int)[] block, int initialH1, int initialH2)
     return best;
 }
 
-ubyte[] encodeModSample(const(ubyte)[] pcm, uint loopStart, bool looping)
+/**
+ * Encodes 8-bit PCM to SPU ADPCM. The SPU can only loop over whole 28-sample
+ * blocks, so a looped sample is rebuilt as head + body, where the body is a
+ * block-aligned, exactly periodic repetition of the MOD loop:
+ *  - if the loop length does not divide into blocks, the loop is unrolled
+ *    until it does (lcm(loop, 28) samples), which keeps the pitch exact;
+ *  - if that would be too long, the whole sample is stretched slightly so
+ *    the loop becomes a multiple of 28, and the stretch is reported so the
+ *    caller can compensate it in the tone's pitch.
+ */
+ModVag encodeModSample(const(ubyte)[] pcm, uint loopStart, uint loopLength)
 {
-    int[] samples;
+    int[] source;
     foreach (b; pcm)
-        samples ~= cast(int)cast(byte)b * 256;
-    if (samples.length == 0)
-        samples ~= 0;
+        source ~= cast(int)cast(byte)b * 256;
+    if (source.length == 0)
+        source ~= 0;
 
+    ModVag result;
+    int[] samples;
     int loopBlock = -1;
-    if (looping && loopStart < samples.length)
+
+    if (loopLength > 0 && loopStart + loopLength <= source.length)
     {
-        size_t lead = (28 - loopStart % 28) % 28;
-        samples = new int[lead] ~ samples;
-        loopBlock = cast(int)((lead + loopStart) / 28);
+        size_t loopLen = loopLength;
+
+        // sample stream with the loop repeated forever
+        int ext(size_t i)
+        {
+            return i < loopStart ? source[i] : source[loopStart + (i - loopStart) % loopLen];
+        }
+
+        size_t unroll = 28 / gcd(loopLen, cast(size_t)28);
+        size_t headLength;
+        if (loopLen * unroll <= 16384)
+        {
+            size_t bodyLength = loopLen * unroll;
+            headLength = (cast(size_t)loopStart + 27) / 28 * 28;
+            samples = new int[headLength + bodyLength];
+            foreach (i; 0 .. samples.length)
+                samples[i] = ext(i);
+        }
+        else
+        {
+            size_t newLoop = max(cast(size_t)28, (loopLen + 14) / 28 * 28);
+            result.stretch = cast(double)newLoop / loopLen;
+            size_t newStart = (cast(size_t)loopStart * newLoop + loopLen - 1) / loopLen;
+            headLength = (newStart + 27) / 28 * 28;
+            samples = new int[headLength + newLoop];
+            foreach (j; 0 .. samples.length)
+            {
+                size_t num = j * loopLen;
+                size_t i0 = num / newLoop;
+                size_t rem = num % newLoop;
+                int a = ext(i0);
+                int b = ext(i0 + 1);
+                samples[j] = cast(int)round(a + cast(double)(b - a) * rem / newLoop);
+            }
+        }
+        loopBlock = cast(int)(headLength / 28);
     }
-    while (samples.length % 28)
-        samples ~= 0;
+    else
+    {
+        samples = source.dup;
+        while (samples.length % 28)
+            samples ~= 0;
+    }
 
     ubyte[] output;
     int h1, h2;
     size_t blockCount = samples.length / 28;
     foreach (blockIndex; 0 .. blockCount)
     {
-        auto encoded = encodeModBlock(samples[blockIndex * 28 .. (blockIndex + 1) * 28], h1, h2);
+        bool loopStartBlock = blockIndex == loopBlock;
+        auto encoded = encodeModBlock(samples[blockIndex * 28 .. (blockIndex + 1) * 28],
+            h1, h2, loopStartBlock);
         h1 = encoded.h1;
         h2 = encoded.h2;
         ubyte flags;
         if (loopBlock >= 0)
         {
-            if (blockIndex == loopBlock)
-                flags = 6;
+            if (loopStartBlock)
+                flags |= 6;
             if (blockIndex == blockCount - 1)
-                flags = 3;
+                flags |= 3;
         }
         else if (blockIndex == blockCount - 1)
             flags = 1;
@@ -265,10 +359,11 @@ ubyte[] encodeModSample(const(ubyte)[] pcm, uint loopStart, bool looping)
         foreach (i; 0 .. 14)
             output ~= cast(ubyte)(encoded.nibbles[i * 2] | (encoded.nibbles[i * 2 + 1] << 4));
     }
-    return output;
+    result.data = output;
+    return result;
 }
 
-ubyte[] buildModVh(ModFile mod, ubyte[][] vags, int[] vagForSample)
+ubyte[] buildModVh(ModFile mod, ubyte[][] vags, double[] vagStretch, int[] vagForSample)
 {
     ubyte[] programs, toneBlocks, sizes = new ubyte[512];
     uint programCount, toneCount;
@@ -294,16 +389,21 @@ ubyte[] buildModVh(ModFile mod, ubyte[][] vags, int[] vagForSample)
         toneCount++;
 
         auto sample = mod.samples[sampleNo];
-        double root = 48.0 + 12.0 * log2(44100.0 * 428.0 * 2.0 / 7093789.2) - sample.finetune / 8.0;
+        int vagIndex = vagForSample[sampleNo];
+        // A sample played at period 428 (note 48) has a rate of 7093789.2 / (2 * 428) Hz,
+        // the SPU plays a sample at 44100 Hz when the note is the tone's center.
+        double root = 48.0 + 12.0 * log2(44100.0 * 428.0 * 2.0 / 7093789.2)
+            - sample.finetune / 8.0
+            - 12.0 * log2(vagStretch[vagIndex]);
         int center = max(0, min(127, cast(int)ceil(root)));
-        int fineTune = max(0, min(128, cast(int)round((center - root) * 128.0)));
+        int fineTune = max(0, min(127, cast(int)round((center - root) * 128.0)));
         ubyte[] tone;
         tone ~= [0, 0, 127, 64, cast(ubyte)center, cast(ubyte)fineTune, 0, 127];
         tone ~= [0, 0, 0, 0, 15, 15, 0, 0];
         u16le(tone, 0x00FF);
         u16le(tone, 0x0028);
         u16le(tone, i);
-        u16le(tone, cast(uint)(vagForSample[sampleNo] + 1));
+        u16le(tone, cast(uint)(vagIndex + 1));
         tone ~= new ubyte[8];
         toneBlocks ~= tone;
         toneBlocks ~= new ubyte[0x200 - tone.length];
@@ -359,6 +459,7 @@ int convertMod(Options opt, const(ubyte)[] data)
     enforce(ppqn > 0 && ppqn < 0x8000, "the resolution must be 1..32767");
 
     ubyte[][] vags;
+    double[] vagStretch;
     int[31] vagForSample;
     vagForSample[] = -1;
     foreach (i, ref sample; mod.samples)
@@ -367,9 +468,10 @@ int convertMod(Options opt, const(ubyte)[] data)
             continue;
         uint length = sample.loopLength ? sample.loopStart + sample.loopLength : sample.length;
         length = min(length, cast(uint)sample.pcm.length);
-        auto vag = encodeModSample(sample.pcm[0 .. length], sample.loopStart, sample.loopLength != 0);
+        auto vag = encodeModSample(sample.pcm[0 .. length], sample.loopStart, sample.loopLength);
         vagForSample[i] = cast(int)vags.length;
-        vags ~= vag;
+        vags ~= vag.data;
+        vagStretch ~= vag.stretch;
     }
 
     ModEvent[] events;
@@ -378,58 +480,92 @@ int convertMod(Options opt, const(ubyte)[] data)
     {
         events ~= ModEvent(tick, eventIndex++, priority, bytes, meta);
     }
-    void emitTempo(ulong tick, int bpm)
+    void emitTempo(ulong tick, int bpm, int priority = 0)
     {
         uint us = cast(uint)(60000000 / bpm);
-        emit(tick, [cast(ubyte)0xFF, 0x51, cast(ubyte)(us >> 16), cast(ubyte)(us >> 8), cast(ubyte)us], true);
+        emit(tick, [cast(ubyte)0xFF, 0x51, cast(ubyte)(us >> 16), cast(ubyte)(us >> 8), cast(ubyte)us],
+            true, priority);
+    }
+    void emitBend(ulong tick, int ch, int bend, int priority = 0)
+    {
+        emit(tick, [cast(ubyte)(0xE0 | ch), cast(ubyte)(bend & 0x7F), cast(ubyte)(bend >> 7)],
+            false, priority);
+    }
+    void emitVolume(ulong tick, int ch, int volume)
+    {
+        emit(tick, [cast(ubyte)(0xB0 | ch), 7, cast(ubyte)(volume * 127 / 64)]);
+    }
+
+    // MOD tick (1/50 s at 125 BPM) to SEQ tick: a quarter note is always 24 MOD ticks
+    ulong toTick(ulong modTicks)
+    {
+        return (cast(ulong)ppqn * modTicks + 12) / 24;
     }
 
     int[4] activeNote = [-1, -1, -1, -1];
     int[4] currentSample;
     int[4] channelVolume = [64, 64, 64, 64];
+    int[4] channelPan = [0, 127, 127, 0];
     int[4] baseNote = [-1, -1, -1, -1];
-    int[4] basePeriod;
-    int[4] currentPeriod;
+    int[4] basePeriod;    // period of the MIDI note that is playing
+    int[4] currentPeriod; // actual period, differs from basePeriod after slides
     int[4] targetPeriod;
     int[4] tonePortaSpeed;
-    int[4] pitchSlideMemory;
     int[4] vibratoSpeed, vibratoDepth, vibratoPhase;
-    int[4] retriggerMemory;
     bool[4] previousArpeggio;
     bool[4] previousVibrato;
-    int[4] volumeSlideMemory;
     int[string] unsupportedEffects;
     foreach (ch; 0 .. 4)
     {
-        emit(0, [cast(ubyte)(0xB0 | ch), 10, cast(ubyte)(ch == 0 || ch == 3 ? 0 : 127)]);
+        emit(0, [cast(ubyte)(0xB0 | ch), 10, cast(ubyte)channelPan[ch]]);
         emit(0, [cast(ubyte)(0xB0 | ch), 7, 127]);
     }
     int bpm = 125;
     int speed = 6;
     emitTempo(0, bpm);
 
-    ulong tick;
-    uint order, row;
-    bool[int] seenPosition;
-    ulong[int] firstTick;
+    ulong tick, modTick;
     uint[4] patternLoopStart;
     int[4] patternLoopCount;
-    bool hasLoop;
+    uint order, row;
+
+    // The flow position includes the E6x loop counters: the same order/row with
+    // a different counter state is a different position.
+    ulong positionKey()
+    {
+        ulong key = cast(ulong)order * 64 + row;
+        foreach (ch; 0 .. 4)
+            key = (key << 10) | (cast(ulong)(patternLoopCount[ch] & 15) << 6)
+                | (patternLoopStart[ch] & 63);
+        return key;
+    }
+
+    bool[ulong] seenPosition;
+    ulong[ulong] firstTick;
+    ModLoopState[ulong] firstState;
+    bool hasLoop, stopSong;
     ulong loopStartTick, loopEndTick;
+    ModLoopState loopState;
     uint rowCount;
     while (order < mod.orders.length)
     {
         enforce(++rowCount <= 1000000, "MOD pattern flow exceeds one million rows");
-        int positionKey = cast(int)(order * 64 + row);
-        if (positionKey in seenPosition)
+        ulong positionId = positionKey();
+        if (positionId in seenPosition)
         {
             hasLoop = true;
-            loopStartTick = firstTick[positionKey];
+            loopStartTick = firstTick[positionId];
+            loopState = firstState[positionId];
             loopEndTick = tick;
             break;
         }
-        seenPosition[positionKey] = true;
-        firstTick[positionKey] = tick;
+        seenPosition[positionId] = true;
+        firstTick[positionId] = tick;
+        ModLoopState state;
+        state.bpm = bpm;
+        state.volume = channelVolume;
+        state.pan = channelPan;
+        firstState[positionId] = state;
 
         foreach (ch; 0 .. 4)
         {
@@ -437,11 +573,7 @@ int convertMod(Options opt, const(ubyte)[] data)
                 emit(tick, [cast(ubyte)(0xE0 | ch), 0, 64], false, -1);
             previousArpeggio[ch] = false;
             if (previousVibrato[ch] && baseNote[ch] >= 0)
-            {
-                int bend = modPeriodBend(basePeriod[ch], currentPeriod[ch]);
-                emit(tick, [cast(ubyte)(0xE0 | ch), cast(ubyte)(bend & 0x7F),
-                    cast(ubyte)(bend >> 7)], false, -1);
-            }
+                emitBend(tick, ch, modPeriodBend(basePeriod[ch], currentPeriod[ch]), -1);
             previousVibrato[ch] = false;
         }
         int[4] arpX = [-1, -1, -1, -1];
@@ -455,8 +587,10 @@ int convertMod(Options opt, const(ubyte)[] data)
         int[4] noteCut = [-1, -1, -1, -1];
         int[4] vibratoThisRow;
         int[4] pitchSlideDirection;
+        int[4] pitchSlideAmount;
+        int[4] fineSlide;
+        int[4] retriggerInterval;
         bool[4] tonePortamento;
-        bool[4] retrigger;
         int patternLoopRow = -1;
         uint rowDelay;
         uint pattern = mod.orders[order];
@@ -471,12 +605,11 @@ int convertMod(Options opt, const(ubyte)[] data)
             ushort period = cast(ushort)(((b0 & 0x0F) << 8) | b1);
             int instrument = (b0 & 0xF0) | (b2 >> 4);
             int effect = b2 & 0x0F;
-            if (instrument)
+            if (instrument >= 1 && instrument <= 31)
             {
                 currentSample[ch] = instrument;
                 channelVolume[ch] = mod.samples[instrument - 1].volume;
-                emit(tick, [cast(ubyte)(0xB0 | ch), 7,
-                    cast(ubyte)(channelVolume[ch] * 127 / 64)]);
+                emitVolume(tick, ch, channelVolume[ch]);
             }
 
             if (period)
@@ -497,8 +630,7 @@ int convertMod(Options opt, const(ubyte)[] data)
                     break;
                 case 0x1:
                 case 0x2:
-                    if (param)
-                        pitchSlideMemory[ch] = param;
+                    pitchSlideAmount[ch] = param;
                     pitchSlideDirection[ch] = effect == 1 ? -1 : 1;
                     break;
                 case 0x3:
@@ -520,42 +652,39 @@ int convertMod(Options opt, const(ubyte)[] data)
                     unsupportedEffects["sample offset (9xy)"]++;
                     break;
                 case 0x8:
-                    emit(tick, [cast(ubyte)(0xB0 | ch), 10, cast(ubyte)(param >> 1)]);
+                    channelPan[ch] = param >> 1;
+                    emit(tick, [cast(ubyte)(0xB0 | ch), 10, cast(ubyte)channelPan[ch]]);
                     break;
                 case 0xB:
                     jumpOrder = param;
                     break;
                 case 0xC:
                     channelVolume[ch] = min(64, cast(int)param);
-                    emit(tick, [cast(ubyte)(0xB0 | ch), 7, cast(ubyte)(channelVolume[ch] * 127 / 64)]);
+                    emitVolume(tick, ch, channelVolume[ch]);
                     break;
                 case 0x5:
-                    if (param)
-                        volumeSlideMemory[ch] = param;
-                    volumeSlideUp[ch] = volumeSlideMemory[ch] >> 4;
-                    volumeSlideDown[ch] = volumeSlideMemory[ch] & 0x0F;
+                    volumeSlideUp[ch] = param >> 4;
+                    volumeSlideDown[ch] = param & 0x0F;
                     tonePortamento[ch] = true;
                     break;
                 case 0x6:
-                    if (param)
-                        volumeSlideMemory[ch] = param;
-                    volumeSlideUp[ch] = volumeSlideMemory[ch] >> 4;
-                    volumeSlideDown[ch] = volumeSlideMemory[ch] & 0x0F;
+                    volumeSlideUp[ch] = param >> 4;
+                    volumeSlideDown[ch] = param & 0x0F;
                     vibratoThisRow[ch] = 1;
                     break;
                 case 0xA:
-                    if (param)
-                        volumeSlideMemory[ch] = param;
-                    volumeSlideUp[ch] = volumeSlideMemory[ch] >> 4;
-                    volumeSlideDown[ch] = volumeSlideMemory[ch] & 0x0F;
+                    volumeSlideUp[ch] = param >> 4;
+                    volumeSlideDown[ch] = param & 0x0F;
                     break;
                 case 0xD:
                     breakRow = (param >> 4) * 10 + (param & 0x0F);
                     break;
                 case 0xF:
-                    if (param > 0 && param <= 32)
+                    if (param == 0)
+                        stopSong = true;
+                    else if (param < 32)
                         speed = param;
-                    else if (param > 32)
+                    else
                     {
                         bpm = param;
                         emitTempo(tick, bpm);
@@ -565,16 +694,10 @@ int convertMod(Options opt, const(ubyte)[] data)
                     switch (param >> 4)
                     {
                         case 0x1:
+                            fineSlide[ch] = -(param & 0x0F);
+                            break;
                         case 0x2:
-                            if (pendingNote[ch] < 0 && currentPeriod[ch] > 0)
-                            {
-                                int amount = param & 0x0F;
-                                currentPeriod[ch] += (param >> 4) == 1 ? -amount : amount;
-                                currentPeriod[ch] = max(1, currentPeriod[ch]);
-                                emit(tick, [cast(ubyte)(0xE0 | ch),
-                                    cast(ubyte)(modPeriodBend(basePeriod[ch], currentPeriod[ch]) & 0x7F),
-                                    cast(ubyte)(modPeriodBend(basePeriod[ch], currentPeriod[ch]) >> 7)]);
-                            }
+                            fineSlide[ch] = param & 0x0F;
                             break;
                         case 0x6:
                             if ((param & 0x0F) == 0)
@@ -592,18 +715,20 @@ int convertMod(Options opt, const(ubyte)[] data)
                             }
                             break;
                         case 0x8:
-                            emit(tick, [cast(ubyte)(0xB0 | ch), 10, cast(ubyte)(min(15, cast(int)param & 0x0F) * 127 / 15)]);
+                            channelPan[ch] = min(15, cast(int)param & 0x0F) * 127 / 15;
+                            emit(tick, [cast(ubyte)(0xB0 | ch), 10, cast(ubyte)channelPan[ch]]);
                             break;
                         case 0x9:
-                            if (param & 0x0F)
-                                retriggerMemory[ch] = param & 0x0F;
-                            retrigger[ch] = true;
+                            retriggerInterval[ch] = param & 0x0F;
                             break;
                         case 0xA:
-                            volumeSlideDown[ch] = param & 0x0F;
+                            // fine volume slide: once, on the first tick only
+                            channelVolume[ch] = max(0, channelVolume[ch] - (param & 0x0F));
+                            emitVolume(tick, ch, channelVolume[ch]);
                             break;
                         case 0xB:
-                            volumeSlideUp[ch] = param & 0x0F;
+                            channelVolume[ch] = min(64, channelVolume[ch] + (param & 0x0F));
+                            emitVolume(tick, ch, channelVolume[ch]);
                             break;
                         case 0xC:
                             noteCut[ch] = param & 0x0F;
@@ -614,30 +739,26 @@ int convertMod(Options opt, const(ubyte)[] data)
                         case 0xE:
                             rowDelay = max(rowDelay, cast(uint)param & 0x0F);
                             break;
-                        case 0x0:
-                        case 0x3:
-                        case 0x4:
-                        case 0x5:
-                        case 0x7:
-                        case 0xF:
-                            unsupportedEffects[format("extended effect E%Xx", param >> 4)]++;
-                            break;
                         default:
                             unsupportedEffects[format("extended effect E%Xx", param >> 4)]++;
                             break;
                     }
                     break;
                 default:
-                    if (effect != 0)
-                        unsupportedEffects[format("effect %Xxy", effect)]++;
+                    unsupportedEffects[format("effect %Xxy", effect)]++;
                     break;
             }
 
-            if (tonePortamento[ch] && pendingNote[ch] >= 0 && activeNote[ch] >= 0)
+            if (tonePortamento[ch] && pendingNote[ch] >= 0)
             {
-                targetPeriod[ch] = period;
-                pendingNote[ch] = -1;
-                pendingSample[ch] = -1;
+                if (activeNote[ch] >= 0)
+                {
+                    targetPeriod[ch] = period;
+                    pendingNote[ch] = -1;
+                    pendingSample[ch] = -1;
+                }
+                else
+                    targetPeriod[ch] = 0;
             }
             if (noteDelay[ch] > 0)
                 pendingNoteTick[ch] = noteDelay[ch];
@@ -645,10 +766,9 @@ int convertMod(Options opt, const(ubyte)[] data)
                 pendingNoteTick[ch] = 0;
         }
 
-        uint rowTicks = max(1u, (ppqn * speed + 12) / 24);
         foreach (subTick; 0 .. speed)
         {
-            ulong eventTick = tick + min(rowTicks - 1, (ppqn * subTick + 12) / 24);
+            ulong eventTick = toTick(modTick + subTick);
             foreach (ch; 0 .. 4)
             {
                 if (pendingNote[ch] >= 0 && pendingNoteTick[ch] == subTick)
@@ -658,34 +778,55 @@ int convertMod(Options opt, const(ubyte)[] data)
                     int sampleNo = pendingSample[ch];
                     if (sampleNo >= 0 && sampleNo < 31 && vagForSample[sampleNo] >= 0)
                     {
-                        emit(eventTick, [cast(ubyte)(0xE0 | ch), 0, 64], false, -1);
+                        int note = pendingNote[ch];
+                        // bend is relative to the period of the MIDI note, the pattern
+                        // period may differ from it a little
+                        basePeriod[ch] = modPeriods[note - 36];
+                        currentPeriod[ch] = pendingPeriod[ch];
+                        if (fineSlide[ch] != 0)
+                        {
+                            currentPeriod[ch] = max(modMinPeriod,
+                                min(modMaxPeriod, currentPeriod[ch] + fineSlide[ch]));
+                            fineSlide[ch] = 0;
+                        }
+                        vibratoPhase[ch] = 0;
+                        emitBend(eventTick, ch, modPeriodBend(basePeriod[ch], currentPeriod[ch]), -1);
                         emit(eventTick, [cast(ubyte)(0xC0 | ch), cast(ubyte)sampleNo]);
-                        emit(eventTick, [cast(ubyte)(0x90 | ch), cast(ubyte)pendingNote[ch], 127]);
-                        activeNote[ch] = pendingNote[ch];
-                        baseNote[ch] = pendingNote[ch];
-                        basePeriod[ch] = pendingPeriod[ch];
-                        currentPeriod[ch] = basePeriod[ch];
+                        emit(eventTick, [cast(ubyte)(0x90 | ch), cast(ubyte)note, 127]);
+                        activeNote[ch] = note;
+                        baseNote[ch] = note;
                     }
                     else
                         activeNote[ch] = -1;
                     pendingNote[ch] = -1;
                 }
 
+                if (subTick == 0 && fineSlide[ch] != 0 && activeNote[ch] >= 0)
+                {
+                    currentPeriod[ch] = max(modMinPeriod,
+                        min(modMaxPeriod, currentPeriod[ch] + fineSlide[ch]));
+                    fineSlide[ch] = 0;
+                    emitBend(eventTick, ch, modPeriodBend(basePeriod[ch], currentPeriod[ch]));
+                }
+
                 if (subTick > 0 && (volumeSlideUp[ch] || volumeSlideDown[ch]))
                 {
                     channelVolume[ch] = max(0, min(64, channelVolume[ch]
                         + (volumeSlideUp[ch] ? volumeSlideUp[ch] : -volumeSlideDown[ch])));
-                    emit(eventTick, [cast(ubyte)(0xB0 | ch), 7, cast(ubyte)(channelVolume[ch] * 127 / 64)]);
+                    emitVolume(eventTick, ch, channelVolume[ch]);
                 }
 
                 if (noteCut[ch] == subTick && activeNote[ch] >= 0)
                 {
                     emit(eventTick, [cast(ubyte)(0x90 | ch), cast(ubyte)activeNote[ch], 0]);
                     activeNote[ch] = -1;
+                    // ECx sets the volume to zero, it stays zero until an instrument is set
+                    channelVolume[ch] = 0;
+                    emitVolume(eventTick, ch, 0);
                 }
 
-                if (retrigger[ch] && subTick > 0 && retriggerMemory[ch] > 0
-                    && subTick % retriggerMemory[ch] == 0 && activeNote[ch] >= 0)
+                if (retriggerInterval[ch] > 0 && subTick > 0
+                    && subTick % retriggerInterval[ch] == 0 && activeNote[ch] >= 0)
                 {
                     emit(eventTick, [cast(ubyte)(0x90 | ch), cast(ubyte)activeNote[ch], 0], false, -1);
                     emit(eventTick, [cast(ubyte)(0x90 | ch), cast(ubyte)activeNote[ch], 127]);
@@ -703,27 +844,30 @@ int convertMod(Options opt, const(ubyte)[] data)
                     }
                     else if (pitchSlideDirection[ch] != 0)
                     {
-                        currentPeriod[ch] += pitchSlideDirection[ch] * pitchSlideMemory[ch];
-                        currentPeriod[ch] = max(1, min(4095, currentPeriod[ch]));
+                        currentPeriod[ch] += pitchSlideDirection[ch] * pitchSlideAmount[ch];
+                        currentPeriod[ch] = max(modMinPeriod, min(modMaxPeriod, currentPeriod[ch]));
                     }
-                    int bend = modPeriodBend(basePeriod[ch], currentPeriod[ch]);
-                    emit(eventTick, [cast(ubyte)(0xE0 | ch), cast(ubyte)(bend & 0x7F), cast(ubyte)(bend >> 7)]);
+                    emitBend(eventTick, ch, modPeriodBend(basePeriod[ch], currentPeriod[ch]));
                 }
 
                 if (activeNote[ch] >= 0 && vibratoThisRow[ch] && vibratoDepth[ch] > 0)
                 {
-                    previousVibrato[ch] = true;
-                    vibratoPhase[ch] = (vibratoPhase[ch] + vibratoSpeed[ch]) & 63;
-                    double wave = sin(vibratoPhase[ch] * 6.283185307179586 / 64.0);
-                    int vibratoPeriod = max(1, currentPeriod[ch] + cast(int)round(wave * vibratoDepth[ch] * 4.0));
-                    int bend = modPeriodBend(basePeriod[ch], vibratoPeriod);
-                    emit(eventTick, [cast(ubyte)(0xE0 | ch), cast(ubyte)(bend & 0x7F), cast(ubyte)(bend >> 7)]);
+                    // like ProTracker, the vibrato does not run on the first tick
+                    if (subTick > 0)
+                    {
+                        previousVibrato[ch] = true;
+                        // ProTracker's sine table peaks at 255 and the delta is (sine * depth) >> 7
+                        double wave = sin(vibratoPhase[ch] * 6.283185307179586 / 64.0);
+                        int delta = cast(int)round(wave * vibratoDepth[ch] * 255.0 / 128.0);
+                        int vibratoPeriod = max(1, currentPeriod[ch] + delta);
+                        emitBend(eventTick, ch, modPeriodBend(basePeriod[ch], vibratoPeriod));
+                        vibratoPhase[ch] = (vibratoPhase[ch] + vibratoSpeed[ch]) & 63;
+                    }
                 }
                 else if (activeNote[ch] >= 0 && arpX[ch] >= 0 && baseNote[ch] >= 0)
                 {
                     int offset = subTick % 3 == 1 ? arpX[ch] : subTick % 3 == 2 ? arpY[ch] : 0;
-                    int bend = 8192 + offset * 8192 / 15;
-                    emit(eventTick, [cast(ubyte)(0xE0 | ch), cast(ubyte)(bend & 0x7F), cast(ubyte)(bend >> 7)]);
+                    emitBend(eventTick, ch, 8192 + offset * 8192 / 15);
                     previousArpeggio[ch] = true;
                 }
             }
@@ -735,17 +879,16 @@ int convertMod(Options opt, const(ubyte)[] data)
             row = breakRow >= 0 ? cast(uint)min(breakRow, 63) : 0;
         }
         else if (patternLoopRow >= 0)
-        {
             row = cast(uint)patternLoopRow;
-            seenPosition = null;
-            firstTick = null;
-        }
         else if (++row >= 64)
         {
             row = 0;
             order++;
         }
-        tick += rowTicks * (rowDelay + 1);
+        modTick += cast(ulong)speed * (rowDelay + 1);
+        tick = toTick(modTick);
+        if (stopSong)
+            break;
     }
 
     if (hasLoop)
@@ -755,6 +898,17 @@ int convertMod(Options opt, const(ubyte)[] data)
                 emit(tick, [cast(ubyte)(0x90 | ch), cast(ubyte)activeNote[ch], 0], false, -1);
         emit(loopStartTick, [0xB0, 99, 20], false, -2);
         emit(loopStartTick, [0xB0, 6, 127], false, -2);
+        if (loopStartTick > 0)
+        {
+            // tempo, volumes and pans are not restored by the SEQ loop by themselves
+            emitTempo(loopStartTick, loopState.bpm, -1);
+            foreach (ch; 0 .. 4)
+            {
+                emit(loopStartTick, [cast(ubyte)(0xB0 | ch), 7,
+                    cast(ubyte)(loopState.volume[ch] * 127 / 64)], false, -1);
+                emit(loopStartTick, [cast(ubyte)(0xB0 | ch), 10, cast(ubyte)loopState.pan[ch]], false, -1);
+            }
+        }
         emit(loopEndTick, [0xB0, 99, 30], false, 2);
     }
     else
@@ -796,7 +950,7 @@ int convertMod(Options opt, const(ubyte)[] data)
             runningStatus = e.bytes[0];
         }
     }
-    vlq(body, tick - last);
+    vlq(body, max(tick, last) - last);
     body ~= [0xFF, 0x2F, 0x00];
     ubyte[] seq;
     seq ~= cast(ubyte[])"pQES";
@@ -808,7 +962,7 @@ int convertMod(Options opt, const(ubyte)[] data)
     auto vb = new ubyte[16];
     foreach (vag; vags)
         vb ~= vag;
-    auto vh = buildModVh(mod, vags, vagForSample[]);
+    auto vh = buildModVh(mod, vags, vagStretch, vagForSample[]);
     uint totalSize = cast(uint)(vh.length + vb.length);
     vh[12] = cast(ubyte)totalSize;
     vh[13] = cast(ubyte)(totalSize >> 8);
