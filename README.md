@@ -87,6 +87,10 @@ PCM WAV files to ADPCM VAG converter.
 
 XA stream encoder/interleaver. Supports PCM WAV, XA-ADPCM, MP3, OGG/Vorbis, FLAC, QOI, OPUS, MOD, XM files as input.
 
+### SEQ Tool
+
+A multi-purpose sequencer music tool that converts MIDI and MOD files to SEQ format and generates VAB instrument banks.
+
 ### DATWrite
 
 An utility that generates CD license patch (a *.dat file) with a custom text and logo model.
@@ -264,7 +268,7 @@ What is not implemented yet:
 
 ## License
 
-RLC, PSXDISASM, Retrobuild, PNG2TIM, WAV2VAG, XA Tool, MID2SEQ, SF2TOVAB, DATWrite, GPSXEmu are distributed under the Boost Software License, 1.0.
+RLC, PSXDISASM, Retrobuild, PNG2TIM, WAV2VAG, XA Tool, SEQ Tool, DATWrite, GPSXEmu are distributed under the Boost Software License, 1.0.
 
 Retrolib and all examples are distributed under Unlicense/Public Domain.
 
