@@ -1,9 +1,0 @@
-{
-    "name": "mid2seq",
-    "description": "MIDI and ProTracker MOD to PlayStation SEQ/VAB converter",
-    "authors": [
-        "Timur Gafarov"
-    ],
-    "copyright": "Copyright © 2026, Timur Gafarov",
-    "license": "BSL-1.0"
-}

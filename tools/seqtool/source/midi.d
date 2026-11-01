@@ -23,17 +23,15 @@ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
 SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
 FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- DEALINGS IN THE SOFTWARE.
-
+DEALINGS IN THE SOFTWARE.
 */
-
 module midi;
 
-import std.algorithm : max, min, sort;
-import std.exception : enforce;
-import std.string : toLower;
-import std.uni : isAlpha;
-import binary : be16, be32, readVlq;
+import std.algorithm: max, min, sort;
+import std.exception: enforce;
+import std.string: toLower;
+import std.uni: isAlpha;
+import binary: be16, be32, readVlq;
 
 // Event classes, they also define the order of events with equal time
 enum: int
@@ -184,4 +182,3 @@ string normalizeText(const(ubyte)[] data)
             s ~= cast(char)b;
     return s.toLower;
 }
-

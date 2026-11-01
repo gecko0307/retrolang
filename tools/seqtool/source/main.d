@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2026 Timur Gafarov 
+Copyright (c) 2026 Timur Gafarov
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -23,19 +23,37 @@ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
 SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
 FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- DEALINGS IN THE SOFTWARE.
-
+DEALINGS IN THE SOFTWARE.
 */
+module main;
 
-module options;
+import std.stdio: stderr, writeln;
+import midiconverter: runMid2Seq;
+import sf2bank: runSf2Tovab;
 
-enum int defaultPpqn = 96;
-
-struct Options
+int main(string[] args)
 {
-    string input, output, mapOut, mapIn, bankOut;
-    bool loop, singleVab;
-    int drumChannel = 10;
-    uint ppqn;
-    int tones = 16;
+    if (args.length < 2 || args[1] == "--help" || args[1] == "-h" || args[1] == "help")
+    {
+        writeln("SEQ Tool converts MIDI/MOD sequences and builds PlayStation VAB banks.");
+        writeln("Usage:");
+        writeln("  seqtool convert [options] input.mid|input.mod");
+        writeln("  seqtool bank [options] soundfont.sf2 song.map");
+        writeln("  seqtool presets soundfont.sf2");
+        writeln("Run a mode without arguments to see its options.");
+        return args.length < 2 ? 1 : 0;
+    }
+
+    switch (args[1])
+    {
+        case "convert":
+            return runMid2Seq([args[0]] ~ args[2 .. $]);
+        case "bank":
+            return runSf2Tovab([args[0]] ~ args[2 .. $]);
+        case "presets":
+            return runSf2Tovab([args[0], "--list"] ~ args[2 .. $]);
+        default:
+            stderr.writeln("Error: unknown mode '", args[1], "'. Use --help for usage.");
+            return 1;
+    }
 }

@@ -30,8 +30,8 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  */
 module resample;
 
-import std.math : sin, cos, PI, ceil, floor;
-import std.algorithm : min;
+import std.math: sin, cos, PI, ceil, floor;
+import std.algorithm: min;
 
 double sinc(double x)
 {

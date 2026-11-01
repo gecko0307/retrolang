@@ -23,13 +23,11 @@ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
 SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
 FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- DEALINGS IN THE SOFTWARE.
-
+DEALINGS IN THE SOFTWARE.
 */
-
 module binary;
 
-import std.exception : enforce;
+import std.exception: enforce;
 
 uint be16(const(ubyte)[] d, size_t p) { return (d[p] << 8) | d[p + 1]; }
 uint be32(const(ubyte)[] d, size_t p) { return (be16(d, p) << 16) | be16(d, p + 2); }
@@ -62,4 +60,3 @@ void vlq(ref ubyte[] b, ulong v)
     while (n > 0)
         b ~= tmp[--n];
 }
-

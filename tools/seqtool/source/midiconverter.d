@@ -23,8 +23,7 @@ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
 SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
 FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- DEALINGS IN THE SOFTWARE.
-
+DEALINGS IN THE SOFTWARE.
 */
 
 /**
@@ -33,7 +32,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * Converts type 0 or type 1 MIDI files to SEQ with a program map, or builds
  * SEQ and VAB directly from samples embedded in 4-channel ProTracker MODs.
  */
-module main;
+module midiconverter;
 
 import std.algorithm: max, min, sort;
 import std.file: read, write;
@@ -43,10 +42,9 @@ import std.stdio: stderr, writefln, writeln;
 import std.string: format, strip, split, toLower, startsWith;
 import std.exception: enforce;
 import binary: vlq;
-import midi: Ev, MidiFile, normalizeText, parseMidi,
-    prioControl, prioMeta, prioNoteOff, prioNoteOn;
+import midi: Ev, MidiFile, normalizeText, parseMidi, prioControl, prioMeta, prioNoteOff, prioNoteOn;
 import mod: convertMod, isModFile;
-import options: Options;
+import seqoptions: Options;
 import progmap: ProgEntry, ProgMap, readMap, writeMap;
 
 enum int drumBank = 128;
@@ -58,8 +56,7 @@ struct OutEv
     bool meta;
 }
 
-
-int main(string[] args)
+int runMid2Seq(string[] args)
 {
     Options opt;
     bool help;
@@ -86,11 +83,11 @@ int main(string[] args)
     if (help || args.length != 2)
     {
         writeln("Convert a Standard MIDI File or 4-channel ProTracker MOD to PlayStation audio files.");
-        writeln("Usage: mid2seq [options] input.mid|input.mod");
+        writeln("Usage: seqtool convert [options] input.mid|input.mod");
         writeln("  -o, --output <file>     output SEQ file (default: input name with .seq)");
         writeln("      --bank-out <name>   MOD VAB bank base name (default: output name without extension)");
         writeln("      --vab               write the MOD bank as one .vab instead of .vh + .vb");
-        writeln("      --map-out <file>    MIDI: write the program map for sf2tovab (default: output name with .map)");
+        writeln("      --map-out <file>    MIDI: write a program map for seqtool bank (default: output name with .map)");
         writeln("      --map-in <file>     MIDI: use an existing program map (e.g. of a ready sound bank)");
         writeln("                          instead of generating one; notes without an instrument are dropped");
         writeln("      --loop              loop the whole song if no loop markers/order loop exists");

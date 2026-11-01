@@ -1,6 +1,6 @@
 {
-    "name": "sf2tovab",
-    "description": "SoundFont 2 to PlayStation VAB sound bank converter",
+    "name": "seqtool",
+    "description": "Multi-purpose sequencer music converter",
     "authors": [
         "Timur Gafarov"
     ],

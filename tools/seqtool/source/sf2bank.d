@@ -28,7 +28,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * SoundFont 2 to PlayStation VAB sound bank converter.
  *
  * Builds a VAB (VH + VB, or a single VAB file) with the instruments that a
- * program map (written by mid2seq) asks for, taking samples from a
+ * program map (written by SEQ Tool) asks for, taking samples from a
  * SoundFont. Samples are resampled to fit SPU RAM and encoded to ADPCM.
  *
  * Pitch: the SPU plays samples at 44100 Hz when the pitch register is 0x1000,
@@ -37,7 +37,7 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * semitone offset from the root key; this way no fine tune ("shift") field is
  * needed.
  */
-module main;
+module sf2bank;
 
 import std.algorithm: max, min, sort, canFind;
 import std.array: array;
@@ -633,7 +633,7 @@ ubyte[] buildVb(Bank bank)
     return vb;
 }
 
-int main(string[] args)
+int runSf2Tovab(string[] args)
 {
     Options opt;
     bool help;
@@ -662,8 +662,8 @@ int main(string[] args)
     if (help || (opt.list ? args.length != 2 : args.length != 3))
     {
         writeln("Build a PlayStation VAB sound bank from a SoundFont 2 file.");
-        writeln("Usage: sf2tovab [options] soundfont.sf2 song.map");
-        writeln("       sf2tovab --list soundfont.sf2");
+        writeln("Usage: seqtool bank [options] soundfont.sf2 song.map");
+        writeln("       seqtool presets soundfont.sf2");
         writeln("  -o, --output <name>      output base name (default: the map name)");
         writeln("      --vab                write a single .vab file instead of .vh + .vb");
         writeln("      --rate <hz>          highest sample rate to keep (default 22050)");

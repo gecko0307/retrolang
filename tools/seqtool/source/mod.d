@@ -23,10 +23,8 @@ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
 SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
 FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- DEALINGS IN THE SOFTWARE.
-
+DEALINGS IN THE SOFTWARE.
 */
-
 module mod;
 
 import std.algorithm : max, min, sort;
@@ -38,9 +36,10 @@ import std.path : stripExtension;
 import std.stdio : stderr, writefln;
 import std.string : format;
 import binary : be16, vlq;
-import options : Options, defaultPpqn;
+import seqoptions : Options, defaultPpqn;
 
-/** Converts a supported ProTracker module to a SEQ and matching VAB. */
+// Converts a supported ProTracker module to a SEQ and matching VAB.
+
 struct ModSample
 {
     string name;
