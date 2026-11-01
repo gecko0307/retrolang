@@ -43,9 +43,9 @@ Retrolang is a result of 10+ years of tinkering with the console, different SDKs
 Main philosophy of the project: PSX programming doesn't require a full-fledged C with all of its baggage. A subset is sufficient. What's really needed are platform-specific language capabilities, as well as a simple, readable and easily hackable standard library. Popular C toolchains also tend to be bulky; Retrolang produces tiny executables that can run via [FreePSXBoot](https://github.com/brad-lin/FreePSXBoot).
 
 Project goals:
-- Provide a convenient domain-specific language as a trade-off between C and assembly for hobby R3000 programming, with straightforward, unhindered hardware access;
+- Provide a convenient domain-specific language as a trade-off between C and assembly for hobby R3000 programming, with a straightforward, unhindered hardware access;
 - Provide a modern, open, self-contained toolset with x86_64 replacements for legacy utilities;
-- Provide a clean-room SDK that doesn't depend on a single byte of proprietary software.
+- Provide a clean-room SDK that doesn't depend on a single byte of a proprietary software.
 
 Retrolang reimplements software in cases when existing solutions are outdated, unmaintained or not convenient enough. Otherwise, the SDK doesn't reinvent the wheel and relies on time-proven tools (one example is [mkpsxiso](https://github.com/lameguy64/mkpsxiso)).
 
@@ -81,7 +81,7 @@ A simple PNG to TIM converter.
 
 ### WAV2VAG
 
-PCM WAV files to ADPCM VAG converter.
+PCM WAV to ADPCM VAG converter.
 
 ### XA Tool
 
@@ -149,7 +149,7 @@ void main()
 }
 ```
 
-The same in Retrolang assembly language:
+The same in the Retrolang assembly language:
 
 ```asm
 .text
