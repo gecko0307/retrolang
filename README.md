@@ -264,7 +264,7 @@ What is not implemented yet:
 
 ## License
 
-RLC, PSXDISASM, Retrobuild, PNG2TIM, WAV2VAG, XA Tool, DATWrite, GPSXEmu are distributed under the Boost Software License, 1.0.
+RLC, PSXDISASM, Retrobuild, PNG2TIM, WAV2VAG, XA Tool, MID2SEQ, SF2TOVAB, DATWrite, GPSXEmu are distributed under the Boost Software License, 1.0.
 
 Retrolib and all examples are distributed under Unlicense/Public Domain.
 
