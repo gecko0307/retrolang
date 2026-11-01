@@ -1,0 +1,9 @@
+{
+    "name": "mid2seq",
+    "description": "Standard MIDI File to PlayStation SEQ converter",
+    "authors": [
+        "Timur Gafarov"
+    ],
+    "copyright": "Copyright © 2026, Timur Gafarov",
+    "license": "BSL-1.0"
+}

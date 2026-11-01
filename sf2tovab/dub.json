@@ -1,0 +1,9 @@
+{
+    "name": "sf2tovab",
+    "description": "SoundFont 2 to PlayStation VAB sound bank converter",
+    "authors": [
+        "Timur Gafarov"
+    ],
+    "copyright": "Copyright © 2026, Timur Gafarov",
+    "license": "BSL-1.0"
+}
