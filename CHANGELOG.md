@@ -1,5 +1,5 @@
-Retrolang 0.12.0 - TBD
-----------------------
+Retrolang 0.12.0 - 1 Nov, 2026
+------------------------------
 - **Retrolib**
   - `vab.r` - VAB sound bank loader
   - `seq.r` - SEQ music sequencer
@@ -7,11 +7,9 @@ Retrolang 0.12.0 - TBD
 - **Examples**
   - SEQ music example
   - PAL/NTSC detection in all examples that use the GPU
-  - Compensate overscan for the score in the platformer example.
-- **MID2SEQ**
-  - New tool: MIDI to SEQ converter
-- **SF2TOVAB**
-  - New tool: SF2 to VAB converter.
+  - Compensate overscan for the score in the platformer example
+- **SEQ Tool**
+  - New tool: MIDI/MOD to SEQ converter and instrument bank generator.
 
 Retrolang 0.11.0 - 26 Oct, 2026
 -------------------------------

@@ -2,4 +2,4 @@
 
 This example uses the following tools:
 
-- wav2vag to convert `camera.wav` to `camera.vag`.
+- [WAV2VAG](/tools/wav2wag) to convert `camera.wav` to `camera.vag`.
