@@ -173,7 +173,7 @@ See [doc folder](/doc) for more details on the language.
 
 ## Retrolib
 
-Retrolib is a system library that simplifies working with the PlayStation hardware. In includes device drivers, BIOS API, and, additionally, full support for [PCSX-Redux binary API](https://pcsx-redux.consoledev.net/mips_api/) that allows programs to communicate with the emulator for debugging purposes.
+Retrolib is a system library that simplifies working with the PlayStation hardware. It includes device drivers, BIOS API, and, additionally, full support for [PCSX-Redux binary API](https://pcsx-redux.consoledev.net/mips_api/) that allows programs to communicate with the emulator for debugging purposes.
 
 Core modules:
 
