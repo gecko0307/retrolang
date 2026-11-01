@@ -11,9 +11,9 @@
 #import "vab.r"
 #import "seq.r"
 
-uchar bankHeader[] @("assets/fly_in_space_2.vh");
-uchar bankBody[]   @("assets/fly_in_space_2.vb");
-uchar tune[]       @("assets/fly_in_space_2.seq");
+uchar bankHeader[] @("assets/fly_in_space.vh");
+uchar bankBody[]   @("assets/fly_in_space.vb");
+uchar tune[]       @("assets/fly_in_space.seq");
 
 void main()
 {
