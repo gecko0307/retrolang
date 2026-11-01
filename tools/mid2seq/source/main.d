@@ -23,303 +23,33 @@ FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
 SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
 FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+
+*/
 
 /**
- * MIDI to SEQ converter.
+ * MIDI and ProTracker MOD to SEQ converter.
  *
- * Converts a type 0 or type 1 MIDI file to a single-track SEQ file and
- * writes a program map that describes which instruments the song needs.
- * The map is the input of SF2TOVAB, which builds a matching VAB bank.
+ * Converts type 0 or type 1 MIDI files to SEQ with a program map, or builds
+ * SEQ and VAB directly from samples embedded in 4-channel ProTracker MODs.
  */
 module main;
 
-import std.algorithm: map, max, min, sort;
-import std.array: appender, array;
-import std.conv: to;
-import std.file: read, write, exists;
+import std.algorithm: max, min, sort;
+import std.file: read, write;
 import std.getopt: getopt, config;
-import std.path: setExtension, baseName;
-import std.stdio: stderr, writefln, writeln, File;
+import std.path: setExtension, baseName, stripExtension;
+import std.stdio: stderr, writefln, writeln;
 import std.string: format, strip, split, toLower, startsWith;
 import std.exception: enforce;
-import std.uni: isAlpha;
+import binary: vlq;
+import midi: Ev, MidiFile, normalizeText, parseMidi,
+    prioControl, prioMeta, prioNoteOff, prioNoteOn;
+import mod: convertMod, isModFile;
+import options: Options;
+import progmap: ProgEntry, ProgMap, readMap, writeMap;
 
 enum int drumBank = 128;
-enum int defaultPpqn = 96;
-
-// Event classes, they also define the order of events with equal time
-enum: int
-{
-    prioNoteOff = 0,
-    prioMeta = 1,
-    prioControl = 2,
-    prioNoteOn = 3
-}
-
-struct Ev
-{
-    ulong tick;
-    uint index;       // position in the file, keeps sorting stable
-    int prio;
-    ubyte status;     // channel voice status, 0xFF for meta events
-    ubyte d1, d2;
-    ubyte metaType;
-    ubyte[] data;     // meta event payload
-}
-
-struct MidiFile
-{
-    uint ppqn;
-    int format;
-    int trackCount;
-    ulong endTick;
-    Ev[] events;
-}
-
-uint be16(const(ubyte)[] d, size_t p) { return (d[p] << 8) | d[p + 1]; }
-uint be32(const(ubyte)[] d, size_t p) { return (be16(d, p) << 16) | be16(d, p + 2); }
-
-uint readVlq(const(ubyte)[] d, ref size_t p, size_t end)
-{
-    uint v = 0;
-    foreach (i; 0..4)
-    {
-        enforce(p < end, "unexpected end of track data");
-        ubyte b = d[p++];
-        v = (v << 7) | (b & 0x7F);
-        if (!(b & 0x80))
-            return v;
-    }
-    throw new Exception("variable-length value is too long");
-}
-
-MidiFile parseMidi(const(ubyte)[] d)
-{
-    enforce(d.length >= 14 && d[0..4] == cast(const(ubyte)[])"MThd", "not a MIDI file (no MThd header)");
-    uint headerLen = be32(d, 4);
-    enforce(headerLen >= 6 && 8 + headerLen <= d.length, "bad MIDI header");
-
-    MidiFile m;
-    m.format = be16(d, 8);
-    uint tracks = be16(d, 10);
-    uint division = be16(d, 12);
-    enforce(!(division & 0x8000), "SMPTE time division is not supported");
-    enforce(division > 0, "bad time division");
-    enforce(m.format != 2, "MIDI type 2 files (independent sequences) are not supported");
-    m.ppqn = division;
-
-    size_t pos = 8 + headerLen;
-    uint index = 0;
-    while (pos + 8 <= d.length)
-    {
-        bool isTrack = d[pos..pos + 4] == cast(const(ubyte)[])"MTrk";
-        uint len = be32(d, pos + 4);
-        size_t start = pos + 8;
-        size_t end = min(start + len, d.length);
-        pos = start + len;
-        if (!isTrack)
-            continue;
-        m.trackCount++;
-
-        size_t p = start;
-        ulong tick = 0;
-        ubyte running = 0;
-        while (p < end)
-        {
-            tick += readVlq(d, p, end);
-            enforce(p < end, "unexpected end of track data");
-            ubyte b = d[p];
-            ubyte status;
-            if (b < 0x80)
-            {
-                enforce(running != 0, "data byte without running status");
-                status = running;
-            }
-            else
-            {
-                status = b;
-                p++;
-                running = status < 0xF0 ? status : 0;
-            }
-
-            if (status < 0xF0)
-            {
-                ubyte kind = status & 0xF0;
-                Ev e;
-                e.tick = tick;
-                e.index = index++;
-                e.status = status;
-                enforce(p < end, "unexpected end of track data");
-                e.d1 = d[p++];
-                if (kind != 0xC0 && kind != 0xD0)
-                {
-                    enforce(p < end, "unexpected end of track data");
-                    e.d2 = d[p++];
-                }
-                if (kind == 0x80 || (kind == 0x90 && e.d2 == 0))
-                    e.prio = prioNoteOff;
-                else if (kind == 0x90)
-                    e.prio = prioNoteOn;
-                else
-                    e.prio = prioControl;
-                m.events ~= e;
-            }
-            else if (status == 0xFF)
-            {
-                enforce(p < end, "unexpected end of track data");
-                ubyte type = d[p++];
-                uint len2 = readVlq(d, p, end);
-                enforce(p + len2 <= end, "meta event is longer than its track");
-                Ev e;
-                e.tick = tick;
-                e.index = index++;
-                e.status = 0xFF;
-                e.metaType = type;
-                e.data = d[p .. p + len2].dup;
-                e.prio = prioMeta;
-                p += len2;
-                m.endTick = max(m.endTick, tick);
-                if (type == 0x2F)
-                    break;
-                m.events ~= e;
-            }
-            else if (status == 0xF0 || status == 0xF7)
-            {
-                uint len2 = readVlq(d, p, end);
-                p += len2;
-            }
-            else
-            {
-                // system common messages
-                if (status == 0xF2) p += 2;
-                else if (status == 0xF1 || status == 0xF3) p += 1;
-            }
-        }
-        m.endTick = max(m.endTick, tick);
-    }
-    enforce(m.trackCount > 0, "the file has no tracks");
-
-    m.events.sort!((a, b) => a.tick != b.tick ? a.tick < b.tick
-                           : a.prio != b.prio ? a.prio < b.prio
-                           : a.index < b.index);
-    return m;
-}
-
-// --- Program map
-
-struct ProgEntry
-{
-    int vabProg;
-    bool drums;
-    int bank;       // melodic: bank select (CC0); drums: kit (GM program on the drum channel)
-    int gm;         // melodic: GM program number
-    int[] keys;     // drums: keys assigned to this program
-    int keyLo = 0;  // melodic: range of keys that the song plays
-    int keyHi = 127;
-}
-
-struct ProgMap
-{
-    ProgEntry[] entries;
-    int[int] melodic;   // (bank << 8 | gm) -> vab program
-    int[int] drums;     // (kit << 8 | key) -> vab program
-
-    void add(ProgEntry e)
-    {
-        entries ~= e;
-        if (e.drums)
-            foreach (k; e.keys)
-                drums[(e.bank << 8) | k] = e.vabProg;
-        else
-            melodic[(e.bank << 8) | e.gm] = e.vabProg;
-    }
-
-    // -1 if the instrument is not in the map
-    int lookupMelodic(int bank, int gm)
-    {
-        if (auto p = ((bank << 8) | gm) in melodic) return *p;
-        if (auto p = (gm) in melodic) return *p;    // fall back to bank 0
-        return -1;
-    }
-
-    int lookupDrum(int kit, int key)
-    {
-        if (auto p = ((kit << 8) | key) in drums) return *p;
-        if (auto p = (key) in drums) return *p;     // fall back to kit 0
-        return -1;
-    }
-}
-
-ProgMap readMap(string path)
-{
-    ProgMap map;
-    foreach (lineNo, raw; File(path).byLine.map!(l => l.idup).array)
-    {
-        string line = raw;
-        auto hash = line.indexOfHash;
-        if (hash >= 0) line = line[0..hash];
-        auto parts = line.strip.split;
-        if (parts.length == 0)
-            continue;
-        enforce(parts.length >= 3, format("%s(%d): bad map line", path, lineNo + 1));
-        ProgEntry e;
-        e.vabProg = parts[0].to!int;
-        enforce(e.vabProg >= 0 && e.vabProg < 128, format("%s(%d): program out of range", path, lineNo + 1));
-        if (parts[1] == "melodic")
-        {
-            enforce(parts.length == 4 || parts.length == 6,
-                format("%s(%d): expected: <program> melodic <bank> <gm program> [<key lo> <key hi>]", path, lineNo + 1));
-            e.bank = parts[2].to!int;
-            e.gm = parts[3].to!int;
-            if (parts.length == 6)
-            {
-                e.keyLo = parts[4].to!int;
-                e.keyHi = parts[5].to!int;
-            }
-        }
-        else if (parts[1] == "drums")
-        {
-            e.drums = true;
-            e.bank = parts[2].to!int;
-            foreach (k; parts[3..$])
-                e.keys ~= k.to!int;
-        }
-        else
-            throw new Exception(format("%s(%d): unknown program kind '%s'", path, lineNo + 1, parts[1]));
-        map.add(e);
-    }
-    return map;
-}
-
-ptrdiff_t indexOfHash(string s)
-{
-    foreach (i, c; s)
-        if (c == '#')
-            return i;
-    return -1;
-}
-
-void writeMap(string path, ProgMap pm, string song)
-{
-    auto f = File(path, "w");
-    f.writefln("# Program map generated by mid2seq for %s", song);
-    f.writeln("# <program> melodic <bank> <GM program> <lowest key> <highest key>");
-    f.writeln("# <program> drums <kit> <keys...>");
-    foreach (e; pm.entries)
-    {
-        if (e.drums)
-        {
-            f.writef("%d drums %d", e.vabProg, e.bank);
-            foreach (k; e.keys)
-                f.writef(" %d", k);
-            f.writeln();
-        }
-        else
-            f.writefln("%d melodic %d %d %d %d", e.vabProg, e.bank, e.gm, e.keyLo, e.keyHi);
-    }
-}
-
-// --- Conversion
 
 struct OutEv
 {
@@ -328,38 +58,6 @@ struct OutEv
     bool meta;
 }
 
-struct Options
-{
-    string input, output, mapOut, mapIn;
-    bool loop;
-    int drumChannel = 10;
-    uint ppqn;
-    int tones = 16;
-}
-
-string normalizeText(const(ubyte)[] data)
-{
-    string s;
-    foreach (b; data)
-        if (isAlpha(cast(dchar)b))
-            s ~= cast(char)b;
-    return s.toLower;
-}
-
-void vlq(ref ubyte[] b, ulong v)
-{
-    ubyte[5] tmp;
-    int n = 0;
-    tmp[n++] = cast(ubyte)(v & 0x7F);
-    v >>= 7;
-    while (v)
-    {
-        tmp[n++] = cast(ubyte)((v & 0x7F) | 0x80);
-        v >>= 7;
-    }
-    while (n > 0)
-        b ~= tmp[--n];
-}
 
 int main(string[] args)
 {
@@ -371,6 +69,8 @@ int main(string[] args)
             "output|o", &opt.output,
             "map-out", &opt.mapOut,
             "map-in", &opt.mapIn,
+            "bank-out", &opt.bankOut,
+            "vab", &opt.singleVab,
             "loop", &opt.loop,
             "drum-channel", &opt.drumChannel,
             "ppqn", &opt.ppqn,
@@ -385,13 +85,15 @@ int main(string[] args)
 
     if (help || args.length != 2)
     {
-        writeln("Convert a Standard MIDI File to a PlayStation SEQ file.");
-        writeln("Usage: mid2seq [options] input.mid");
+        writeln("Convert a Standard MIDI File or 4-channel ProTracker MOD to PlayStation audio files.");
+        writeln("Usage: mid2seq [options] input.mid|input.mod");
         writeln("  -o, --output <file>     output SEQ file (default: input name with .seq)");
-        writeln("      --map-out <file>    write the program map for sf2tovab (default: output name with .map)");
-        writeln("      --map-in <file>     use an existing program map (e.g. of a ready sound bank)");
+        writeln("      --bank-out <name>   MOD VAB bank base name (default: output name without extension)");
+        writeln("      --vab               write the MOD bank as one .vab instead of .vh + .vb");
+        writeln("      --map-out <file>    MIDI: write the program map for sf2tovab (default: output name with .map)");
+        writeln("      --map-in <file>     MIDI: use an existing program map (e.g. of a ready sound bank)");
         writeln("                          instead of generating one; notes without an instrument are dropped");
-        writeln("      --loop              loop the whole song if it has no loop markers");
+        writeln("      --loop              loop the whole song if no loop markers/order loop exists");
         writeln("      --drum-channel <n>  MIDI channel (1..16) that carries drums, 0 for none (default 10)");
         writeln("      --ppqn <n>          rescale the time resolution (ticks per quarter note)");
         writeln("      --tones <n>         maximum drum keys per program, 1..16 (default 16)");
@@ -426,7 +128,10 @@ int main(string[] args)
 
 int convert(Options opt)
 {
-    auto midi = parseMidi(cast(const(ubyte)[])read(opt.input));
+    auto input = cast(const(ubyte)[])read(opt.input);
+    if (isModFile(input))
+        return convertMod(opt, input);
+    auto midi = parseMidi(input);
     int drumCh = opt.drumChannel - 1; // -1: none
 
     // Pass 1: find out which instruments the song uses

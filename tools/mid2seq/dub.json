@@ -1,6 +1,6 @@
 {
     "name": "mid2seq",
-    "description": "Standard MIDI File to PlayStation SEQ converter",
+    "description": "MIDI and ProTracker MOD to PlayStation SEQ/VAB converter",
     "authors": [
         "Timur Gafarov"
     ],
