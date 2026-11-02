@@ -1,6 +1,6 @@
 # Retrolang Compiler
 
-Work-in-progress compiler/assembler/linker for Retrolang. Written in [D](https://dlang.org).
+Compiler/assembler/linker for Retrolang. Written in [D](https://dlang.org).
 
 Building:
 

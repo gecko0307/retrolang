@@ -6,6 +6,16 @@ SEQ Tool is a multi-purpose sequencer music converter that can do the following:
 - Convert a ProTracker MOD file to PlayStation SEQ file
 - Generate a VAB instrument bank from a SoundFont 2 file.
 
+## Compilation
+
+SEQ Tool is written in [D](https://dlang.org).
+
+To build:
+
+```
+dub build --build=release-nobounds
+```
+
 ## Usage
 
 ```

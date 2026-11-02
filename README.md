@@ -1,8 +1,6 @@
 <img align="center" alt="banner" src="https://raw.githubusercontent.com/gecko0307/retrolang/main/media/banner.png" height="127px" style="image-rendering:pixelated" />
 
-The goal of this project is to build a PlayStation 1 development toolchain completely from scratch, without relying on GCC, LLVM, or other similar compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code.
-
-Retrolang tools are written entirely in [D language](https://dlang.org/).
+The goal of this project is to build a PlayStation 1 development toolchain completely from scratch, without relying on GCC, LLVM, or other similar compiler frameworks. It features a low-level C-like language, Retrolang, that compiles to MIPS R3000 machine code. Retrolang also includes unique tools not found in other SDKs, such as a MIDI/MOD to SEQ converter.
 
 What you can do with Retrolang:
 
@@ -19,6 +17,8 @@ What you can do with Retrolang:
 - Play STR video streams
 - Work with the BIOS
 - Set custom interrupt handlers.
+
+All tools are written entirely in [D language](https://dlang.org/).
 
 All provided software is in alpha stage.
 

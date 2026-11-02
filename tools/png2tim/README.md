@@ -1,8 +1,18 @@
 # PNG2TIM
 
-A simple PNG to TIM converter.
+PNG to TIM converter.
 
-Usage:
+## Compilation
+
+DATWrite is written in [D](https://dlang.org).
+
+To build:
+
+```
+dub build --build=release-nobounds
+```
+
+## Usage
 
 ```
 png2tim --bpp=8 --alpha=128 --ix=320 --iy=0 --cx=320 --cy=256 -o=texture.tim texture.png
