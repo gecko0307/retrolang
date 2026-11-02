@@ -44,8 +44,8 @@ Main philosophy of the project: PSX programming doesn't require a full-fledged C
 
 Project goals:
 - Provide a convenient domain-specific language as a trade-off between C and assembly for hobby R3000 programming, with a straightforward, unhindered hardware access;
-- Provide a modern, open, self-contained toolset with x86_64 replacements for legacy utilities;
-- Provide a clean-room SDK that doesn't depend on a single byte of a proprietary software.
+- Provide a modern toolset with x86_64 replacements for legacy utilities;
+- Provide a self-contained SDK that doesn't depend on a single byte of a proprietary software.
 
 Retrolang reimplements software in cases when existing solutions are outdated, unmaintained or not convenient enough. Otherwise, the SDK doesn't reinvent the wheel and relies on time-proven tools (one example is [mkpsxiso](https://github.com/lameguy64/mkpsxiso)).
 
