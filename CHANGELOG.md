@@ -1,3 +1,10 @@
+Retrolang 0.13.0 - TBD
+----------------------
+- **RLC**
+  - `#ifdef`, `#ifndef`, `#else` preprocessor directives
+- **Retrolib**
+  - Add include guards.
+
 Retrolang 0.12.0 - 1 Nov, 2026
 ------------------------------
 - **Retrolib**
