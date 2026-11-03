@@ -253,6 +253,7 @@ Retrolang is tested on a real hardware and in the following emulators:
 
 What is not implemented yet:
 
+- Common fixed-point math functions
 - Matrix math
 - TMD models support
 
