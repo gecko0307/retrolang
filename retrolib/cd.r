@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _CD_R_
+#define _CD_R_
+
 /*
  * CD audio driver.
  */
@@ -227,5 +230,7 @@ void cdUpdate()
         }
     }
 }
+
+#endif
 
 #endif

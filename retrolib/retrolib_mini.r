@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _RETROLIB_R_
+#define _RETROLIB_R_
+
 /*
  * Retrolib - a system library for Retrolang.
  * This module includes a minimal part of the library
@@ -37,3 +40,5 @@ For more information, please refer to <https://unlicense.org>
 #import "gpu.r"
 #import "spu.r"
 #import "cd.r"
+
+#endif

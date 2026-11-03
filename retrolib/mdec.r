@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _MDEC_R_
+#define _MDEC_R_
+
 /**
  * MDEC driver.
  *
@@ -468,5 +471,7 @@ int mdecDecodeFrame(struct MdecFrame* f)
         return -1;
     return 0;
 }
+
+#endif
 
 #endif

@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _VLC_R_
+#define _VLC_R_
+
 /**
  * VLC decoder for STR video frames (bitstream version 2).
  *
@@ -463,5 +466,7 @@ int vlcDecode(struct VlcJob* job)
 
     return -1;
 }
+
+#endif
 
 #endif

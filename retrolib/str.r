@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _STR_R_
+#define _STR_R_
+
 /**
  * STR video streaming.
  *
@@ -755,5 +758,7 @@ int strUpdate(int x, int y, int depth)
     strFramesDecoded++;
     return 1;
 }
+
+#endif
 
 #endif

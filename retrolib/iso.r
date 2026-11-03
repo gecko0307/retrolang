@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _ISO_R_
+#define _ISO_R_
+
 /**
  * ISO9660 file lookup.
  *
@@ -390,5 +393,7 @@ int isoFindFile(uchar* path)
     isoRelease();
     return dirLba;
 }
+
+#endif
 
 #endif

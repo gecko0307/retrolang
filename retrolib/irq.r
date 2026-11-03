@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _IRQ_R_
+#define _IRQ_R_
+
 /**
  * Interrupts API.
  */
@@ -87,5 +90,7 @@ void irqRestore(int prev)
     if (prev)
         irqEnable();
 }
+
+#endif
 
 #endif

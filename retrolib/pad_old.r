@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _PAD_OLD_R_
+#define _PAD_OLD_R_
+
 /**
  * Legacy gamepad driver.
  * You should use pad.r instead.
@@ -66,5 +69,7 @@ void padWaitSync()
     while (*p == 0x0000) {}
     _pad_data = *p;
 }
+
+#endif
 
 #endif

@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _GPU_R_
+#define _GPU_R_
+
 /**
  * GPU driver.
  */
@@ -902,5 +905,7 @@ void gpuSortTriangle3(struct GpuTriangle3* tri, int z)
     v = py + tri->v3;
     p[6] = GP0_PACK_UV(u, v);
 }
+
+#endif
 
 #endif

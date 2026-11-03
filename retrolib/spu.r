@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _SPU_R_
+#define _SPU_R_
+
 /*
  * Simple sound API.
  */
@@ -409,5 +412,7 @@ void spuStopAll()
     for (int v = 0; v < 24; v++)
         voiceSound[v] = -1;
 }
+
+#endif
 
 #endif

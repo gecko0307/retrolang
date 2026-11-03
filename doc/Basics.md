@@ -168,13 +168,14 @@ A preprocessor directive must be the first token on its line and takes the rest 
 
 | Directive | Meaning |
 |---|---|
-| `#define NAME tokens...` | Object-like token macro (no parameters) |
+| `#define NAME [tokens...]` | Preprocessor definition |
 | `#undef NAME` | Remove a definition |
 | `#include "file"` | Insert another source file |
 | `#import "file"` | Insert a source file and add a module import |
+| `#ifdef/#idndef NAME` / `#else` / `#endif` | Conditional block |
 | `#if import` / `#endif` | Include a block only when compiling the file as a module, not when textually included |
 
-`#define` bodies are token sequences, expanded where the name is used. A macro never expands recursively into itself. `#if import` is the only supported conditional directive; there is no `#ifdef`, expression evaluation, or general-purpose conditional compilation. There is no conventional include guard, so avoid textually including a file more than once unless its contents are safe to repeat. A file that includes itself, directly or indirectly, is an error.
+`#define` bodies are token sequences, expanded where the name is used. A macro never expands recursively into itself.
 
 `#define` is purely lexical. For typed, hygienic substitution use `macro` (see Macros.md).
 

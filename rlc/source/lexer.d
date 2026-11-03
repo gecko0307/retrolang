@@ -151,7 +151,7 @@ private Token[] lexRaw(string src, string file)
                 if (open < src.length && src[open] == '{')
                 {
                     int openLine = line;
-                    foreach (ch; src[i .. open])
+                    foreach (ch; src[i..open])
                     {
                         if (ch == '\n')
                             openLine++;
@@ -233,7 +233,7 @@ private Token[] lexRaw(string src, string file)
                     if (depth != 0)
                         throw err(file, line, "unterminated asm block");
 
-                    toks ~= Token(TK.AsmBlock, src[bodyStart .. j - 1], 0, asmLine);
+                    toks ~= Token(TK.AsmBlock, src[bodyStart..j - 1], 0, asmLine);
                     line = openLine;
                     i = j;
                     continue;
@@ -249,12 +249,12 @@ private Token[] lexRaw(string src, string file)
             size_t s = i;
             while (i < src.length && isAlphaNum(src[i]))
                 i++;
-            string t = src[s .. i];
+            string t = src[s..i];
             bool uns = false;
             if (t.length > 1 && (t[$ - 1] == 'u' || t[$ - 1] == 'U'))
             {
                 uns = true;
-                t = t[0 .. $ - 1];
+                t = t[0..$ - 1];
             }
             long v = 0;
             try
@@ -282,7 +282,7 @@ private Token[] lexRaw(string src, string file)
             }
             if (i >= src.length)
                 throw err(file, line, "unterminated character literal");
-            string body_ = src[s .. i];
+            string body_ = src[s..i];
             i++;
             ubyte[] b = parseEscapes(body_);
             if (b.length != 1)
@@ -306,24 +306,24 @@ private Token[] lexRaw(string src, string file)
             }
             if (i >= src.length)
                 throw err(file, line, "unterminated string literal");
-            toks ~= Token(TK.Str, src[s .. i], 0, line);
+            toks ~= Token(TK.Str, src[s..i], 0, line);
             i++;
             continue;
         }
 
         // Operators / punctuation
         string sym;
-        if (i + 3 <= src.length && (src[i .. i + 3] == "<<=" || src[i .. i + 3] == ">>="))
-            sym = src[i .. i + 3];
+        if (i + 3 <= src.length && (src[i..i + 3] == "<<=" || src[i..i + 3] == ">>="))
+            sym = src[i..i + 3];
         else if (i + 2 <= src.length && inList(src[i .. i + 2], syms2))
-            sym = src[i .. i + 2];
+            sym = src[i..i + 2];
         else
         {
             foreach (ch; singleSyms)
             {
                 if (ch == c)
                 {
-                    sym = src[i .. i + 1];
+                    sym = src[i..i + 1];
                     break;
                 }
             }
@@ -350,14 +350,19 @@ private Token[] preprocess(
 {
     Token[] res;
     size_t i = 0;
-    
-    bool insertBlock = true;
+    struct Conditional
+    {
+        bool parentActive;
+        bool condition;
+        bool elseSeen;
+        int line;
+    }
+    Conditional[] conditions;
+    bool active = true;
 
     while (i < toks.length)
     {
         Token t = toks[i];
-        import std.stdio;
-        //writeln(t, " ", insertBlock);
         if (t.kind == TK.Eof)
             break;
 
@@ -370,7 +375,7 @@ private Token[] preprocess(
             size_t end = i + 1;
             while (end < toks.length && toks[end].kind != TK.Eof && toks[end].line == t.line)
                 end++;
-            Token[] d = toks[i + 1 .. end];
+            Token[] d = toks[i + 1..end];
 
             if (d.length == 0 || d[0].kind != TK.Ident)
                 throw err(path, t.line, "expected directive name after '#'");
@@ -378,35 +383,65 @@ private Token[] preprocess(
             switch (d[0].text)
             {
                 case "define":
-                    if (!insertBlock) break;
+                    if (!active) break;
                     if (d.length < 2 || d[1].kind != TK.Ident)
                         throw err(path, t.line, "#define needs a name");
-                    macros[d[1].text] = d[2 .. $].dup;   // body is already tokenized
+                    macros[d[1].text] = d[2..$].dup;   // body is already tokenized
                     break;
 
                 case "undef":
-                    if (!insertBlock) break;
+                    if (!active) break;
                     if (d.length != 2 || d[1].kind != TK.Ident)
                         throw err(path, t.line, "#undef needs a name");
                     macros.remove(d[1].text);
                     break;
 
                 case "if":
-                    if (!insertBlock) break;
+                case "ifdef":
+                case "ifndef":
+                {
                     if (d.length != 2 || d[1].kind != TK.Ident)
-                        throw err(path, t.line, "#if needs a name");
-                    string name = d[1].text;
-                    if (name == "import" && isIncludedFile)
-                        insertBlock = false;
+                        throw err(path, t.line, format("#%s needs a name", d[0].text));
+                    bool condition;
+                    if (d[0].text == "if")
+                    {
+                        // Preserve the existing #if import convention used by library files.
+                        condition = !(d[1].text == "import" && isIncludedFile);
+                    }
+                    else
+                    {
+                        condition = (d[1].text in macros) !is null;
+                        if (d[0].text == "ifndef")
+                            condition = !condition;
+                    }
+                    conditions ~= Conditional(active, condition, false, t.line);
+                    active = active && condition;
+                    break;
+                }
+
+                case "else":
+                    if (d.length != 1)
+                        throw err(path, t.line, "#else does not take arguments");
+                    if (conditions.length == 0)
+                        throw err(path, t.line, "#else without matching #if");
+                    if (conditions[$ - 1].elseSeen)
+                        throw err(path, t.line, "duplicate #else");
+                    conditions[$ - 1].elseSeen = true;
+                    active = conditions[$ - 1].parentActive && !conditions[$ - 1].condition;
                     break;
 
                 case "endif":
-                    insertBlock = true;
+                    if (d.length != 1)
+                        throw err(path, t.line, "#endif does not take arguments");
+                    if (conditions.length == 0)
+                        throw err(path, t.line, "#endif without matching #if");
+                    active = conditions[$ - 1].parentActive;
+                    conditions = conditions[0..$ - 1];
                     break;
 
                 case "include":
                 case "import":
-                    if (!insertBlock) break;
+                    if (!active) break;
                     if (d.length != 2 || d[1].kind != TK.Str)
                         throw err(path, t.line, format("#%s needs a quoted file name", d[0].text));
 
@@ -445,7 +480,7 @@ private Token[] preprocess(
                     break;
 
                 default:
-                    if (!insertBlock) break;
+                    if (!active) break;
                     else
                         throw err(path, t.line, "unknown directive '#" ~ d[0].text ~ "'");
             }
@@ -454,13 +489,13 @@ private Token[] preprocess(
             continue;
         }
 
-        if (insertBlock)
+        if (active)
         {
             if (t.kind == TK.Ident && t.text in macros)
             {
-                bool[string] active;
-                active[t.text] = true;
-                res ~= expand(t, macros, active);
+                bool[string] expandingMacros;
+                expandingMacros[t.text] = true;
+                res ~= expand(t, macros, expandingMacros);
             }
             else
                 res ~= t;
@@ -468,6 +503,9 @@ private Token[] preprocess(
         
         i++;
     }
+
+    if (conditions.length != 0)
+        throw err(path, conditions[$ - 1].line, "unterminated conditional directive");
 
     return res;
 }

@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _RETROLIB_R_
+#define _RETROLIB_R_
+
 /*
  * Retrolib - a system library for Retrolang.
  */
@@ -44,3 +47,5 @@ For more information, please refer to <https://unlicense.org>
 #import "str.r"
 #import "vab.r"
 #import "seq.r"
+
+#endif

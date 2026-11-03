@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _XA_R_
+#define _XA_R_
+
 /*
  * CD-XA streaming on top of cd.r.
  *
@@ -146,5 +149,7 @@ void cdXaUpdate()
         }
     }
 }
+
+#endif
 
 #endif

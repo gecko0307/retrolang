@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _BIOS_R_
+#define _BIOS_R_
+
 /**
  * Macros for some common BIOS calls.
  */
@@ -116,5 +119,7 @@ struct DirEntry
     uint lba;
     uint reserved;
 };
+
+#endif
 
 #endif

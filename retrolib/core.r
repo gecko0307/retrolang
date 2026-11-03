@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _CORE_R_
+#define _CORE_R_
+
 /**
  * Core definitions.
  */
@@ -149,3 +152,5 @@ macro SCRATCHPAD = (KSEG0_SCRATCHPAD_START, KSEG0_SCRATCHPAD_SIZE);
 #define GTE_ZSF3   29 // Z-averaging scale factor, signed 16-bit integer
 #define GTE_ZSF4   30 // Z-averaging scale factor, signed 16-bit integer
 #define GTE_FLAG   31 // Flag (read-only), returns any calculation errors, 20 bits
+
+#endif

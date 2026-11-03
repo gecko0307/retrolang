@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _PCSX_R_
+#define _PCSX_R_
+
 /**
  * PCSX-Redux debug API.
  * https://pcsx-redux.consoledev.net/mips_api/
@@ -182,5 +185,7 @@ void* pcsx_msanGetChainPtr(void* headerAddr)
 {
     return *(void**)PCSX_MSAN_CHAIN;
 }
+
+#endif
 
 #endif

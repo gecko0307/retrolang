@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _PAD_R_
+#define _PAD_R_
+
 /**
  * Gamepad driver.
  */
@@ -253,5 +256,7 @@ int padAxis(int v)
         return 0;
     return s;
 }
+
+#endif
 
 #endif

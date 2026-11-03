@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _VAB_R_
+#define _VAB_R_
+
 /*
  * VAB sound bank loader.
  *
@@ -181,5 +184,7 @@ uint vabSampleAddr(int bank, int vag)
 {
     return vabVagAddr[bank * VAB_MAX_VAGS + (vag & 0xFF)];
 }
+
+#endif
 
 #endif

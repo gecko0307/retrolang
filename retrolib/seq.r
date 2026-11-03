@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _SEQ_R_
+#define _SEQ_R_
+
 /*
  * SEQ music sequencer.
  *
@@ -767,5 +770,7 @@ void seqUpdateTimer()
     seqTimerLast = now;
     seqStep((d * seqHblankUs64) >> 6);
 }
+
+#endif
 
 #endif

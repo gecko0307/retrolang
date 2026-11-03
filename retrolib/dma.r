@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _DMA_R_
+#define _DMA_R_
+
 // MDECin (RAM to MDEC)
 #define DMA_CH0_MADR        0x1f801080
 #define DMA_CH0_BCR         0x1f801084
@@ -114,5 +117,7 @@ int* dma5Chcr = DMA_CH5_CHCR; // channel 5: channel control
 int* dma6Madr = DMA_CH6_MADR; // channel 6: base address
 int* dma6Bcr  = DMA_CH6_BCR;  // channel 6: block control
 int* dma6Chcr = DMA_CH6_CHCR; // channel 6: channel control
+
+#endif
 
 #endif

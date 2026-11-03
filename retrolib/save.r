@@ -24,6 +24,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <https://unlicense.org>
 */
 
+#ifndef _SAVE_R_
+#define _SAVE_R_
+
 /**
  * Memory card save/load API.
  *
@@ -342,5 +345,7 @@ int saveRead(struct Save* save)
         save->size = size;
     return SAVE_OK;
 }
+
+#endif
 
 #endif
