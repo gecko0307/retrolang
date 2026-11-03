@@ -75,25 +75,13 @@ Build automation system. With Retrobuild, you don't have to call the compiler di
 
 Disassembler and dumper for MIPS R3000 binaries.
 
-### PNG2TIM
+### Content Authoring Tools
 
-A simple PNG to TIM converter.
-
-### WAV2VAG
-
-PCM WAV to ADPCM VAG converter.
-
-### XA Tool
-
-XA stream encoder/interleaver. Supports PCM WAV, XA-ADPCM, MP3, OGG/Vorbis, FLAC, QOI, OPUS, MOD, XM files as input.
-
-### SEQ Tool
-
-A multi-purpose sequencer music tool that converts MIDI and MOD files to SEQ format and generates VAB instrument banks.
-
-### DATWrite
-
-An utility that generates CD license patch (a *.dat file) with a custom text and logo model.
+- PNG2TIM - a simple PNG to TIM converter
+- WAV2VAG - PCM WAV to ADPCM VAG (and vice versa) converter
+- XA Tool - XA stream encoder/interleaver. Supports PCM WAV, XA-ADPCM, MP3, OGG/Vorbis, FLAC, QOI, OPUS, MOD, XM files as input
+- SEQ Tool - sequencer music tool that converts MIDI and MOD files to SEQ format and generates VAB instrument banks
+- DATWrite - an utility that generates CD license patch (a *.dat file) with a custom text and logo model.
 
 ### GPSXEmu
 
@@ -101,7 +89,9 @@ Work-in-progress PlayStation emulator.
 
 ## The Language
 
-Retrolang can be called "ANSI C from an alternate universe". It is a simple curly-bracket procedural language largely inspired by C, but based on different architectural decisions and designed to run in extremely memory-constrained environments. Unlike C, Retrolang is a language with **predictable semantics**. The compiler translates your program verbatim, without optimizations and unexpected changes behind your back, which is important for bare-metal programming. For example, it doesn't implicitly inline functions and optimize memory access. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
+Retrolang can be called "ANSI C from an alternate universe". It is a simple curly-bracket procedural language largely inspired by C, but based on different architectural decisions and designed to run in extremely memory-constrained environments.
+
+Unlike C, Retrolang is a language with **predictable semantics**. The compiler translates your program verbatim, without optimizations and unexpected changes behind your back, which is important for bare-metal programming. For example, it doesn't implicitly inline functions and optimize memory access. You are solely responsible for writing good-quality code and using the console's limited resources wisely.
 
 **Primitive types**: `int`, `short`, `char`, `uint`, `ushort`, `uchar`, `void`, and pointers to them. Pointers compare as unsigned. Literals above `0x7FFFFFFF`, or with a 'u' suffix, are unsigned. Like C, `uchar`/`ushort` promote to (signed) `int` in arithmetic; only `uint` makes `/`, `%`, `>>` and comparisons unsigned. C-style type casts are supported.
 
