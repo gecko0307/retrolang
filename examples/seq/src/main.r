@@ -7,7 +7,11 @@
  * UP/DOWN  - music volume
  */
 
-#import "retrolib_mini.r"
+#import "core.r"
+#import "bios.r"
+#import "dma.r"
+#import "pad.r"
+#import "spu.r"
 #import "vab.r"
 #import "seq.r"
 
@@ -19,7 +23,7 @@ void main()
 {
     padInit();
     spuInit();
-
+    
     int bank = vabLoad(bankHeader, bankBody);
     if (bank < 0)
     {
@@ -28,7 +32,8 @@ void main()
     }
 
     seqInit();
-    seqSetPAL(gpuDetectVMode() == VMODE_PAL);
+    
+    seqSetPAL(*(char*)0xbfc7ff52 == 'E');
 
     // The loop markers inside the tune repeat it forever,
     // so there is no need to ask for repeat at the end of the track.
