@@ -1,5 +1,5 @@
-Retrolang 0.13.0 - TBD
-----------------------
+Retrolang 0.13.0 - 8 Nov, 2026
+------------------------------
 - **RLC**
   - `#ifdef`, `#ifndef`, `#else` preprocessor directives
 - **Retrolib**
